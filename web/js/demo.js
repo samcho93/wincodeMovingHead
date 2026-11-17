@@ -36,7 +36,9 @@ export function demoValues(model, chans, t) {
   s.run(p, k, t, model);
   const v = {}; chans.forEach(c => { v[c] = 0; });
   const set = (key, val) => { if (has(key) && val != null) v[key] = u8(val); };
-  set('pan', 128 + 34 * Math.sin(t * 0.45)); set('tilt', 74 + 16 * Math.sin(t * 0.33)); set('dimmer', 255); set('cutRot', 128);
+  // pan/tilt sweep in 16 bit (coarse + fine) so the movement has no 8-bit steps
+  const set16 = (key, val) => { const w = Math.max(0, Math.min(65535, Math.round(val * 256))); set(key, w >> 8); set(key + 'Fine', w & 255); };
+  set16('pan', 128 + 34 * Math.sin(t * 0.45)); set16('tilt', 74 + 16 * Math.sin(t * 0.33)); set('dimmer', 255); set('cutRot', 128);
   set('strobe', p.strobeK != null ? probe(model, 'strobe', 'strobe', 'st', st => st.mode === 'strobe') + 70 * p.strobeK : probe(model, 'strobe', 'strobe', 'open', st => st.mode === 'open'));
   // focus: the value the model treats as sharp at mid zoom
   set('focus', 255 * (model.spec.focus[0] + model.spec.focus[1] * 0.4));

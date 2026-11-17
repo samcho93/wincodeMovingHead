@@ -13,15 +13,19 @@ function approachWheel(cur, tgt, step, n) {
 const wrap = (v, n) => ((v % n) + n) % n;
 const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
-/** One axis (pan/tilt): acceleration-limited trapezoidal speed profile */
+/** One axis (pan/tilt): critically damped follower with a speed limit.
+ *  A real head's motor driver smooths the 8-bit / 40 Hz steps of a DMX channel; chasing the target directly made the
+ *  speed jump by ~15°/s from frame to frame, which showed as a shaking beam. This keeps frame-to-frame speed changes tiny. */
 class Axis {
-  constructor(vmax, acc) { this.pos = 0; this.vel = 0; this.vmax = vmax; this.acc = acc; }
+  constructor(vmax, smooth) { this.pos = 0; this.vel = 0; this.vmax = vmax; this.smooth = smooth; }
   step(target, dt, speedScale) {
-    const err = target - this.pos, vmax = this.vmax * speedScale;
-    const want = Math.sign(err) * Math.min(vmax, Math.sqrt(2 * this.acc * Math.abs(err)));
-    this.vel = approach(this.vel, want, this.acc * dt);
-    this.pos += this.vel * dt;
-    if (Math.abs(err) < 0.02 && Math.abs(this.vel) < 2) { this.pos = target; this.vel = 0; }
+    const sc = Math.max(0.03, speedScale), st = this.smooth / Math.sqrt(sc), om = 2 / st, x = om * dt, ex = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    const maxC = this.vmax * sc * st, ch = Math.min(maxC, Math.max(-maxC, this.pos - target)), tg = this.pos - ch;
+    const tmp = (this.vel + om * ch) * dt;
+    this.vel = (this.vel - om * tmp) * ex;
+    let out = tg + (ch + tmp) * ex;
+    if ((target - this.pos > 0) === (out > target)) { out = target; this.vel = 0; }   // never overshoot
+    this.pos = out;
   }
 }
 
@@ -44,7 +48,7 @@ export class Fixture {
     this.demo = false; this.demoT = 0; this.demoScene = '';
     this.lampOn = true; this.sceneEdit = null;                   // sceneEdit: index of the scene being edited on the panel
     this.sessionSec = 0; this.tempC = 26; this.time = 0;
-    this.pan = new Axis(215, 900); this.tilt = new Axis(185, 900);
+    this.pan = new Axis(215, 0.2); this.tilt = new Axis(185, 0.2);
     this.tilt.pos = -model.spec.tiltRange / 2;                    // an unpowered head hangs down
     // optical state (actual motor positions)
     this.o = { colorPos: 0, cmy: [0, 0, 0], cto: 0, goboPos: 0, goboOfs: 0, rotPos: 0, rotOfs: 0, goboAngle: 0, zoom: 0, focus: 0.4, frost: 0,

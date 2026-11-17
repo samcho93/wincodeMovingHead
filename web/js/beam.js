@@ -57,7 +57,7 @@ void main() {
 
   const int N = 40;
   float dt = (t1 - t0) / float(N);
-  float j = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + uTime * 7.0);
+  float j = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));   // fixed dither: a per-frame offset made the beam shimmer
   vec3 acc = vec3(0.0);
   for (int i = 0; i < N; i++) {
     vec3 p = ro + rd * (t0 + (float(i) + j) * dt);
