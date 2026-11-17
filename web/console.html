@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DMX512 Transmitter — Slider Console</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="tx">
+<div class="tx-bar">
+  <b style="color:var(--acc)">🎚 DMX512 Transmitter</b>
+  <label>Output <select id="out">
+    <option value="cable">Virtual DMX cable (between browser tabs)</option>
+    <option value="artnet">Art-Net (UDP 6454)</option>
+    <option value="sacn">sACN / E1.31 (UDP 5568)</option>
+  </select></label>
+  <label id="lblUni">Universe <input type="number" id="uni" min="0" max="63999" value="0"></label>
+  <label id="lblHost">Target IP <input type="text" id="host" value="127.0.0.1" title="Art-Net: device IP or broadcast (255.255.255.255) · sACN: IP or 'multicast'"></label>
+  <label>Rate <select id="rate"><option>44</option><option selected>40</option><option>30</option><option>20</option><option>10</option></select>Hz</label>
+  <label><input type="checkbox" id="run" checked> Transmit</label>
+  <span id="txState" class="pill off">Stopped</span>
+  <span class="sp"></span>
+  <label>View <select id="view"><option value="fx">Fixture channels (named)</option><option value="all">All 512 channels</option></select></label>
+</div>
+<div class="tx-bar" id="fxBar">
+  <label>Start address <input type="number" id="addr" min="1" max="512" value="1"></label>
+  <label>Channel mode <select id="mode"><option value="EXT">EXT · 20CH</option><option value="STD">STD · 17CH</option></select></label>
+  <button class="btn sm" id="pOpen" title="Shutter open, dimmer 100%">💡 Light on</button>
+  <button class="btn sm" id="pBlack" title="Dimmer 0">⬛ Blackout</button>
+  <button class="btn sm" id="pCenter" title="Pan / tilt centre">◎ Centre</button>
+  <button class="btn sm" id="pZero" title="Set all 512 channels to 0">All 0</button>
+  <button class="btn sm" id="pDemo" title="Animate the values automatically">▶ Demo</button>
+  <span class="note" id="fxNote"></span>
+</div>
+<div id="faders" class="faders"></div>
+<div id="grid" class="grid512" hidden></div>
+<script type="module" src="js/console.js"></script>
+</body>
+</html>

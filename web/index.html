@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wincode 250W BSW — 3D Moving Head Simulator</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="logo">WINCODE</span><span class="model-chip">250W BSW · WOP-LM1012B</span><span class="sub">3D Moving Head Simulator</span></div>
+    <div class="tb-group">
+      <label class="chk" title="How visible the beam is in the air (fog / haze machine)">Haze <input type="range" id="rngHaze" min="0" max="100" value="55"></label>
+      <label class="chk"><input type="checkbox" id="chkWork"> Work light</label>
+      <label class="chk"><input type="checkbox" id="chkDock" checked> LCD panel</label>
+      <label class="chk">Mount <select id="selMount"><option value="floor">Floor</option><option value="truss">Truss (inverted)</option></select></label>
+    </div>
+    <div class="tb-group">
+      <button class="tb" data-view="stage" title="Whole stage">Stage</button>
+      <button class="tb" data-view="front" title="Fixture front (control panel)">Front</button>
+      <button class="tb" data-view="rear" title="Fixture rear (DMX and power connectors)">Rear</button>
+      <button class="tb" data-view="beam" title="Looking into the light from the audience">Audience</button>
+      <button class="tb" data-view="lcd" title="LCD close-up">LCD</button>
+    </div>
+    <div class="tb-group right">
+      <button class="tb" id="btnTx" title="Add or remove the slider-type DMX512 test transmitter">🎚 Add DMX Transmitter</button>
+      <button class="tb power" id="btnPower" title="Fixture power switch (rear panel)">⏻ Power OFF</button>
+      <span id="sig" class="pill off">No DMX signal</span>
+      <span id="conn" class="pill off">Checking server…</span>
+    </div>
+  </header>
+
+  <main id="stage">
+    <div id="viewport"></div>
+    <div id="hint">Drag: orbit · Wheel: zoom · Right-drag: pan · Click the fixture's buttons / power switch to operate it · Keyboard: ↑ ↓ Enter Esc (MENU)</div>
+    <div id="lcdDock">
+      <div class="lcd-card"><div class="lcd-cap">Fixture LCD <span id="lcdState"></span></div><canvas id="lcdView" width="320" height="240"></canvas></div>
+      <div class="keypad" title="Manual 4.1: MENU · UP · DOWN · ENTER">
+        <button class="key" data-key="up">▲<small>UP</small></button>
+        <div class="key-row"><button class="key" data-key="menu">≡<small>MENU</small></button><button class="key" data-key="enter">⏎<small>ENTER</small></button></div>
+        <button class="key" data-key="down">▼<small>DOWN</small></button>
+      </div>
+      <div class="lcd-card"><div class="lcd-cap">Beam section</div><canvas id="beamView" width="160" height="160"></canvas></div>
+    </div>
+    <div id="txDock" class="hidden">
+      <div class="tx-head"><b>🎚 DMX512 Transmitter</b><span>A separate device — sends over the virtual cable, Art-Net or sACN</span>
+        <a class="btn sm" href="console.html" target="_blank" rel="noopener">⧉ New window</a><button class="btn sm" id="txClose">Remove ✕</button></div>
+      <iframe id="txFrame" title="DMX transmitter"></iframe>
+    </div>
+  </main>
+
+  <aside id="side">
+    <nav class="tabs">
+      <button class="tab active" data-tab="status">📊 Status</button>
+      <button class="tab" data-tab="dmx">🔌 DMX Input</button>
+      <button class="tab" data-tab="help">📖 Guide</button>
+    </nav>
+    <section id="tab-status" class="tabpane active"></section>
+    <section id="tab-dmx" class="tabpane"></section>
+    <section id="tab-help" class="tabpane"></section>
+  </aside>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

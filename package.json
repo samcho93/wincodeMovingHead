@@ -1,0 +1,18 @@
+{
+  "name": "wincode-movinghead-sim",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wincode 250W BSW LED moving head — 3D digital-twin simulator (DMX512 / RDM / Art-Net / sACN input)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "build-web": "node tools/build-web.js",
+    "serve-dist": "node tools/serve-dist.js dist",
+    "dmx-send": "node tools/dmx-send.js"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0",
+    "three": "^0.170.0",
+    "ws": "^8.18.0"
+  }
+}
