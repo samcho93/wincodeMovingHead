@@ -40,6 +40,8 @@ export class Fixture {
     this.ch = Object.assign({}, this.home); this.chSource = 'home'; this.held = null;
     this.dmx = new Uint8Array(512); this.lastDmx = -1e9; this.dmxSignal = false; this.dmxFps = 0; this._fpsN = 0; this._fpsT = 0;
     this.power = false; this.resetT = -1; this.resetKind = 'all'; this.resetHold = 0; this.identify = false; this.inverted = false;
+    this.local = null; this.localSrc = 'local';                  // simulator override: values set from the Status sliders ('local') or the demo ('demo')
+    this.demo = false; this.demoT = 0; this.demoScene = '';
     this.lampOn = true; this.sceneEdit = null;                   // sceneEdit: index of the scene being edited on the panel
     this.sessionSec = 0; this.tempC = 26; this.time = 0;
     this.pan = new Axis(215, 900); this.tilt = new Axis(185, 900);
@@ -85,6 +87,11 @@ export class Fixture {
     this.save();
   }
 
+  /** Take direct control of the channel values (starts from what is in effect now). src: 'local' | 'demo' */
+  override(src = 'local') { if (!this.local) this.local = Object.assign({}, this.ch); this.localSrc = src; return this.local; }
+  /** Give control back to the fixture's own run mode / DMX input */
+  release() { this.local = null; this.demo = false; this.emit('override'); }
+
   /* ── DMX IN ── */
   feedDmx(data) {                                   // data: slots 1..512 (start-code-0 frames only)
     this.dmx.fill(0); this.dmx.set(data.subarray(0, 512));
@@ -95,6 +102,7 @@ export class Fixture {
   source(dt, sig) {
     const S = this.settings, M = this.model, F = M.features, chans = this.mode.channels;
     const pickKeys = o => { const v = {}; chans.forEach(k => { v[k] = o[k] | 0; }); return v; };
+    if (this.local) return { v: pickKeys(this.local), src: this.localSrc };
     if (this.sceneEdit != null && F.scenes) return { v: pickKeys(S.scenes[this.sceneEdit].v), src: 'edit' };
     if (S.runMode === 'DMX' || (F.ms && S.msMode === 'Auto' && sig)) {
       if (sig) { const v = {}; chans.forEach((k, i) => { const a = S.address - 1 + i; v[k] = a < 512 ? this.dmx[a] : 0; }); this.held = v; return { v, src: 'dmx' }; }

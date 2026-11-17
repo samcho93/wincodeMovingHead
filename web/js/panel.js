@@ -9,6 +9,7 @@ const err = t => `<span style="color:var(--red)">${esc(t)}</span>`;
 const pc = v => (v * 100).toFixed(0) + '%';
 const SRC_TEXT = {
   dmx: 'DMX signal', manual: 'Manual menu values — no DMX signal', hold: 'Last DMX frame (Data hold ON) — no DMX signal', home: 'Post-reset state — no DMX signal (Data hold OFF)',
+  local: 'Status-panel sliders (override)', demo: 'Demo sequence',
   auto: 'Built-in program (auto run)', sound: 'Built-in program (sound)', scene: 'Scene mode', edit: 'Scene being edited on the panel',
 };
 const RUN_TEXT = { DMX: 'DMX', AUTO: 'Auto / Host', SOUND: 'Sound', SCENE: 'Scene' };
@@ -35,13 +36,21 @@ export class Panel {
     $('#tab-status').innerHTML = `
       <h3>Fixture</h3><div class="kv" id="kvFix"></div>
       <h3>Mechanics · Optics (actual motor positions)</h3><div class="kv" id="kvOpt"></div>
-      <h3>Channel values <span id="chSrc" class="note"></span></h3><table class="ch" id="chTable"></table>
+      <h3>Channel values <span id="chSrc" class="note"></span></h3>
+      <div class="note" id="ovrBox">Drag a slider to set a channel directly. <span id="ovrOn" hidden><b style="color:var(--acc)">Override active</b> — DMX and the run mode are ignored. <button class="btn sm acc" id="btnRelease">Release</button></span></div>
+      <table class="ch" id="chTable"></table>
       <div id="soundBox" hidden><h3>Sound mode</h3><div class="note">The built-in program advances one step on every beat picked up by the microphone. <button class="btn sm" id="btnBeat">♪ Beat (manual)</button> <span id="micState"></span></div></div>`;
     this.buildChTable();
+    // sliders: take direct control of the channel values (a running demo hands over to the sliders)
+    $('#chTable').addEventListener('input', e => {
+      const k = e.target.dataset.k, fx = this.fx; if (!k) return;
+      fx.demo = false; fx.override('local')[k] = +e.target.value;
+    });
+    $('#btnRelease').addEventListener('click', () => this.fx.release());
   }
   buildChTable() {
     const chans = this.fx.mode.channels, a = this.fx.settings.address, CH = this.fx.model.ch;
-    $('#chTable').innerHTML = chans.map((k, i) => `<tr data-k="${k}"><td class="n">${a + i}</td><td>${CH[k]}</td><td class="v"></td><td class="bar"><i></i></td><td class="d"></td></tr>`).join('');
+    $('#chTable').innerHTML = chans.map((k, i) => `<tr data-k="${k}"><td class="n">${a + i}</td><td>${CH[k]}</td><td class="v"></td><td class="bar"><input type="range" min="0" max="255" value="0" data-k="${k}" title="${CH[k]}"></td><td class="d"></td></tr>`).join('');
   }
   updateStatus() {
     const fx = this.fx, S = fx.settings, o = fx.o, m = fx.mode, M = fx.model, F = M.features, src = SRC_TEXT[fx.chSource];
@@ -69,8 +78,10 @@ export class Panel {
     for (const tr of $('#chTable').rows) {
       const v = fx.ch[tr.dataset.k] | 0;
       if (tr._v === v) continue; tr._v = v;
-      tr.cells[2].textContent = v; tr.cells[3].firstChild.style.width = (v / 2.55) + '%'; tr.cells[4].textContent = M.describe(tr.dataset.k, v);
+      const sl = tr.cells[3].firstChild; if (document.activeElement !== sl) sl.value = v;
+      tr.cells[2].textContent = v; tr.cells[4].textContent = M.describe(tr.dataset.k, v);
     }
+    $('#ovrOn').hidden = !fx.local;
     $('#soundBox').hidden = S.runMode !== 'SOUND';
   }
 

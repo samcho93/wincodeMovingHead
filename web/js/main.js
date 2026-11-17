@@ -16,6 +16,7 @@ import { Beam } from './beam.js';
 import { DmxInput } from './dmx.js';
 import { RdmResponder } from './rdm.js';
 import { Panel } from './panel.js';
+import { demoValues } from './demo.js';
 
 const $ = s => document.querySelector(s);
 
@@ -231,6 +232,12 @@ function toggleTx(show) {
   try { localStorage.setItem('wmh.tx', on ? '1' : '0'); } catch (e) {}
 }
 $('#btnTx').addEventListener('click', () => toggleTx());
+// Demo: drives the fixture directly (overrides DMX / run mode) until stopped or released
+function setDemo(on) {
+  if (on) { if (!fx.power) setPower(true); fx.lampOn = true; fx.demo = true; fx.demoT = 0; fx.override('demo'); menu.home(); log('Demo started'); }
+  else if (fx.demo || fx.localSrc === 'demo') { fx.release(); log('Demo stopped'); }
+}
+$('#btnDemo').addEventListener('click', () => setDemo(!fx.demo));
 $('#txClose').addEventListener('click', () => toggleTx(false));
 
 /* ───────── sound mode (microphone) ───────── */
@@ -265,6 +272,10 @@ function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), now = performance.now(), time = clock.elapsedTime;
   pollHeld(now); micPoll(now);
+  if (fx.demo && fx.local) {                                    // demo sequence → channel values
+    if (!fx.resetting) fx.demoT += dt;
+    const d = demoValues(MODEL, fx.mode.channels, fx.demoT); fx.local = d.values; fx.localSrc = 'demo'; fx.demoScene = d.scene;
+  }
   fx.update(dt);
   if (fx.dmxOut && now - outT > 25) { outT = now; dmx.sendOut(fx.dmxOut); }      // Host/Sound: DMX OUT (40Hz)
 
@@ -290,7 +301,7 @@ function frame() {
   beam.vol.visible = fx.intensity > 0.0005 && haze > 0.001; beam.flare.visible = fv;
   composer.render();
 
-  if (now - uiT > 200) { uiT = now; panel.updateStatus(); panel.refreshDmx(); $('#lcdState').textContent = !fx.power ? 'Off' : menu.asleep ? 'Sleep' : ''; const ms = document.getElementById('micState'); if (ms) ms.textContent = mic.state === 'denied' ? 'No microphone' : mic.state; }
+  if (now - uiT > 200) { uiT = now; const bd = $('#btnDemo'); bd.classList.toggle('active', fx.demo); bd.textContent = fx.demo ? `■ Demo · ${fx.demoScene}` : '▶ Demo'; panel.updateStatus(); panel.refreshDmx(); $('#lcdState').textContent = !fx.power ? 'Off' : menu.asleep ? 'Sleep' : ''; const ms = document.getElementById('micState'); if (ms) ms.textContent = mic.state === 'denied' ? 'No microphone' : mic.state; }
 }
 
 /* ───────── start ───────── */

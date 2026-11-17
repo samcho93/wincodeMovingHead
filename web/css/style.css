@@ -76,8 +76,8 @@ table.ch { width: 100%; border-collapse: collapse; font-size: 12px; }
 table.ch td { padding: 2px 4px; border-bottom: 1px solid #1c2127; white-space: nowrap; }
 table.ch td.n { color: var(--dim); width: 26px; text-align: right; }
 table.ch td.v { width: 30px; text-align: right; font-variant-numeric: tabular-nums; color: #9fd7ff; }
-table.ch td.bar { width: 70px; }
-table.ch td.bar i { display: block; height: 6px; background: var(--acc); border-radius: 3px; min-width: 1px; }
+table.ch td.bar { width: 96px; }
+table.ch td.bar input { width: 92px; height: 14px; margin: 0; accent-color: var(--acc); vertical-align: middle; cursor: pointer; }
 table.ch td.d { color: #c6ced6; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 .src { display: block; padding: 7px 9px; margin: 5px 0; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2); cursor: pointer; }
 .src.sel { border-color: var(--acc); }

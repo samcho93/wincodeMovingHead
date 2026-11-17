@@ -68,6 +68,14 @@ The server exists only for what a browser cannot open itself: UDP sockets and (o
 Use the 3D fixture itself, the enlarged LCD panel at the bottom, or the keyboard (`↑` `↓` `Enter` `Esc`).
 The red rocker on the rear panel is the power switch (power-up runs the reset/homing sequence).
 
+Two simulator shortcuts drive the fixture directly, ignoring DMX and the run mode until released:
+
+- **▶ Demo** (top bar) — a sequence that walks through every function of the selected model
+  (zoom, colour wheel, CMY, gobos, prism, framing blades, frost, strobe; scenes a model has no channels for are skipped).
+- **Channel values sliders** (Status tab) — drag a slider to set that channel; **Release** hands control back.
+
+Panel operation per model:
+
 - **WOP-LM1012B** — MENU / UP / DOWN / ENTER. ENTER selects (the value blinks), UP/DOWN changes, ENTER confirms,
   MENU goes back without saving. Menu: `Dmx Address` · `Fixture` · `Manual` · `Information` · `Display` · `Factory` · `Reset`.
 - **WOP-LM500WF** — tap the LCD, or turn/press the encoder (mouse wheel over the knob = turn, click = press).
