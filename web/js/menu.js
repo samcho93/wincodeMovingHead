@@ -1,7 +1,7 @@
-// menu.js — the fixture's colour LCD (320×240) and its menu (as in the manual's 4.3 "Main Function" table)
+// menu.js — panel type 'buttons': a colour LCD (320×240) with a list menu, operated by MENU / UP / DOWN / ENTER.
+//  Used by models whose definition has panel.type = 'buttons' (first: WOP-LM1012B, its menu is the one in the manual's 4.3 table).
 //  Buttons: MENU / UP / DOWN / ENTER. As in the manual: ENTER selects and the value blinks, UP/DOWN changes it, ENTER confirms,
 //  MENU goes back without saving. Holding MENU for 1 s, or one minute without a key, leaves the menu.
-import { MODES, KEYS, CH, describe } from './personality.js';
 
 const ZH = {
   'Dmx Address': '地址码', 'Fixture': '灯具设置', 'Dmx Mode': '通道模式', 'Run Mode': '运行模式', 'Pan Invert': 'X轴反向', 'Tilt Invert': 'Y轴反向',
@@ -13,7 +13,6 @@ const ZH = {
   'Frost': '雾化', 'Prism': '棱镜', 'PrismRot': '棱镜旋转', 'Current Time': '本次时间', 'Total Time': '累计时间', 'Power Count': '开机次数',
   'Resetting...': '复位中...', 'No Signal': '无信号', 'Menu': '菜单', 'Locked': '已锁定', 'Type Information': '类型信息',
 };
-export const FACTORY_PASSWORD = 50;   // not in the manual — simulator assumption (README)
 
 export class Menu {
   constructor(fx) {
@@ -23,6 +22,7 @@ export class Menu {
     this.stack = []; this.edit = null; this.info = null; this.lastKey = performance.now(); this.asleep = false;
     this.unlocked = false; this.dirty = true; this._sig = '';
     this.root = this.build();
+    this.keyLabels = { up: ['▲', 'UP'], down: ['▼', 'DOWN'], enter: ['⏎', 'ENTER'], menu: ['≡', 'MENU'] };
   }
   t(s) { return this.fx.settings.lang === 'CH' ? (ZH[s] || s) : s; }
 
@@ -30,21 +30,20 @@ export class Menu {
     const fx = this.fx, S = () => fx.settings;
     const onoff = (label, key, a = 'Close', b = 'Open') => ({ label, type: 'enum', opts: [[false, a], [true, b]], get: () => S()[key], set: v => fx.set(key, v) });
     // the manual's Manual list (Pan … Reset) + the static gobo (FixGobo) missing from that table
-    const manualKeys = ['pan', 'panFine', 'tilt', 'tiltFine', 'ptSpeed', 'strobe', 'dimmer', 'color', 'gobo', 'rotGobo', 'goboRot', 'zoom', 'focus', 'frost', 'prism', 'prismRot', 'reset'];
-    const calKeys = ['pan', 'tilt', 'color', 'dimmer', 'gobo', 'rotGobo', 'goboRot', 'zoom', 'focus', 'frost', 'prism', 'prismRot', 'reset'];
+    const M = fx.model, P = M.panel, CH = M.ch, manualKeys = P.manualKeys, calKeys = P.calKeys;
     return { label: 'Menu', items: [
       { label: 'Dmx Address', type: 'num', min: 1, max: 512, pad: 3, get: () => S().address, set: v => fx.set('address', v) },
       { label: 'Fixture', items: [
-        { label: 'Dmx Mode', type: 'enum', opts: [['STD', 'STD (17CH)'], ['EXT', 'EXT (20CH)']], get: () => S().mode, set: v => fx.set('mode', v) },
-        { label: 'Run Mode', type: 'enum', opts: [['DMX', 'DMX'], ['HOST', 'Host'], ['SOUND', 'Sound']], get: () => S().runMode, set: v => fx.set('runMode', v) },
+        { label: 'Dmx Mode', type: 'enum', opts: Object.values(M.modes).map(m => [m.id, `${m.id} (${m.label})`]), get: () => S().mode, set: v => fx.set('mode', v) },
+        { label: 'Run Mode', type: 'enum', opts: [['DMX', 'DMX'], ['AUTO', 'Host'], ['SOUND', 'Sound']], get: () => S().runMode, set: v => fx.set('runMode', v) },
         onoff('Pan Invert', 'panInvert'), onoff('Tilt Invert', 'tiltInvert'),
       ] },
-      { label: 'Manual', items: manualKeys.map(k => ({ label: CH[k].name, type: 'num', min: 0, max: 255, pad: 3, live: true, hint: v => describe(k, v), get: () => fx.manual[k], set: v => { fx.manual[k] = v; fx.emit('manual'); } })) },
+      { label: 'Manual', items: manualKeys.map(k => ({ label: CH[k], type: 'num', min: 0, max: 255, pad: 3, live: true, hint: v => M.describe(k, v), get: () => fx.manual[k], set: v => { fx.manual[k] = v; fx.emit('manual'); } })) },
       { label: 'Information', items: [
         { label: 'Time', type: 'info', lines: () => [`${this.t('Current Time')}: ${(fx.sessionSec / 3600).toFixed(1)} H`, `${this.t('Total Time')}: ${S().totalHours.toFixed(1)} H`, `${this.t('Power Count')}: ${S().powerCount}`] },
         { label: 'Sensor', type: 'info', lines: () => [this.t('Type Information'), 'Pan/Tilt: Hall + Encoder', 'Wheels: Hall', 'LED: NTC 10K'] },
         { label: 'Temperature', type: 'info', lines: () => [`LED: ${fx.tempC.toFixed(0)} ℃`] },
-        { label: 'Software Version', type: 'info', lines: () => ['Panel: V1.012', 'XY Motor: V1.004', 'Motor: V1.006'] },
+        { label: 'Software Version', type: 'info', lines: () => P.versions },
       ] },
       { label: 'Display', items: [
         { label: 'Language', type: 'enum', opts: [['CH', '中文'], ['EN', 'English']], get: () => S().lang, set: v => fx.set('lang', v) },
@@ -52,8 +51,8 @@ export class Menu {
         { label: 'Display Mode', type: 'enum', opts: [['Show', 'Show'], ['60s', '60s']], get: () => S().dispMode, set: v => fx.set('dispMode', v) },
       ] },
       { label: 'Factory', items: [
-        { label: 'Password', type: 'num', min: 0, max: 255, pad: 3, get: () => 0, set: v => { this.unlocked = v === FACTORY_PASSWORD; } },
-        ...calKeys.map(k => ({ label: CH[k].name, type: 'num', min: 0, max: 255, pad: 3, locked: () => !this.unlocked, get: () => S().cal[k], set: v => { S().cal[k] = v; fx.save(); } })),
+        { label: 'Password', type: 'num', min: 0, max: 255, pad: 3, get: () => 0, set: v => { this.unlocked = v === P.password; } },
+        ...calKeys.map(k => ({ label: CH[k], type: 'num', min: 0, max: 255, pad: 3, locked: () => !this.unlocked, get: () => S().cal[k], set: v => { S().cal[k] = v; fx.save(); } })),
       ] },
       { label: 'Reset', items: [
         { label: 'All Reset', type: 'enum', opts: [[false, 'Off'], [true, 'On']], get: () => false, set: v => { if (v) { fx.startReset('menu'); this.home(); } } },
@@ -61,6 +60,7 @@ export class Menu {
       ] },
     ] };
   }
+  touch() {}                                                       // this panel has no touch screen
   home() { this.stack = []; this.cancelEdit(); this.info = null; this.dirty = true; }
   cancelEdit() { if (this.edit) { if (this.edit.item.live) this.edit.item.set(this.edit.orig); this.edit = null; } }
   get cur() { return this.stack[this.stack.length - 1]; }
@@ -112,12 +112,12 @@ export class Menu {
       if (S.dispMode === '60s' && !this.asleep) { this.asleep = true; this.dirty = true; }
     }
     const blink = Math.floor(now / 350) % 2;
-    const sig = [fx.power, fx.resetting, Math.floor(fx.resetT * 4), fx.dmxSignal, fx.chSource, Math.round(fx.tempC), S.flip, this.asleep, this.edit ? blink : 0, this.info ? Math.floor(now / 500) : 0, !this.stack.length ? Math.floor(now / 500) : 0].join();
+    const sig = [fx.power, fx.resetting, Math.floor(fx.resetT * 4), fx.dmxSignal, fx.chSource, Math.round(fx.tempC), fx.displayFlipped, this.asleep, this.edit ? blink : 0, this.info ? Math.floor(now / 500) : 0, !this.stack.length ? Math.floor(now / 500) : 0].join();
     if (!this.dirty && sig === this._sig) return false;
     this._sig = sig; this.dirty = false;
     g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     if (!fx.power || this.asleep) return true;
-    if (S.flip) g.setTransform(-1, 0, 0, -1, W, H);
+    if (fx.displayFlipped) g.setTransform(-1, 0, 0, -1, W, H);
     const F = (px, bold = true) => `${bold ? '600 ' : ''}${px}px "Segoe UI", "Malgun Gothic", "Microsoft YaHei", sans-serif`;
     g.fillStyle = '#0a1220'; g.fillRect(0, 0, W, H);
     const header = (title, right) => {
@@ -127,20 +127,20 @@ export class Menu {
     };
     g.textBaseline = 'middle';
     if (fx.resetting) {
-      header('250W BSW');
+      header(fx.model.lcdTitle);
       g.fillStyle = '#ffd24a'; g.font = F(26); g.textAlign = 'center'; g.fillText(this.t('Resetting...'), W / 2, 110);
       g.strokeStyle = '#36527f'; g.strokeRect(40, 150, 240, 16); g.fillStyle = '#ffd24a'; g.fillRect(42, 152, 236 * Math.min(1, fx.resetT / 6.5), 12);
       return true;
     }
     if (!this.stack.length) {                                           // home screen
-      const m = MODES[S.mode];
-      header('250W BSW', `${fx.tempC.toFixed(0)}℃`);
+      const m = fx.mode;
+      header(fx.model.lcdTitle, `${fx.tempC.toFixed(0)}℃`);
       g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = F(74); g.fillText('A' + String(S.address).padStart(3, '0'), W / 2, 100);
       g.font = F(17, false); g.fillStyle = '#9fc0ff';
-      g.fillText(`${m.label} ${m.id}  ·  ${this.t({ DMX: 'DMX', HOST: 'Host', SOUND: 'Sound' }[S.runMode])}`, W / 2, 158);
+      g.fillText(`${m.label} ${m.id}  ·  ${this.t({ DMX: 'DMX', AUTO: 'Host', SOUND: 'Sound' }[S.runMode])}`, W / 2, 158);
       const ok = fx.dmxSignal;
       g.fillStyle = S.runMode !== 'DMX' ? '#ffd24a' : ok ? '#39d98a' : '#ff5b4d'; g.beginPath(); g.arc(98, 198, 7, 0, 7); g.fill();
-      g.textAlign = 'left'; g.font = F(16); g.fillText(S.runMode !== 'DMX' ? (S.runMode === 'HOST' ? 'MASTER  AUTO' : 'SOUND ACTIVE') : ok ? `DMX  ${fx.dmxFps.toFixed(0)}Hz` : `${this.t('No Signal')} (Manual)`, 114, 199);
+      g.textAlign = 'left'; g.font = F(16); g.fillText(S.runMode !== 'DMX' ? (S.runMode === 'AUTO' ? 'MASTER  AUTO' : 'SOUND ACTIVE') : ok ? `DMX  ${fx.dmxFps.toFixed(0)}Hz` : `${this.t('No Signal')} (Manual)`, 114, 199);
       return true;
     }
     if (this.info) {

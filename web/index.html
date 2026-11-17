@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wincode 250W BSW — 3D Moving Head Simulator</title>
+<title>Wincode — 3D Moving Head Simulator</title>
 <link rel="stylesheet" href="css/style.css">
 <script type="importmap">
 { "imports": {
@@ -15,7 +15,7 @@
 <body>
 <div id="app">
   <header id="topbar">
-    <div class="brand"><span class="logo">WINCODE</span><span class="model-chip">250W BSW · WOP-LM1012B</span><span class="sub">3D Moving Head Simulator</span></div>
+    <div class="brand"><span class="logo">WINCODE</span><select id="selModel" class="model-chip" title="Fixture model"></select><span class="sub">3D Moving Head Simulator</span></div>
     <div class="tb-group">
       <label class="chk" title="How visible the beam is in the air (fog / haze machine)">Haze <input type="range" id="rngHaze" min="0" max="100" value="55"></label>
       <label class="chk"><input type="checkbox" id="chkWork"> Work light</label>
@@ -39,10 +39,10 @@
 
   <main id="stage">
     <div id="viewport"></div>
-    <div id="hint">Drag: orbit · Wheel: zoom · Right-drag: pan · Click the fixture's buttons / power switch to operate it · Keyboard: ↑ ↓ Enter Esc (MENU)</div>
+    <div id="hint">Drag: orbit · Wheel: zoom · Right-drag: pan · Click the fixture's buttons, encoder, touch LCD or power switch to operate it · Keyboard: ↑ ↓ Enter Esc</div>
     <div id="lcdDock">
       <div class="lcd-card"><div class="lcd-cap">Fixture LCD <span id="lcdState"></span></div><canvas id="lcdView" width="320" height="240"></canvas></div>
-      <div class="keypad" title="Manual 4.1: MENU · UP · DOWN · ENTER">
+      <div class="keypad" title="Panel controls of the selected model">
         <button class="key" data-key="up">▲<small>UP</small></button>
         <div class="key-row"><button class="key" data-key="menu">≡<small>MENU</small></button><button class="key" data-key="enter">⏎<small>ENTER</small></button></div>
         <button class="key" data-key="down">▼<small>DOWN</small></button>

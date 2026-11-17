@@ -1,18 +1,13 @@
-// machine.js — 3D model of the moving head (procedural). Drawing dimensions from manual page 5: 296 (W) × 224 (D) × 492 (H) mm
+// machine.js — procedural 3D model of a moving head, built from a model definition's `body` dimensions.
 //  Coordinates: origin = floor centre, +Z = control panel (LCD) side, units = m. Head local +Y = beam direction.
+//  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins.
+//  body.controls 'cross5' = five buttons in a cross, 'encoder' = one rotary encoder with push button.
 import * as THREE from 'three';
 
-export const DIM = {
-  W: 0.296, D: 0.224, H: 0.492,
-  baseTop: 0.105, panY: 0.125, tiltY: 0.185,      // tiltY: tilt axis height above the yoke origin (0.310 above the floor)
-  lensY: 0.1825, lensR: 0.054,
-  lcd: [0.058, 0.0435],
-};
-
-/** Body lofted from rounded-rectangle sections along Y (moulded-housing look) */
-function loft(sections, n = 56) {
+/** Body lofted from rounded-rectangle sections along Y (a section without d/r is a circle of diameter w) */
+function loft(sections, n = 64) {
   const pos = [], idx = [];
-  const ring = (w, d, r) => {
+  const ring = (w, d = w, r = w / 2) => {
     const pts = [], hw = w / 2, hd = d / 2; r = Math.min(r, hw, hd);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2, q = Math.floor(i / (n / 4));
@@ -34,9 +29,9 @@ function loft(sections, n = 56) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
   const ng = g.toNonIndexed(); ng.computeVertexNormals();
-  // smooth shading: average normals at coincident positions (cap edges split by angle)
   return smooth(ng, 50);
 }
+// smooth shading: average normals at coincident positions (cap edges split by angle)
 function smooth(g, angleDeg) {
   const p = g.attributes.position, nrm = g.attributes.normal, map = new Map(), cos = Math.cos(angleDeg * Math.PI / 180);
   const key = i => `${Math.round(p.getX(i) * 1e5)},${Math.round(p.getY(i) * 1e5)},${Math.round(p.getZ(i) * 1e5)}`;
@@ -57,7 +52,7 @@ const extrude = (pts, depth, bevel = 0.003) => {
   return g;
 };
 
-export function buildMachine(lcdCanvas) {
+export function buildMachine(lcdCanvas, B) {
   const M = {
     body: new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.48, metalness: 0.12 }),
     trim: new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.3, metalness: 0.3 }),
@@ -65,91 +60,98 @@ export function buildMachine(lcdCanvas) {
     metal: new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.3, metalness: 0.95 }),
     blue: new THREE.MeshStandardMaterial({ color: 0x1650b8, roughness: 0.45, metalness: 0.1 }),
     btn: new THREE.MeshStandardMaterial({ color: 0x2a2d31, roughness: 0.6, emissive: 0x000000 }),
-    glass: new THREE.MeshPhysicalMaterial({ color: 0x0a0c10, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.55 }),
+    glass: new THREE.MeshPhysicalMaterial({ color: 0x0a0c10, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.55, depthWrite: false }),
   };
   const root = new THREE.Group(); root.name = 'fixture';
   const clickables = [];
   const add = (parent, geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+  const cylZ = (parent, r, h, mat, x, y, z, seg = 28) => { const m = add(parent, new THREE.CylinderGeometry(r, r, h, seg), mat, x, y, z); m.rotation.x = Math.PI / 2; return m; };
 
   /* ── base ── */
   const base = new THREE.Group(); root.add(base);
-  const hw = 0.113;
-  add(base, extrude([[-hw, 0.03], [hw, 0.03], [hw, 0.083], [hw - 0.02, DIM.baseTop], [-hw + 0.02, DIM.baseTop], [-hw, 0.083]], 0.2, 0.004), M.body);
-  for (const sx of [-1, 1]) {                                   // handles (sides, ribbed)
-    const h = add(base, extrude([[0, 0.036], [0.035, 0.05], [0.035, 0.084], [0, 0.098]], 0.15, 0.003), M.body, sx * hw);
+  const b = B.base, hw = b.hw, zf = b.depth / 2 + 0.006;      // zf: outer face of the front/rear panel frames
+  add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);
+  if (B.handles) for (const sx of [-1, 1]) {                    // carrying handles (sides, ribbed)
+    const h = add(base, extrude([[0, b.bot + 0.006], [0.035, b.bot + 0.02], [0.035, b.top - 0.021], [0, b.top - 0.007]], b.depth * 0.75, 0.003), M.body, sx * hw);
     if (sx < 0) h.scale.x = -1;
-    for (let i = -4; i <= 4; i++) add(base, new THREE.BoxGeometry(0.02, 0.044, 0.004), M.trim, sx * (hw + 0.014), 0.067, i * 0.014).rotation.z = sx * -0.38;
-    add(base, new THREE.BoxGeometry(0.01, 0.02, 0.05), M.trim, sx * (DIM.W / 2 - 0.004), 0.067, 0);   // loop
+    for (let i = -4; i <= 4; i++) add(base, new THREE.BoxGeometry(0.02, 0.044, 0.004), M.trim, sx * (hw + 0.014), b.panelY, i * 0.014).rotation.z = sx * -0.38;
+    add(base, new THREE.BoxGeometry(0.01, 0.02, 0.05), M.trim, sx * (hw + 0.031), b.panelY, 0);
   }
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(0.014, 0.011, 0.03, 20), M.rubber, sx * 0.075, 0.015, sz * 0.07);   // feet
-  for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(0.166, 0.062, 0.012), M.trim, 0, 0.067, sz * 0.106);   // front/rear panel frames → depth 224
+  const f = B.feet;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(f.r, f.r * 0.8, f.h, 20), M.rubber, sx * f.x, f.h / 2, sz * f.z);
+  for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * (b.depth / 2 + 0.006));
 
-  // front panel: LCD + 5 buttons (cross) — manual 4.1, left picture
-  const front = new THREE.Group(); front.position.set(0, 0.067, 0.1125); base.add(front);
+  // front panel: LCD + controls
+  const front = new THREE.Group(); front.position.set(0, b.panelY, zf + 0.0005); base.add(front);
   const lcdTex = new THREE.CanvasTexture(lcdCanvas); lcdTex.colorSpace = THREE.SRGBColorSpace; lcdTex.anisotropy = 4;
   const lcdMat = new THREE.MeshBasicMaterial({ map: lcdTex, toneMapped: false });
-  const lcd = add(front, new THREE.PlaneGeometry(DIM.lcd[0], DIM.lcd[1]), lcdMat, -0.036, 0, 0.0002); lcd.castShadow = false;
+  const lcd = add(front, new THREE.PlaneGeometry(B.lcd[0], B.lcd[1]), lcdMat, B.lcdX, 0, 0.0002); lcd.castShadow = false;
   lcd.userData.lcd = true; clickables.push(lcd);
-  add(front, new THREE.BoxGeometry(DIM.lcd[0] + 0.008, DIM.lcd[1] + 0.008, 0.001), M.rubber, -0.036, 0, -0.0004);
-  const mic = add(front, new THREE.BoxGeometry(0.003, 0.008, 0.001), M.rubber, 0.006, 0.006, 0);                      // microphone hole (sound mode)
-  mic.castShadow = false;
-  const bx = 0.042, bs = 0.0145;
-  const BTN = { up: [0, bs], left: [-bs, 0], enter: [0, 0], right: [bs, 0], down: [0, -bs] };
+  add(front, new THREE.BoxGeometry(B.lcd[0] + 0.008, B.lcd[1] + 0.008, 0.001), M.rubber, B.lcdX, 0, -0.0004);
+  add(front, new THREE.BoxGeometry(0.003, 0.008, 0.001), M.rubber, B.lcdX + B.lcd[0] / 2 + 0.012, 0.006, 0).castShadow = false;   // microphone hole (sound mode)
   const buttons = {};
-  for (const [key, [dx, dy]] of Object.entries(BTN)) {
-    const b = add(front, new THREE.CylinderGeometry(0.0052, 0.0052, 0.004, 24), M.btn.clone(), bx + dx, dy, 0.002);
-    b.rotation.x = Math.PI / 2; b.userData.key = key; b.castShadow = false; buttons[key] = b; clickables.push(b);
+  let knob = null;
+  if (B.controls === 'cross5') {                                // five buttons in a cross
+    const bs = 0.0145;
+    for (const [key, [dx, dy]] of Object.entries({ up: [0, bs], left: [-bs, 0], enter: [0, 0], right: [bs, 0], down: [0, -bs] })) {
+      const m = cylZ(front, 0.0052, 0.004, M.btn.clone(), B.ctrlX + dx, dy, 0.002, 24);
+      m.userData.key = key; m.castShadow = false; buttons[key] = m; clickables.push(m);
+    }
+  } else {                                                      // rotary encoder with push button
+    cylZ(front, 0.014, 0.003, M.rubber, B.ctrlX, 0, 0.0015, 32).castShadow = false;
+    knob = cylZ(front, 0.011, 0.012, M.btn.clone(), B.ctrlX, 0, 0.007, 32);
+    knob.userData.key = 'enter'; knob.userData.encoder = true; knob.castShadow = false; buttons.enter = knob; clickables.push(knob);
+    const mark = add(knob, new THREE.BoxGeometry(0.0016, 0.0005, 0.007), M.metal, 0, 0.0061, 0.004); mark.castShadow = false;   // pointer line on the knob face
+    for (const [i, c] of [[0, 0x30ff60], [1, 0xff3020]].entries()) add(front, new THREE.SphereGeometry(0.0014, 10, 8), new THREE.MeshBasicMaterial({ color: c }), B.lcdX - B.lcd[0] / 2 - 0.012, 0.008 - i * 0.012, 0.001).castShadow = false;
   }
-  const led = add(front, new THREE.SphereGeometry(0.0016, 12, 8), new THREE.MeshBasicMaterial({ color: 0x220000 }), 0.068, 0.02, 0.001);   // DMX signal LED
+  const led = add(front, new THREE.SphereGeometry(0.0016, 12, 8), new THREE.MeshBasicMaterial({ color: 0x220000 }), B.ctrlX + 0.026, B.lcd[1] / 2 - 0.002, 0.001);   // DMX signal LED
   led.castShadow = false;
 
-  // rear panel: DMX IN/OUT (3-pin, 5-pin) · power IN/OUT · fuse · power switch — manual 4.1, right picture
-  const rear = new THREE.Group(); rear.position.set(0, 0.067, -0.1125); rear.rotation.y = Math.PI; base.add(rear);
+  // rear panel: DMX IN/OUT (3-pin, 5-pin) · power IN/OUT · fuse · power switch
+  const rear = new THREE.Group(); rear.position.set(0, b.panelY, -zf - 0.0005); rear.rotation.y = Math.PI; base.add(rear);
   const xlr = (x, y, pins) => {
-    const s = add(rear, new THREE.CylinderGeometry(0.0115, 0.0115, 0.006, 28), M.metal, x, y, 0.003); s.rotation.x = Math.PI / 2;
-    const hole = add(rear, new THREE.CylinderGeometry(0.0088, 0.0088, 0.0062, 24), M.rubber, x, y, 0.0032); hole.rotation.x = Math.PI / 2;
-    for (let i = 0; i < pins; i++) { const a = Math.PI * (0.15 + 0.7 * i / (pins - 1)) + Math.PI; const p = add(rear, new THREE.CylinderGeometry(0.0009, 0.0009, 0.004, 8), M.metal, x + Math.cos(a) * 0.005, y + Math.sin(a) * 0.005 + 0.001, 0.0055); p.rotation.x = Math.PI / 2; }
+    cylZ(rear, 0.0115, 0.006, M.metal, x, y, 0.003); cylZ(rear, 0.0088, 0.0062, M.rubber, x, y, 0.0032, 24);
+    for (let i = 0; i < pins; i++) { const a = Math.PI * (0.15 + 0.7 * i / (pins - 1)) + Math.PI; cylZ(rear, 0.0009, 0.004, M.metal, x + Math.cos(a) * 0.005, y + Math.sin(a) * 0.005 + 0.001, 0.0055, 8); }
   };
   xlr(-0.058, 0.014, 5); xlr(-0.031, 0.014, 5); xlr(-0.058, -0.014, 3); xlr(-0.031, -0.014, 3);
-  for (const y of [0.014, -0.014]) {                                                                              // powerCON IN (blue) / OUT (grey)
-    const pc = add(rear, new THREE.CylinderGeometry(0.0125, 0.0125, 0.008, 28), y > 0 ? M.blue : M.metal, 0.002, y, 0.004); pc.rotation.x = Math.PI / 2;
-    const ph = add(rear, new THREE.CylinderGeometry(0.008, 0.008, 0.0082, 20), M.rubber, 0.002, y, 0.0042); ph.rotation.x = Math.PI / 2;
-  }
-  const fuse = add(rear, new THREE.CylinderGeometry(0.0065, 0.0065, 0.006, 20), M.rubber, 0.04, -0.016, 0.003); fuse.rotation.x = Math.PI / 2;
+  for (const y of [0.014, -0.014]) { cylZ(rear, 0.0125, 0.008, y > 0 ? M.blue : M.metal, 0.002, y, 0.004); cylZ(rear, 0.008, 0.0082, M.rubber, 0.002, y, 0.0042, 20); }   // powerCON IN (blue) / OUT (grey)
+  cylZ(rear, 0.0065, 0.006, M.rubber, 0.04, -0.016, 0.003, 20);                                                 // fuse
   add(rear, new THREE.BoxGeometry(0.026, 0.021, 0.004), M.rubber, 0.046, 0.012, 0.002);
   const rocker = add(rear, new THREE.BoxGeometry(0.02, 0.015, 0.006), new THREE.MeshStandardMaterial({ color: 0x8a1410, roughness: 0.4, emissive: 0x000000 }), 0.046, 0.012, 0.004);
   rocker.userData.key = 'power'; clickables.push(rocker);
 
-  add(base, new THREE.CylinderGeometry(0.078, 0.082, 0.02, 48), M.trim, 0, DIM.baseTop + 0.01, 0);                // turntable
+  const tt = B.turntable;
+  add(base, new THREE.CylinderGeometry(tt.r, tt.r + 0.004, tt.h, 48), M.trim, 0, b.top + tt.h / 2, 0);
 
   /* ── yoke (pan) ── */
-  const pan = new THREE.Group(); pan.position.y = DIM.panY; root.add(pan);
-  add(pan, loft([{ y: 0, w: 0.2, d: 0.115, r: 0.03 }, { y: 0.012, w: 0.268, d: 0.128, r: 0.03 }, { y: 0.04, w: 0.272, d: 0.126, r: 0.03 }, { y: 0.055, w: 0.262, d: 0.11, r: 0.03 }]), M.body);
-  const armShape = [[-0.064, 0.02], [0.064, 0.02], [0.05, 0.19], [0.036, 0.228], [0.012, 0.244], [-0.012, 0.244], [-0.036, 0.228], [-0.05, 0.19]];
+  const pan = new THREE.Group(); pan.position.y = B.panY; root.add(pan);
+  add(pan, loft(B.bridge), M.body);
+  const A = B.arm, topY = Math.max(...A.shape.map(p => p[1]));
   for (const sx of [-1, 1]) {
-    const arm = add(pan, extrude(armShape, 0.036, 0.006), M.body, sx * 0.118, 0, 0); arm.rotation.y = Math.PI / 2;
-    const capM = add(pan, new THREE.CylinderGeometry(0.03, 0.03, 0.004, 32), M.trim, sx * 0.1375, DIM.tiltY, 0); capM.rotation.z = Math.PI / 2;
-    add(pan, extrude([[-0.018, 0.05], [0.018, 0.05], [0.008, 0.15], [-0.008, 0.15]], 0.003, 0.001), M.trim, sx * 0.1368, 0, 0).rotation.y = Math.PI / 2;   // side trim (the "A" recess in the drawing)
-    const hub = add(pan, new THREE.CylinderGeometry(0.022, 0.022, 0.012, 24), M.trim, sx * 0.097, DIM.tiltY, 0); hub.rotation.z = Math.PI / 2;
+    add(pan, extrude(A.shape, A.t, 0.006), M.body, sx * A.x, 0, 0).rotation.y = Math.PI / 2;
+    const cap = add(pan, new THREE.CylinderGeometry(A.t * 0.85, A.t * 0.85, 0.004, 32), M.trim, sx * (A.x + A.t / 2 + 0.0015), B.tiltY, 0); cap.rotation.z = Math.PI / 2;
+    add(pan, extrude([[-0.018, topY * 0.2], [0.018, topY * 0.2], [0.008, topY * 0.62], [-0.008, topY * 0.62]], 0.003, 0.001), M.trim, sx * (A.x + A.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side trim
+    const hub = add(pan, new THREE.CylinderGeometry(0.022, 0.022, 0.012, 24), M.trim, sx * (A.x - A.t / 2 - 0.003), B.tiltY, 0); hub.rotation.z = Math.PI / 2;
   }
 
   /* ── head (tilt) ── */
-  const tilt = new THREE.Group(); tilt.position.y = DIM.tiltY; pan.add(tilt);
-  add(tilt, loft([
-    { y: -0.118, w: 0.105, d: 0.09, r: 0.03 }, { y: -0.108, w: 0.15, d: 0.128, r: 0.04 }, { y: -0.04, w: 0.182, d: 0.158, r: 0.045 },
-    { y: 0.04, w: 0.18, d: 0.156, r: 0.046 }, { y: 0.12, w: 0.152, d: 0.14, r: 0.05 }, { y: 0.16, w: 0.142, d: 0.136, r: 0.06 }, { y: 0.174, w: 0.134, d: 0.13, r: 0.062 },
-  ]), M.body);
-  for (const sz of [-1, 1]) {                                                                                     // cooling slots · name plate
-    for (let i = -6; i <= 6; i++) add(tilt, new THREE.BoxGeometry(0.003, 0.024, 0.004), M.trim, i * 0.0072, -0.07, sz * 0.0735);
-    add(tilt, new THREE.BoxGeometry(0.04, 0.02, 0.003), M.trim, 0, 0.03, sz * 0.0775);
+  const tilt = new THREE.Group(); tilt.position.y = B.tiltY; pan.add(tilt);
+  add(tilt, loft(B.head), M.body);
+  if (B.slots) for (const sz of [-1, 1]) for (let i = -B.slots.n; i <= B.slots.n; i++) add(tilt, new THREE.BoxGeometry(0.003, 0.024, 0.004), M.trim, i * B.slots.pitch, B.slots.y, sz * B.slots.z);   // cooling slots
+  if (B.fins) for (let i = 0; i < B.fins.n; i++) {              // cooling fins around a round head
+    const y = B.fins.y0 + (B.fins.y1 - B.fins.y0) * i / (B.fins.n - 1);
+    add(tilt, new THREE.TorusGeometry(B.fins.r, 0.0035, 8, 64), M.trim, 0, y, 0).rotation.x = Math.PI / 2;
   }
-  const ring = add(tilt, new THREE.CylinderGeometry(0.062, 0.064, 0.012, 56, 1, true), M.trim, 0, 0.178, 0); ring.material = M.trim.clone(); ring.material.side = THREE.DoubleSide;
-  add(tilt, new THREE.TorusGeometry(0.0585, 0.0045, 12, 56), M.trim, 0, 0.1835, 0).rotation.x = Math.PI / 2;
+  if (B.plate) for (const sz of [-1, 1]) add(tilt, new THREE.BoxGeometry(0.04, 0.02, 0.003), M.trim, 0, B.plate.y, sz * B.plate.z);   // name plate
+  const headTop = B.head[B.head.length - 1].y;
+  const ring = add(tilt, new THREE.CylinderGeometry(B.ringR, B.ringR + 0.002, 0.012, 56, 1, true), M.trim.clone(), 0, headTop + 0.004, 0); ring.material.side = THREE.DoubleSide;
+  add(tilt, new THREE.TorusGeometry(B.ringR - 0.0035, 0.0045, 12, 56), M.trim, 0, headTop + 0.0095, 0).rotation.x = Math.PI / 2;
   // lens: emissive rear face (shows the beam section) + front glass
   const lensMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: true });
-  const lens = add(tilt, new THREE.CircleGeometry(DIM.lensR, 48), lensMat, 0, DIM.lensY - 0.004, 0); lens.rotation.x = -Math.PI / 2; lens.castShadow = false;
-  const dome = add(tilt, new THREE.SphereGeometry(0.09, 40, 12, 0, Math.PI * 2, 0, 0.64), M.glass, 0, DIM.lensY - 0.0745, 0); dome.castShadow = false;
+  const lens = add(tilt, new THREE.CircleGeometry(B.lensR, 48), lensMat, 0, B.lensY - 0.004, 0); lens.rotation.x = -Math.PI / 2; lens.castShadow = false;
+  const domeR = B.lensR * 1.67;                                 // spherical cap whose rim sits on the lens ring
+  const dome = add(tilt, new THREE.SphereGeometry(domeR, 40, 12, 0, Math.PI * 2, 0, Math.asin(Math.min(1, B.lensR / domeR))), M.glass, 0, B.lensY - Math.sqrt(domeR * domeR - B.lensR * B.lensR) + 0.001, 0); dome.castShadow = false;
 
   root.traverse(o => { if (o.isMesh) o.userData.fixture = true; });
-  return { root, base, pan, tilt, buttons, rocker, led, lcdTex, lcdMat, lensMat, lens, clickables, M };
+  return { root, base, pan, tilt, buttons, knob, rocker, led, lcd, lcdTex, lcdMat, lensMat, lens, clickables, M, dim: { lensY: B.lensY + (domeR - Math.sqrt(domeR * domeR - B.lensR * B.lensR)), lensR: B.lensR, H: B.H } };
 }

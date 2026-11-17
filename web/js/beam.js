@@ -1,7 +1,5 @@
 // beam.js — light: ① projected spot (SpotLight + beam-section texture, shadows) ② beam in the air (ray-marched cone, haze) ③ lens glow and flare
 import * as THREE from 'three';
-import { DIM } from './machine.js';
-import { SPEC } from './personality.js';
 
 const VERT = /* glsl */`
 uniform float uR0, uTan, uLen;
@@ -79,8 +77,8 @@ void main() {
 }`;
 
 export class Beam {
-  /** tilt: head group, canvas: BeamImage.out */
-  constructor(tilt, canvas) {
+  /** tilt: head group, canvas: BeamImage.out, DIM: { lensY, lensR } of the model body */
+  constructor(tilt, canvas, DIM) {
     this.tilt = tilt;
     this.tex = new THREE.CanvasTexture(canvas);
     this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.minFilter = THREE.LinearFilter; this.tex.generateMipmaps = false;
@@ -124,17 +122,17 @@ export class Beam {
   setDepth(tex, w, h, cam) { this.uni.tDepth.value = tex; this.uni.uRes.value.set(w, h); this.uni.uNear.value = cam.near; this.uni.uFar.value = cam.far; }
 
   update(fx, camera, haze, time, lensMat) {
-    const I = fx.intensity, tint = fx.tint, p = fx.o.prism;
+    const I = fx.intensity, tint = fx.tint, p = fx.o.prism, SPEC = fx.model.spec;
     const full = fx.beamAngleDeg, spread = 1 + p;                       // with the prism in, the three images spread and the overall angle widens
     const half = THREE.MathUtils.degToRad(full / 2) * spread + fx.o.frost * 0.035;
     const tan = Math.tan(half / 0.92);                                   // compensate for the texture margin (R = 0.92)
     // luminous intensity: power law following the manual's illuminance ratio (6° 22140 lx · 26° 1715 lx @ 5 m)
     //  (the real exponent is 1.744 — relaxed to 1.25 so wide zoom is not lost in the screen's narrow dynamic range)
-    const cd = 1100 * Math.pow(SPEC.zoomMin / full, 1.25) / (spread * spread) * (1 + 1.6 * p);
+    const cd = SPEC.cd * Math.pow(SPEC.zoomMin / full, 1.25) / (spread * spread) * (1 + 1.6 * p);
     const L = this.light;
     L.intensity = cd * I; L.angle = Math.min(1.2, Math.atan(tan)); L.visible = I > 0.0005;
     this.uni.uTan.value = tan; this.uni.uHaze.value = haze; this.uni.uTime.value = time;
-    const k = 13 * I * Math.pow(SPEC.zoomMin / full, 0.2) * (1 + 0.8 * p);
+    const k = 13 * (SPEC.cd / 1100) * (0.054 / this.R0 * 0.92) * I * Math.pow(SPEC.zoomMin / full, 0.2) * (1 + 0.8 * p);
     this.uni.uGain.value.set(k, k, k);
     this.vol.visible = I > 0.0005 && haze > 0.001;
     this.vol.updateWorldMatrix(true, false);
@@ -145,7 +143,7 @@ export class Beam {
     this.flare.getWorldPosition(this._w);
     this._d.set(0, 1, 0).transformDirection(this.vol.matrixWorld);
     const facing = Math.max(0, this._d.dot(this._v.copy(camera.position).sub(this._w).normalize()));
-    const s = (0.1 + 1.5 * Math.pow(facing, 6)) * Math.sqrt(I) * (0.6 + 0.4 * Math.sqrt(SPEC.zoomMin / full));
+    const s = (0.1 + 1.5 * Math.pow(facing, 6)) * (this.R0 / 0.05) * Math.sqrt(I) * (0.6 + 0.4 * Math.sqrt(SPEC.zoomMin / full));
     this.flare.scale.setScalar(Math.max(0.0001, s)); this.flare.visible = I > 0.002;
     this.flare.material.color.setRGB(tint[0], tint[1], tint[2]).multiplyScalar(0.5 + 2.5 * I);
   }

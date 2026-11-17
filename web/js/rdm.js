@@ -1,6 +1,5 @@
 // rdm.js — RDM (ANSI E1.20) responder. Manual chapter 2: "Support RDM function".
 //  Packets are exchanged without the start code (0xCC) (= the Art-Net ArtRdm payload).
-import { MODES } from './personality.js';
 
 const CC = { DISC: 0x10, DISC_RESP: 0x11, GET: 0x20, GET_RESP: 0x21, SET: 0x30, SET_RESP: 0x31 };
 const PID = {
@@ -11,18 +10,18 @@ const PID = {
 };
 const PID_NAME = Object.fromEntries(Object.entries(PID).map(([k, v]) => [v, k]));
 const NACK = { UNKNOWN_PID: 0x0000, FORMAT_ERROR: 0x0001, UNSUPPORTED_CC: 0x0005, DATA_OUT_OF_RANGE: 0x0006 };
-const PERS = ['STD', 'EXT'];
 const ascii = s => [...String(s).slice(0, 32)].map(c => c.charCodeAt(0) & 0x7f);
 const u16 = v => [(v >> 8) & 0xff, v & 0xff];
 const u32 = v => [(v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff];
 
 export class RdmResponder {
   constructor(fx) {
-    this.fx = fx; this.muted = false; this.label = 'Wincode BSW250'; this.last = '';
+    this.fx = fx; this.muted = false; this.label = ('Wincode ' + fx.model.name).slice(0, 32); this.last = '';
+    const MODES = fx.model.modes; this.MODES = MODES; this.PERS = Object.keys(MODES);          // RDM personalities = the model's channel modes
     let id = 0; try { id = parseInt(localStorage.getItem('wmh.rdm.id') || '0', 10); } catch (e) {}
     if (!id) { id = (Math.random() * 0xfffffffe + 1) >>> 0; try { localStorage.setItem('wmh.rdm.id', String(id)); } catch (e) {} }
     this.uid = [0x7f, 0xf0, ...u32(id)];                         // 0x7FF0 = ESTA prototype manufacturer ID
-    try { this.label = localStorage.getItem('wmh.rdm.label') || this.label; } catch (e) {}
+    try { this.label = localStorage.getItem('wmh.rdm.label.' + fx.model.id) || this.label; } catch (e) {}
   }
   get uidText() { const h = this.uid.map(b => b.toString(16).padStart(2, '0')).join(''); return (h.slice(0, 4) + ':' + h.slice(4)).toUpperCase(); }
   static checksum(bytes) { let s = 0xcc; for (const b of bytes) s += b; return s & 0xffff; }
@@ -38,6 +37,8 @@ export class RdmResponder {
     const mine = dest.every((b, i) => b === this.uid[i]);
     const bcast = dest.slice(2).every(b => b === 0xff) && (dest[0] === 0xff && dest[1] === 0xff || dest[0] === this.uid[0] && dest[1] === this.uid[1]);
     if (!mine && !bcast) return null;
+    this.fx.rdmAt = performance.now();                              // lets the panel show that RDM is active
+    const PERS = this.PERS, MODES = this.MODES, R = this.fx.model.rdm;
     this.last = `${cc === CC.GET ? 'GET' : cc === CC.SET ? 'SET' : 'DISC'} ${PID_NAME[pid] || '0x' + pid.toString(16)}`;
     const reply = (type, data, rcc = cc + 1) => {
       if (!mine) return null;                                       // no reply to broadcasts
@@ -68,13 +69,13 @@ export class RdmResponder {
         return ack([PID.DEVICE_MODEL_DESCRIPTION, PID.MANUFACTURER_LABEL, PID.DEVICE_LABEL, PID.DMX_PERSONALITY, PID.DMX_PERSONALITY_DESCRIPTION,
           PID.DEVICE_HOURS, PID.DEVICE_POWER_CYCLES, PID.DISPLAY_INVERT, PID.PAN_INVERT, PID.TILT_INVERT, PID.RESET_DEVICE].flatMap(u16));
       case PID.DEVICE_INFO:
-        return ack([0x01, 0x00, 0x10, 0x12, 0x01, 0x02, ...u32(0x01000c00), ...u16(fx.footprint), pers, PERS.length, ...u16(S.address), 0, 0, 0]);
-      case PID.DEVICE_MODEL_DESCRIPTION: return ack(ascii('WOP-LM1012B 250W BSW'));
+        return ack([0x01, 0x00, ...u16(R.modelId), 0x01, 0x02, ...u32(0x01000c00), ...u16(fx.footprint), pers, PERS.length, ...u16(S.address), 0, 0, 0]);
+      case PID.DEVICE_MODEL_DESCRIPTION: return ack(ascii(R.description));
       case PID.MANUFACTURER_LABEL: return ack(ascii('Wincode Optronics (sim)'));
-      case PID.SOFTWARE_VERSION_LABEL: return ack(ascii('Panel V1.012'));
+      case PID.SOFTWARE_VERSION_LABEL: return ack(ascii(R.software));
       case PID.DEVICE_LABEL:
         if (!set) return ack(ascii(this.label));
-        this.label = String.fromCharCode(...pd); try { localStorage.setItem('wmh.rdm.label', this.label); } catch (e) {} fx.emit('settings'); return ack();
+        this.label = String.fromCharCode(...pd); try { localStorage.setItem('wmh.rdm.label.' + fx.model.id, this.label); } catch (e) {} fx.emit('settings'); return ack();
       case PID.DMX_PERSONALITY:
         if (!set) return ack([pers, PERS.length]);
         if (pdl !== 1 || pd[0] < 1 || pd[0] > PERS.length) return nack(NACK.DATA_OUT_OF_RANGE);
@@ -91,7 +92,7 @@ export class RdmResponder {
       }
       case PID.DEVICE_HOURS: return set ? nack(NACK.UNSUPPORTED_CC) : ack(u32(Math.floor(S.totalHours)));
       case PID.DEVICE_POWER_CYCLES: return set ? nack(NACK.UNSUPPORTED_CC) : ack(u32(S.powerCount));
-      case PID.DISPLAY_INVERT: return bool(() => S.flip, v => fx.set('flip', v));
+      case PID.DISPLAY_INVERT: return bool(() => fx.displayFlipped, v => ('rot' in S ? fx.set('rot', v ? 'ON' : 'OFF') : fx.set('flip', v)));
       case PID.PAN_INVERT: return bool(() => S.panInvert, v => fx.set('panInvert', v));
       case PID.TILT_INVERT: return bool(() => S.tiltInvert, v => fx.set('tiltInvert', v));
       case PID.IDENTIFY_DEVICE: return bool(() => fx.identify, v => { fx.identify = v; fx.emit('settings'); });

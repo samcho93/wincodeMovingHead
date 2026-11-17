@@ -1,13 +1,17 @@
-// panel.js — side panel: Status · DMX Input · Guide
-import { CH, COLORS, FIX_GOBOS, ROT_GOBOS, N_COLOR, N_FIX, N_ROT, describe, MODES } from './personality.js';
+// panel.js — side panel: Status · DMX Input · Guide. Everything shown follows the selected model definition.
 import { SOURCES } from './dmx.js';
-import { FACTORY_PASSWORD } from './menu.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const css = rgb => `rgb(${rgb.map(v => Math.round(Math.min(1, v) * 255)).join(',')})`;
+const css = rgb => `rgb(${rgb.map(v => Math.round(Math.min(1, Math.max(0, v)) * 255)).join(',')})`;
 const slotName = (names, pos, n) => { const i = Math.round(pos) % n, f = Math.abs(pos - Math.round(pos)); return f < 0.08 ? names[i] : `${names[Math.floor(pos) % n]} → ${names[Math.ceil(pos) % n]}`; };
 const err = t => `<span style="color:var(--red)">${esc(t)}</span>`;
+const pc = v => (v * 100).toFixed(0) + '%';
+const SRC_TEXT = {
+  dmx: 'DMX signal', manual: 'Manual menu values — no DMX signal', hold: 'Last DMX frame (Data hold ON) — no DMX signal', home: 'Post-reset state — no DMX signal (Data hold OFF)',
+  auto: 'Built-in program (auto run)', sound: 'Built-in program (sound)', scene: 'Scene mode', edit: 'Scene being edited on the panel',
+};
+const RUN_TEXT = { DMX: 'DMX', AUTO: 'Auto / Host', SOUND: 'Sound', SCENE: 'Scene' };
 
 export class Panel {
   constructor(fx, dmx, rdm) {
@@ -36,48 +40,52 @@ export class Panel {
     this.buildChTable();
   }
   buildChTable() {
-    const chans = this.fx.mode.channels, a = this.fx.settings.address;
-    $('#chTable').innerHTML = chans.map((k, i) => `<tr data-k="${k}"><td class="n">${a + i}</td><td>${CH[k].name}</td><td class="v"></td><td class="bar"><i></i></td><td class="d"></td></tr>`).join('');
+    const chans = this.fx.mode.channels, a = this.fx.settings.address, CH = this.fx.model.ch;
+    $('#chTable').innerHTML = chans.map((k, i) => `<tr data-k="${k}"><td class="n">${a + i}</td><td>${CH[k]}</td><td class="v"></td><td class="bar"><i></i></td><td class="d"></td></tr>`).join('');
   }
   updateStatus() {
-    const fx = this.fx, S = fx.settings, o = fx.o, m = fx.mode;
-    const src = { dmx: 'DMX signal', manual: 'Manual menu values — no DMX signal', host: 'Host — built-in program (master)', sound: 'Sound — built-in program' }[fx.chSource];
+    const fx = this.fx, S = fx.settings, o = fx.o, m = fx.mode, M = fx.model, F = M.features, src = SRC_TEXT[fx.chSource];
     $('#kvFix').innerHTML = `
-      <span>Power</span><b>${fx.power ? (fx.resetting ? 'Resetting…' : 'ON') : 'OFF'}${fx.identify ? ' · RDM IDENTIFY' : ''}</b>
-      <span>DMX address</span><b>${String(S.address).padStart(3, '0')} – ${String(S.address + m.channels.length - 1).padStart(3, '0')} · ${m.label} (${m.id})</b>
-      <span>Run mode</span><b>${{ DMX: 'DMX', HOST: 'Host (master)', SOUND: 'Sound' }[S.runMode]}</b>
+      <span>Model</span><b>${M.code} · ${M.title}</b>
+      <span>Power</span><b>${fx.power ? (fx.resetting ? 'Resetting…' : 'ON') : 'OFF'}${F.lamp && fx.power ? ` · lamp ${fx.lampOn ? 'ON' : 'OFF'}` : ''}${fx.identify ? ' · RDM IDENTIFY' : ''}</b>
+      <span>DMX address</span><b>${String(S.address).padStart(3, '0')} – ${String(S.address + m.channels.length - 1).padStart(3, '0')} · ${m.label}${m.id !== m.label ? ` (${m.id})` : ''}</b>
+      <span>Run mode</span><b>${RUN_TEXT[S.runMode]}${F.ms ? ` · M/S ${S.msMode}` : ''}${S.runMode === 'SCENE' ? ` · scene ${S.sceneSel}` : ''}</b>
       <span>Value source</span><b>${fx.power ? src : '—'}</b>
-      <span>DMX IN</span><b>${fx.dmxSignal ? `Receiving ${fx.dmxFps.toFixed(0)} Hz` : 'No signal'}</b>
+      <span>DMX IN</span><b>${fx.dmxSignal ? `Receiving ${fx.dmxFps.toFixed(0)} Hz` : 'No signal'}${fx.dmxOut ? ' · DMX OUT (master)' : ''}</b>
       <span>LED temp.</span><b>${fx.tempC.toFixed(0)} ℃</b>
       <span>Operating time</span><b>${(fx.sessionSec / 60).toFixed(0)} min / total ${S.totalHours.toFixed(1)} H · ${S.powerCount} power-ups</b>`;
-    $('#kvOpt').innerHTML = `
-      <span>Pan / Tilt</span><b>${fx.pan.pos.toFixed(1)}° / ${fx.tilt.pos.toFixed(1)}°${S.panInvert ? ' · pan inverted' : ''}${S.tiltInvert ? ' · tilt inverted' : ''}</b>
-      <span>Output</span><b>${(fx.intensity * 100).toFixed(0)}% (dimmer ${(o.dimmer * 100).toFixed(0)}% · shutter ${o.shutter > 0.5 ? 'open' : o.shutter > 0 ? 'pulse' : 'closed'})</b>
-      <span>Colour wheel</span><b><i class="swatch" style="background:${css(fx.tint)}"></i>${slotName(COLORS.map(c => c.name), o.colorPos, N_COLOR)}</b>
-      <span>Static gobo</span><b>${slotName(FIX_GOBOS, o.goboPos, N_FIX)}</b>
-      <span>Rotating gobo</span><b>${slotName(ROT_GOBOS, o.rotPos, N_ROT)} · ${o.goboAngle.toFixed(0)}°</b>
-      <span>Zoom</span><b>${fx.beamAngleDeg.toFixed(1)}° (6°–26°)</b>
-      <span>Focus</span><b>${(o.focus * 100).toFixed(0)}% ${fx.defocus < 0.03 ? '· sharp' : '· soft'}</b>
-      <span>Frost</span><b>${(o.frost * 100).toFixed(0)}%</b>
-      <span>Prism</span><b>${o.prism > 0.5 ? `3-facet ON · ${o.prismAngle.toFixed(0)}°` : 'OFF'}</b>`;
+    const rows = [
+      ['Pan / Tilt', `${fx.pan.pos.toFixed(1)}° / ${fx.tilt.pos.toFixed(1)}°${S.panInvert ? ' · pan inverted' : ''}${S.tiltInvert ? ' · tilt inverted' : ''}`],
+      ['Output', `${pc(fx.intensity)} (dimmer ${pc(o.dimmer)} · shutter ${o.shutter > 0.5 ? 'open' : o.shutter > 0 ? 'pulse' : 'closed'})`],
+      ['Beam colour', `<i class="swatch" style="background:${css(fx.tint)}"></i>wheel: ${slotName(M.colors.map(c => c.name), o.colorPos, M.colors.length)}`],
+    ];
+    if (F.cmy) rows.push(['CMY', `C ${pc(o.cmy[0])} · M ${pc(o.cmy[1])} · Y ${pc(o.cmy[2])}${F.cto ? ` · CTO ${pc(o.cto)}` : ''}`]);
+    if (F.gobos) rows.push(['Static gobo', slotName(M.gobos.fix, o.goboPos, M.gobos.fix.length)], ['Rotating gobo', `${slotName(M.gobos.rot, o.rotPos, M.gobos.rot.length)} · ${o.goboAngle.toFixed(0)}°`]);
+    if (F.blades) rows.push(['Framing blades', `${[0, 1, 2, 3].map(k => 'TRBL'[k] + ' ' + pc((o.blades[2 * k] + o.blades[2 * k + 1]) / 2)).join(' · ')} · rot ${(o.bladeRot * 45).toFixed(0)}°`]);
+    rows.push(['Zoom', `${fx.beamAngleDeg.toFixed(1)}° (${M.spec.zoomMin}°–${M.spec.zoomMax}°)`], ['Focus', `${pc(o.focus)} ${fx.defocus < 0.03 ? '· sharp' : '· soft'}`], ['Frost', pc(o.frost)]);
+    if (F.prism) rows.push(['Prism', o.prism > 0.5 ? `3-facet ON · ${o.prismAngle.toFixed(0)}°` : 'OFF']);
+    $('#kvOpt').innerHTML = rows.map(r => `<span>${r[0]}</span><b>${r[1]}</b>`).join('');
     $('#chSrc').textContent = fx.power ? `— ${src}` : '';
     for (const tr of $('#chTable').rows) {
       const v = fx.ch[tr.dataset.k] | 0;
       if (tr._v === v) continue; tr._v = v;
-      tr.cells[2].textContent = v; tr.cells[3].firstChild.style.width = (v / 2.55) + '%'; tr.cells[4].textContent = describe(tr.dataset.k, v);
+      tr.cells[2].textContent = v; tr.cells[3].firstChild.style.width = (v / 2.55) + '%'; tr.cells[4].textContent = M.describe(tr.dataset.k, v);
     }
     $('#soundBox').hidden = S.runMode !== 'SOUND';
   }
 
   /* ── DMX input ── */
   buildDmx() {
+    const F = this.fx.model.features;
     $('#tab-dmx').innerHTML = `
       <h3>Input connected to the DMX IN socket</h3>
       <div id="srcList"></div>
       <h3>RDM</h3><div class="kv" id="kvRdm"></div>
       <h3>Master / Slave</h3>
-      <div class="note">With Run Mode set to <b>Host</b> (or Sound) this fixture sends its built-in program on <b>DMX OUT</b> (the virtual cable).
-        Open the simulator in a second tab with DMX IN = virtual cable and address 001, and it follows as a slave.</div>
+      <div class="note">${F.ms
+        ? 'Outside DMX mode this fixture runs stand-alone (Auto Run, Sound Ctrl or Scene Mode). With <b>M/S Choose = Master</b> and no DMX signal it sends its values on <b>DMX OUT</b> (the virtual cable).'
+        : 'With Run Mode set to <b>Host</b> (or Sound) this fixture sends its built-in program on <b>DMX OUT</b> (the virtual cable).'}
+        Open the simulator in a second tab with the same model, DMX IN = virtual cable and address 001, and it follows as a slave.</div>
       <h3>Log</h3><div id="log"></div>`;
     const list = $('#srcList');
     list.addEventListener('change', e => {
@@ -126,25 +134,39 @@ export class Panel {
     c.title = srv ? 'Art-Net, sACN and USB-DMX input available' : 'Static web version: only the virtual cable and Web Serial are available';
   }
 
+  /* ── Guide: operation of the selected model's panel, its channels and the assumptions made for it ── */
   buildHelp() {
-    $('#tab-help').innerHTML = `<div class="help">
-      <h3>Operating the fixture (manual 4.1 · 4.3)</h3>
+    const M = this.fx.model, P = M.panel;
+    const operate = P.type === 'touch' ? `
+      <h3>Operating the fixture — touch LCD + encoder</h3>
+      <ul><li><b>Touch</b>: tap the LCD (on the 3D fixture or the enlarged LCD below). ON/OFF and list items change at once; numbers open a dialog (slider, ▲▼, <i>apply</i>, ⏎ = save).</li>
+      <li><b>Encoder</b>: turn to move / change a value, press to select / save. On the 3D fixture: mouse wheel over the knob = turn, click = press.</li>
+      <li><b>BACK</b> (Esc) leaves a dialog or page.</li></ul>
+      <h3>Pages</h3>
+      <ul><li><code>Address</code> DMX address · channel mode · Previous / Next (± one fixture) · fixture reset</li>
+      <li><code>WorkMode</code> DMX Ctrl / Auto Run / Sound Ctrl / Scene Mode (01–10, Auto) · M/S Choose · Lamp Switch</li>
+      <li><code>Display</code> language · screen saver · screen rotation (AUTO follows the mounting) · DMX indicator · brightness · touch enable</li>
+      <li><code>Scene</code> edit 10 scenes channel by channel (applied live; DMX is ignored while this page is open)</li>
+      <li><code>Advanced</code> pan/tilt invert · offsets · Data hold · lamp mode · factory setting</li>
+      <li><code>Status</code> versions · temperatures · positions · operating time</li></ul>` : `
+      <h3>Operating the fixture — LCD + buttons</h3>
       <ul><li><b>MENU</b> open the menu / go back without saving · hold 1 s to leave the menu</li><li><b>▲ UP / ▼ DOWN</b> move between items · change a value (hold to go faster)</li>
       <li><b>ENTER</b> select → the value blinks → change it, then ENTER again to confirm</li><li>After one minute without a key press the display returns to the home screen.</li></ul>
-      <p>The five buttons on the 3D fixture (cross layout): top = UP, bottom = DOWN, left = MENU, centre and right = ENTER. The red switch on the rear panel is the power switch.</p>
+      <p>The five buttons on the 3D fixture (cross layout): top = UP, bottom = DOWN, left = MENU, centre and right = ENTER.</p>
       <h3>Menu</h3>
-      <ul><li><code>Dmx Address</code> 001–512</li><li><code>Fixture</code> Dmx Mode STD (17CH) / EXT (20CH) · Run Mode DMX / Host / Sound · Pan / Tilt Invert</li>
+      <ul><li><code>Dmx Address</code> 001–512</li><li><code>Fixture</code> Dmx Mode · Run Mode DMX / Host / Sound · Pan / Tilt Invert</li>
       <li><code>Manual</code> values used while there is no DMX signal (applied live)</li><li><code>Information</code> time · sensor · temperature · versions</li>
-      <li><code>Display</code> language · display flip · display mode (60s = backlight off)</li><li><code>Factory</code> calibration offsets (password ${String(FACTORY_PASSWORD).padStart(3, '0')})</li><li><code>Reset</code> all reset · factory defaults</li></ul>
+      <li><code>Display</code> language · display flip · display mode (60s = backlight off)</li><li><code>Factory</code> calibration offsets (password ${String(P.password).padStart(3, '0')})</li><li><code>Reset</code> all reset · factory defaults</li></ul>`;
+    $('#tab-help').innerHTML = `<div class="help">
+      <p><b>${M.code}</b> — ${M.title}. Change the model with the selector at the top left.</p>
+      ${operate}
+      <p>The red switch on the rear panel is the power switch.</p>
       <h3>Supported communication</h3>
-      <ul><li>DMX512 — USB-DMX (ENTTEC Pro compatible) · USB-RS485 direct</li><li>RDM — address · personality · invert · identify · reset</li><li>Art-Net 4 · sACN (E1.31)</li><li>Master / slave (Host) · sound active</li>
-      <li>KlingNet is a closed protocol and is not supported.</li></ul>
+      <ul><li>DMX512 — USB-DMX (ENTTEC Pro compatible) · USB-RS485 direct</li><li>RDM — address · personality · invert · identify · reset</li><li>Art-Net 4 · sACN (E1.31)</li><li>Master / slave · sound active</li></ul>
       <h3>Channel chart</h3>
-      <p>${Object.values(MODES).map(m => `<b>${m.label}</b>: ${m.channels.map((k, i) => `${i + 1} ${CH[k].name}`).join(' · ')}`).join('</p><p>')}</p>
-      <p id="manualLink" hidden><a class="btn sm" href="docs/WOP-LM1012B%20250W%20BSW%20LED%20Moving%20Head%20Light%20User%20Manual.pdf" target="_blank" rel="noopener">📄 User manual (PDF)</a></p>
+      <p>${Object.values(M.modes).map(m => `<b>${m.label}</b>: ${m.channels.map((k, i) => `${i + 1} ${M.ch[k]}`).join(' · ')}`).join('</p><p>')}</p>
+      <h3>Assumptions (not stated in the manual)</h3>
+      <ul>${M.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul>
     </div>`;
-    // The manual PDF is not shipped with the repository — show the link only where the file exists
-    const a = $('#manualLink a');
-    fetch(a.href, { method: 'HEAD' }).then(r => { if (r.ok && (r.headers.get('content-type') || '').includes('pdf')) $('#manualLink').hidden = false; }).catch(() => {});
   }
 }

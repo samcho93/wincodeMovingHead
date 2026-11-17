@@ -1,4 +1,4 @@
-// main.js — Wincode 250W BSW moving head 3D simulator (web client)
+// main.js — Wincode moving head 3D simulator (web client). The fixture model is chosen at start (models/index.js).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -6,9 +6,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { buildMachine, DIM } from './machine.js';
+import { buildMachine } from './machine.js';
+import { LIST, MODELS, currentModelId, rememberModel } from './models/index.js';
 import { Fixture } from './fixture.js';
 import { Menu } from './menu.js';
+import { TouchMenu } from './menu-touch.js';
 import { BeamImage } from './gobos.js';
 import { Beam } from './beam.js';
 import { DmxInput } from './dmx.js';
@@ -18,15 +20,18 @@ import { Panel } from './panel.js';
 const $ = s => document.querySelector(s);
 
 /* ───────── fixture (firmware model) · communication ───────── */
-const fx = new Fixture();
-const menu = new Menu(fx);
+const MODEL = MODELS[currentModelId()];
+rememberModel(MODEL.id);
+document.title = `Wincode ${MODEL.name} — 3D Moving Head Simulator`;
+const fx = new Fixture(MODEL);
+const menu = MODEL.panel.type === 'touch' ? new TouchMenu(fx) : new Menu(fx);
 const rdm = new RdmResponder(fx);
 let panel = null;
 const log = line => panel && panel.log(line);
 const dmx = new DmxInput(fx, rdm, line => log(line));
 fx.log = line => log(line);
 panel = new Panel(fx, dmx, rdm);
-window.WMH = { fx, menu, dmx, rdm };                     // for debugging from the console
+window.WMH = { fx, menu, dmx, rdm, model: MODEL };                     // for debugging from the console
 
 /* ───────── renderer / scene ───────── */
 const host = $('#viewport');
@@ -75,11 +80,10 @@ const work = new THREE.DirectionalLight(0xfff2e0, 0); work.position.set(2.5, 5, 
 const key = new THREE.SpotLight(0xdfe8ff, 6, 9, 0.5, 0.8, 1.5); key.position.set(1.2, 2.4, 2.6); scene.add(key, key.target);   // weak key light so the fixture's shape is visible
 
 /* ───────── model · light ───────── */
-const R = buildMachine(menu.canvas);
+const R = buildMachine(menu.canvas, MODEL.body);
 scene.add(R.root);
-R.M.glass.depthWrite = false;
-const beamImg = new BeamImage(384);
-const beam = new Beam(R.tilt, beamImg.out);
+const beamImg = new BeamImage(MODEL, 384);
+const beam = new Beam(R.tilt, beamImg.out, R.dim);
 const lcdView = $('#lcdView').getContext('2d'), beamView = $('#beamView').getContext('2d');
 
 /* Post-processing: bloom (lens/beam glow) + depth pre-pass (where the beam is cut by the body and walls) */
@@ -100,19 +104,20 @@ new ResizeObserver(resize).observe(host); resize();
 /* ───────── mounting (floor / truss) · views ───────── */
 let mount = 'floor';
 function setMount(m) {
-  mount = m; truss.visible = m === 'truss';
+  mount = m; truss.visible = m === 'truss'; fx.inverted = m === 'truss'; menu.dirty = true;
   if (m === 'truss') { R.root.rotation.set(0, 0, Math.PI); R.root.position.set(0, truss.userData.hangY, 0); }
   else { R.root.rotation.set(0, 0, 0); R.root.position.set(0, 0, 0); }
-  key.target.position.copy(R.root.position).y += m === 'truss' ? -0.25 : 0.25; key.position.set(1.2, key.target.position.y + 1.4, 2.6);
+  key.target.position.copy(R.root.position).y += (m === 'truss' ? -0.5 : 0.5) * MODEL.body.H; key.position.set(1.2, key.target.position.y + 1.4, 2.6);
   try { localStorage.setItem('wmh.mount', m); } catch (e) {}
   setView(curView, true);
 }
+const VS = MODEL.body.H / 0.492, PB = MODEL.body.base, LZ = PB.depth / 2 + 0.006;   // views scale with the fixture height
 const VIEWS = {   // fixture-local coordinates (floor mount) → transformed for the mount. world:true = world coordinates
   stage: { world: true, pos: [4.6, 2.3, 6.2], tgt: [0, 1.9, -2.2] },
-  front: { pos: [0.35, 0.42, 1.25], tgt: [0, 0.25, 0] },
-  rear:  { pos: [-0.3, 0.3, -0.95], tgt: [0, 0.2, 0] },
+  front: { pos: [0.35 * VS, 0.42 * VS, 1.25 * VS], tgt: [0, 0.25 * VS, 0] },
+  rear:  { pos: [-0.3 * VS, 0.3 * VS, -0.95 * VS], tgt: [0, 0.2 * VS, 0] },
   beam:  { world: true, pos: [0.6, 1.5, -5.2], tgt: [0, 1.2, 0] },
-  lcd:   { pos: [0.02, 0.085, 0.42], tgt: [0.005, 0.067, 0.11] },
+  lcd:   { pos: [0.02, PB.panelY + 0.02, LZ + 0.32], tgt: [0.005, PB.panelY, LZ] },
 };
 let curView = 'stage', fly = null;
 function setView(name, instant) {
@@ -128,19 +133,26 @@ controls.addEventListener('start', () => { fly = null; });
 
 /* ───────── button input (3D body · LCD panel · keyboard) ───────── */
 const KEYMAP = { up: 'up', down: 'down', left: 'menu', menu: 'menu', enter: 'enter', right: 'enter' };
+/* model selector (top-left chip) — switching reloads the page with the other model */
+{
+  const sel = $('#selModel');
+  sel.innerHTML = LIST.map(m => `<option value="${m.id}">${m.name} · ${m.code}</option>`).join('');
+  sel.value = MODEL.id; sel.title = MODEL.title;
+  sel.addEventListener('change', () => { rememberModel(sel.value); const u = new URL(location.href); u.searchParams.delete('model'); location.href = u.toString(); });
+}
 let held = null;
 function press(k, mesh) {
   release();
   const key = KEYMAP[k]; if (!key) return;
   held = { key, t0: performance.now(), rep: 0, next: performance.now() + 420, mesh, long: false };
-  if (mesh) mesh.position.z = 0.0008;
+  if (mesh) { if (mesh.userData.z0 == null) mesh.userData.z0 = mesh.position.z; mesh.position.z = mesh.userData.z0 - 0.0012; }
   document.querySelectorAll(`.key[data-key="${key}"]`).forEach(b => b.classList.add('down'));
   if (key !== 'menu') menu.key(key);                    // MENU acts on release (short) or after 1 s held (long)
 }
 function release() {
   if (!held) return;
   if (held.key === 'menu' && !held.long) menu.key('menu');
-  if (held.mesh) held.mesh.position.z = 0.002;
+  if (held.mesh) held.mesh.position.z = held.mesh.userData.z0;
   document.querySelectorAll('.key.down').forEach(b => b.classList.remove('down'));
   held = null;
 }
@@ -167,8 +179,12 @@ const pick = e => {
   ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
   const hit = ray.intersectObjects(R.clickables, false)[0];
+  lastHit = hit || null;
   return hit && hit.object;
 };
+let lastHit = null;
+/** Rotary encoder: one detent left (-1) or right (+1) */
+function turn(dir) { menu.key(dir > 0 ? 'down' : 'up'); if (R.knob) R.knob.rotation.y -= dir * Math.PI / 10; }
 renderer.domElement.addEventListener('pointerdown', e => {
   downAt = [e.clientX, e.clientY];
   const o = pick(e);
@@ -179,8 +195,17 @@ addEventListener('pointerup', e => {
   if (e.target !== renderer.domElement || !downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
   const o = pick(e);
   if (o && o.userData.key === 'power') setPower(!fx.power);
-  else if (o && o.userData.lcd) setView('lcd');
+  else if (o && o.userData.lcd) {
+    if (MODEL.panel.type === 'touch' && lastHit.uv) menu.touch(lastHit.uv.x * 320, (1 - lastHit.uv.y) * 240);   // touch screen
+    else setView('lcd');
+  }
 });
+// encoder: mouse wheel over the knob turns it (instead of zooming the camera)
+renderer.domElement.addEventListener('wheel', e => { const o = pick(e); if (o && o.userData.encoder) { e.preventDefault(); e.stopImmediatePropagation(); turn(Math.sign(e.deltaY)); } }, { capture: true, passive: false });
+// LCD panel at the bottom: key captions follow the panel type; a touch panel also takes taps on the enlarged LCD
+document.querySelectorAll('.key').forEach(b => { const l = menu.keyLabels[b.dataset.key]; b.innerHTML = `${l[0]}<small>${l[1]}</small>`; });
+$('#lcdView').addEventListener('pointerdown', e => { const r = e.target.getBoundingClientRect(); menu.touch((e.clientX - r.left) / r.width * 320, (e.clientY - r.top) / r.height * 240); });
+if (MODEL.panel.type === 'touch') $('#lcdView').style.cursor = 'pointer';
 renderer.domElement.addEventListener('pointermove', e => { renderer.domElement.style.cursor = pick(e) ? 'pointer' : ''; });
 
 /* ───────── top bar ───────── */
@@ -246,7 +271,11 @@ function frame() {
   R.pan.rotation.y = THREE.MathUtils.degToRad(fx.pan.pos);
   R.tilt.rotation.x = THREE.MathUtils.degToRad(fx.tilt.pos);
   if (menu.draw(now)) { R.lcdTex.needsUpdate = true; lcdView.drawImage(menu.canvas, 0, 0); }
-  R.led.material.color.setHex(!fx.power ? 0x1a0000 : fx.dmxSignal ? (Math.floor(now / 120) % 2 ? 0x30ff60 : 0x0a5a20) : 0xff2a1a);
+  {                                                            // DMX signal LED (models with a "DMX Indicate" setting choose how it shows)
+    const sig = fx.dmxSignal, mode = fx.settings.dmxInd, br = (fx.settings.sigBright ?? 10) / 10, blink = Math.floor(now / 120) % 2;
+    const on = !fx.power ? 0 : mode === 'Mode1' ? +sig : mode === 'Mode2' ? +!sig : mode === 'Mode3' ? (sig ? blink : 0) : (sig ? 0.35 + 0.65 * blink : -1);
+    R.led.material.color.setRGB(on < 0 ? 1 : 0.05, on < 0 ? 0.15 : 0.05 + 0.95 * on * br, on < 0 ? 0.1 : 0.05 + 0.3 * on * br);
+  }
   if (beamImg.render(fx)) { beam.tex.needsUpdate = true; beamView.drawImage(beamImg.out, 0, 0, 160, 160); }
   beam.update(fx, camera, haze, time, R.lensMat);
   $('#beamView').style.opacity = 0.25 + 0.75 * Math.min(1, fx.intensity * 3);
