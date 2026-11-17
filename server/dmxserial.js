@@ -1,13 +1,13 @@
 /* =====================================================================
- *  dmxserial.js — USB-DMX 인터페이스로 실제 DMX512 선을 수신
- *   proto 'enttec' : ENTTEC DMX USB Pro 호환(위젯 프로토콜, 0x7E … 0xE7, 라벨 5 = 수신 DMX)
- *   proto 'raw'    : USB-RS485 어댑터 직결(250kbps 8N2). 브레이크를 알 수 없어 프레임 사이 공백으로 구분(실험적)
- *                    → 브레이크 감지가 되는 브라우저 Web Serial 수신(웹 UI)이 더 정확하다.
+ *  dmxserial.js — receive a real DMX512 line through a USB-DMX interface
+ *   proto 'enttec' : ENTTEC DMX USB Pro compatible (widget protocol, 0x7E … 0xE7, label 5 = received DMX)
+ *   proto 'raw'    : USB-RS485 adapter wired directly (250 kbps 8N2). Breaks are not visible here, so frames are split on idle gaps (experimental)
+ *                    → the browser's Web Serial receiver (web UI) detects breaks and is more accurate.
  * ===================================================================== */
 'use strict';
 const { EventEmitter } = require('events');
 let SerialPort = null;
-try { ({ SerialPort } = require('serialport')); } catch (e) { /* 선택 의존성 */ }
+try { ({ SerialPort } = require('serialport')); } catch (e) { /* optional dependency */ }
 
 class DmxSerial extends EventEmitter {
   constructor() { super(); this.port = null; this.path = ''; this.proto = 'enttec'; this.err = SerialPort ? '' : 'serialport module not installed'; this.buf = Buffer.alloc(0); this.gapT = null; }
@@ -30,7 +30,7 @@ class DmxSerial extends EventEmitter {
     p.on('error', e => { this.err = e.message; this.emit('log', 'USB-DMX error: ' + e.message); });
     p.on('close', () => { if (this.port === p) { this.port = null; this.emit('state'); } });
     p.on('data', d => (this.proto === 'raw' ? this.onRaw(d) : this.onEnttec(d)));
-    if (this.proto === 'enttec') p.write(Buffer.from([0x7e, 8, 1, 0, 0, 0xe7]));   // 수신 모드: 변화와 무관하게 매 프레임 전달
+    if (this.proto === 'enttec') p.write(Buffer.from([0x7e, 8, 1, 0, 0, 0xe7]));   // receive mode: forward every frame, changed or not
     this.emit('log', `USB-DMX opened: ${path} (${this.proto})`); this.emit('state');
   }
   onEnttec(d) {
@@ -44,7 +44,7 @@ class DmxSerial extends EventEmitter {
       if (this.buf.length < len + 5) return;
       if (this.buf[len + 4] === 0xe7) {
         const label = this.buf[1], data = this.buf.subarray(4, 4 + len);
-        if (label === 5 && len >= 2 && !(data[0] & 0x03)) this.frame(data[1], data.subarray(2));   // [상태, 시작코드, 슬롯…]
+        if (label === 5 && len >= 2 && !(data[0] & 0x03)) this.frame(data[1], data.subarray(2));   // [status, start code, slots…]
         this.buf = this.buf.subarray(len + 5);
       } else this.buf = this.buf.subarray(1);
     }

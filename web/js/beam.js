@@ -1,4 +1,4 @@
-// beam.js — 빛: ① 투사 스폿(SpotLight + 빔 단면 텍스처, 그림자) ② 공기 중 빔(원뿔 레이마칭, 헤이즈) ③ 렌즈 발광·플레어
+// beam.js — light: ① projected spot (SpotLight + beam-section texture, shadows) ② beam in the air (ray-marched cone, haze) ③ lens glow and flare
 import * as THREE from 'three';
 import { DIM } from './machine.js';
 import { SPEC } from './personality.js';
@@ -33,11 +33,11 @@ float noise(vec3 x) {
 void main() {
   vec3 ro = uCamLocal, rd = normalize(vLocal - ro);
   float t0 = 0.0, t1 = length(vLocal - ro);
-  // 장면에 가려지는 지점까지만(조명기 몸체·벽·바닥)
+  // only up to whatever the scene occludes (fixture body, walls, floor)
   float d = texture2D(tDepth, gl_FragCoord.xy / uRes).x;
   float vz = perspectiveDepthToViewZ(d, uNear, uFar);
   t1 = min(t1, vz / normalize(vView).z);
-  // 원뿔(꼭짓점은 렌즈 뒤 y = -R0/tan)과 광선의 교차 구간
+  // interval where the ray crosses the cone (apex behind the lens at y = -R0/tan)
   float k2 = uTan * uTan;
   vec3 o = ro; o.y += uR0 / uTan;
   float a = rd.x * rd.x + rd.z * rd.z - k2 * rd.y * rd.y;
@@ -70,16 +70,16 @@ void main() {
     vec3 pw = (uBeamWorld * vec4(p, 1.0)).xyz;
     float n = noise(pw * 1.6 + vec3(uTime * 0.11, -uTime * 0.05, uTime * 0.07)) * 0.65 + noise(pw * 5.0 - vec3(uTime * 0.2)) * 0.35;
     float fade = smoothstep(uLen, uLen * 0.8, p.y);
-    float prof = 1.0 - 0.55 * dot(uv, uv);                       // 빔 중심이 더 밝다
+    float prof = 1.0 - 0.55 * dot(uv, uv);                       // the beam is brighter at its centre
     acc += tex * (uR0 * uR0) / (r * r) * (0.3 + 1.2 * n) * fade * prof;
   }
-  // 빛을 마주 볼수록 밝다(전방 산란)
+  // brighter when looking into the light (forward scattering)
   float phase = 0.55 + 1.6 * pow(max(0.0, -rd.y), 3.0) + 0.25 * pow(max(0.0, rd.y), 2.0);
   gl_FragColor = vec4(acc * dt * uHaze * phase * uGain, 1.0);
 }`;
 
 export class Beam {
-  /** tilt: 헤드 그룹, canvas: BeamImage.out */
+  /** tilt: head group, canvas: BeamImage.out */
   constructor(tilt, canvas) {
     this.tilt = tilt;
     this.tex = new THREE.CanvasTexture(canvas);
@@ -87,18 +87,18 @@ export class Beam {
     this.R0 = DIM.lensR * 0.92; this.len = 30;
     const y = DIM.lensY + 0.002;
 
-    // ① 투사광
+    // ① projected light
     const L = this.light = new THREE.SpotLight(0xffffff, 0, 60, 0.1, 0, 2);
     L.position.set(0, y, 0); L.map = this.tex; L.castShadow = true;
     L.shadow.mapSize.set(1024, 1024); L.shadow.camera.near = 0.08; L.shadow.camera.far = 40; L.shadow.bias = -0.0004;
     L.target.position.set(0, y + 1, 0);
     tilt.add(L, L.target);
-    // 투사 무늬가 헤드와 함께 돌도록: 그림자 카메라의 up = 헤드 로컬 +Z
+    // make the projected image turn with the head: shadow camera up = head local +Z
     const up = this.up = new THREE.Vector3(), q = new THREE.Quaternion();
     const orig = L.shadow.updateMatrices.bind(L.shadow);
     L.shadow.updateMatrices = function (light) { tilt.getWorldQuaternion(q); this.camera.up.copy(up.set(0, 0, 1).applyQuaternion(q)); orig(light); };
 
-    // ② 볼류메트릭
+    // ② volumetric
     const geo = new THREE.CylinderGeometry(1, 1, 1, 48, 1, false); geo.translate(0, 0.5, 0);
     this.uni = {
       uMap: { value: this.tex }, tDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) },
@@ -112,7 +112,7 @@ export class Beam {
     this.vol.position.y = y; this.vol.frustumCulled = false; this.vol.renderOrder = 10; this.vol.userData.beam = true;
     tilt.add(this.vol);
 
-    // ③ 플레어
+    // ③ flare
     const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
     const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
     gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.12, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -125,11 +125,11 @@ export class Beam {
 
   update(fx, camera, haze, time, lensMat) {
     const I = fx.intensity, tint = fx.tint, p = fx.o.prism;
-    const full = fx.beamAngleDeg, spread = 1 + p;                       // 프리즘이 들어오면 상 3개가 벌어져 전체 각이 넓어진다
+    const full = fx.beamAngleDeg, spread = 1 + p;                       // with the prism in, the three images spread and the overall angle widens
     const half = THREE.MathUtils.degToRad(full / 2) * spread + fx.o.frost * 0.035;
-    const tan = Math.tan(half / 0.92);                                   // 텍스처 여백(R = 0.92) 보정
-    // 광도: 메뉴얼 조도(6° 22140lx · 26° 1715lx @5m)의 비율을 따르는 거듭제곱 법칙
-    //  (실제 지수는 1.744 — 화면의 좁은 명암 범위에서 넓은 줌이 너무 어두워지지 않게 1.25 로 완화)
+    const tan = Math.tan(half / 0.92);                                   // compensate for the texture margin (R = 0.92)
+    // luminous intensity: power law following the manual's illuminance ratio (6° 22140 lx · 26° 1715 lx @ 5 m)
+    //  (the real exponent is 1.744 — relaxed to 1.25 so wide zoom is not lost in the screen's narrow dynamic range)
     const cd = 1100 * Math.pow(SPEC.zoomMin / full, 1.25) / (spread * spread) * (1 + 1.6 * p);
     const L = this.light;
     L.intensity = cd * I; L.angle = Math.min(1.2, Math.atan(tan)); L.visible = I > 0.0005;
@@ -140,7 +140,7 @@ export class Beam {
     this.vol.updateWorldMatrix(true, false);
     this.uni.uBeamWorld.value.copy(this.vol.matrixWorld);
     this.uni.uCamLocal.value.copy(camera.position).applyMatrix4(this._m.copy(this.vol.matrixWorld).invert());
-    // 렌즈·플레어
+    // lens and flare
     if (lensMat) { lensMat.map = this.tex; lensMat.color.setScalar(I > 0 ? 0.6 + 7 * I : 0.02); }
     this.flare.getWorldPosition(this._w);
     this._d.set(0, 1, 0).transformDirection(this.vol.matrixWorld);

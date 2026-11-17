@@ -1,4 +1,4 @@
-// fixture.js — 무빙헤드 "펌웨어" 모델: 설정(NVS) · 실행 모드 · 채널 → 기구/광학 상태(모터 속도 포함)
+// fixture.js — moving head "firmware" model: settings (NVS) · run modes · channels → mechanical/optical state (with motor speeds)
 import { MODES, KEYS, SPEC, COLORS, N_COLOR, N_FIX, N_ROT, decode } from './personality.js';
 
 const LS_KEY = 'wmh.settings.v1';
@@ -8,12 +8,12 @@ const DEFAULT_SETTINGS = {
   totalHours: 0, powerCount: 0,
   cal: { pan: 128, tilt: 128, color: 128, dimmer: 128, gobo: 128, rotGobo: 128, goboRot: 128, zoom: 128, focus: 128, frost: 128, prism: 128, prismRot: 128, reset: 128 },
 };
-// 수동(Manual 메뉴) 기본값: 불이 켜진 채 뒤쪽 벽을 비추도록
+// Manual-menu defaults: lit and aimed at the back wall
 const DEFAULT_MANUAL = { pan: 128, tilt: 70, strobe: 255, dimmer: 255, focus: 96 };
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const approach = (cur, tgt, step) => (Math.abs(tgt - cur) <= step ? tgt : cur + Math.sign(tgt - cur) * step);
-/** 원형 휠에서 목표까지 최단 경로로 이동 */
+/** Move along a circular wheel to the target by the shortest path */
 function approachWheel(cur, tgt, step, n) {
   let d = ((tgt - cur) % n + n) % n; if (d > n / 2) d -= n;
   if (Math.abs(d) <= step) return ((tgt % n) + n) % n;
@@ -21,7 +21,7 @@ function approachWheel(cur, tgt, step, n) {
 }
 const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
-/** 축 하나(팬/틸트): 가속 제한 사다리꼴 속도 프로파일 */
+/** One axis (pan/tilt): acceleration-limited trapezoidal speed profile */
 class Axis {
   constructor(vmax, acc) { this.pos = 0; this.vel = 0; this.vmax = vmax; this.acc = acc; }
   step(target, dt, speedScale) {
@@ -33,7 +33,7 @@ class Axis {
   }
 }
 
-// Host(마스터)·Sound 모드의 내장 프로그램 — 한 스텝 = 채널 값 묶음
+// Built-in program for Host (master) and Sound modes — one step = a set of channel values
 const PROGRAM = [
   { pan: 110, tilt: 80, color: 20, gobo: 0, rotGobo: 10, goboRot: 100, zoom: 0, prism: 0 },
   { pan: 150, tilt: 95, color: 60, gobo: 10, rotGobo: 0, goboRot: 0, zoom: 120, prism: 0 },
@@ -50,17 +50,17 @@ export class Fixture {
     this.settings = structuredClone(DEFAULT_SETTINGS);
     try { const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (s) { Object.assign(this.settings, s, { cal: Object.assign({}, DEFAULT_SETTINGS.cal, s.cal) }); } } catch (e) {}
     this.manual = {}; KEYS.forEach(k => { this.manual[k] = DEFAULT_MANUAL[k] ?? 0; });
-    this.ch = Object.assign({}, this.manual);       // 현재 적용 중인 채널 값
+    this.ch = Object.assign({}, this.manual);       // channel values currently in effect
     this.chSource = 'manual';                        // 'dmx' | 'manual' | 'host' | 'sound'
     this.dmx = new Uint8Array(512); this.lastDmx = -1e9; this.dmxSignal = false; this.dmxFps = 0; this._fpsN = 0; this._fpsT = 0;
     this.power = false; this.resetT = -1; this.resetHold = 0; this.identify = false;
     this.sessionSec = 0; this.tempC = 26; this.time = 0;
     this.pan = new Axis(215, 900); this.tilt = new Axis(185, 900);
-    this.tilt.pos = -135;                             // 전원 꺼진 헤드는 처져 있다
-    // 광학 상태(실제 모터 위치)
+    this.tilt.pos = -135;                             // an unpowered head hangs down
+    // optical state (actual motor positions)
     this.o = { colorPos: 0, goboPos: 0, goboOfs: 0, rotPos: 0, rotOfs: 0, goboAngle: 0, zoom: 0, focus: 0.4, frost: 0, prism: 0, prismAngle: 0, dimmer: 0, shutter: 0 };
     this.prog = { step: 0, t: 0 }; this.beat = false;
-    this.listeners = new Set(); this.dmxOut = null;   // Host 모드에서 내보내는 프레임(DMX OUT)
+    this.listeners = new Set(); this.dmxOut = null;   // frame sent in Host mode (DMX OUT)
     this.log = () => {};
   }
   on(fn) { this.listeners.add(fn); }
@@ -70,7 +70,7 @@ export class Fixture {
   get mode() { return MODES[this.settings.mode] || MODES.EXT; }
   get footprint() { return this.mode.channels.length; }
 
-  /* ── 전원 / 리셋 ── */
+  /* ── power / reset ── */
   setPower(on) {
     if (on === this.power) return;
     this.power = on;
@@ -88,12 +88,12 @@ export class Fixture {
   }
 
   /* ── DMX IN ── */
-  feedDmx(data) {                                   // data: 슬롯 1..512 (start code 0 프레임만)
+  feedDmx(data) {                                   // data: slots 1..512 (start-code-0 frames only)
     this.dmx.fill(0); this.dmx.set(data.subarray(0, 512));
     this.lastDmx = performance.now(); this._fpsN++;
   }
 
-  /* ── 한 프레임 ── */
+  /* ── one frame ── */
   update(dt) {
     const now = performance.now();
     this.time += dt;
@@ -101,7 +101,7 @@ export class Fixture {
     const sig = now - this.lastDmx < 1500;
     if (sig !== this.dmxSignal) { this.dmxSignal = sig; this.emit('signal'); }
     const o = this.o;
-    if (!this.power) {                               // 전원 OFF: 소등, 헤드는 자중으로 처짐
+    if (!this.power) {                               // power OFF: dark, head sags under its own weight
       o.dimmer = 0; o.shutter = 0; this.tilt.step(-135, dt, 0.25); this.pan.vel = 0;
       this.tempC += (24 - this.tempC) * dt * 0.02; this.dmxOut = null;
       return;
@@ -110,7 +110,7 @@ export class Fixture {
     this.settings.totalHours += dt / 3600;
     if (((this.sessionSec / 60) | 0) !== (((this.sessionSec - dt) / 60) | 0)) this.save();
 
-    // 1) 채널 값의 출처
+    // 1) where the channel values come from
     const S = this.settings, chans = this.mode.channels;
     let v = {};
     this.dmxOut = null;
@@ -123,13 +123,13 @@ export class Fixture {
     } else {
       this.chSource = S.runMode === 'HOST' ? 'host' : 'sound';
       v = this.runProgram(dt, chans);
-      const out = new Uint8Array(512); chans.forEach((k, i) => { out[i] = v[k]; });   // 슬레이브는 주소 1 로 받는다
+      const out = new Uint8Array(512); chans.forEach((k, i) => { out[i] = v[k]; });   // slaves listen at address 1
       this.dmxOut = out;
     }
     this.ch = v;
     const t = decode(v);
 
-    // 2) 리셋 채널(200–250 을 3초 유지) / 리셋 시퀀스
+    // 2) reset channel (200–250 held for 3 s) / reset sequence
     this.resetHold = t.reset ? this.resetHold + dt : 0;
     if (this.resetHold > 3 && !this.resetting) { this.resetHold = -1e9; this.startReset('DMX'); }
     if (!t.reset && this.resetHold < 0) this.resetHold = 0;
@@ -139,7 +139,7 @@ export class Fixture {
     let speed = 1 - 0.965 * t.ptSpeed, homing = false;
     if (this.resetting) {
       this.resetT += dt; speed = 0.8;
-      if (this.resetT < 3.6) { panT = -SPEC.panRange / 2; tiltT = -SPEC.tiltRange / 2; homing = true; }   // 원점(끝단) 찾기
+      if (this.resetT < 3.6) { panT = -SPEC.panRange / 2; tiltT = -SPEC.tiltRange / 2; homing = true; }   // find home (end stops)
       else if (this.resetT > 4 && Math.abs(this.pan.pos - panT) < 0.5 && Math.abs(this.tilt.pos - tiltT) < 0.5 || this.resetT > 12) {
         this.resetT = -1; this.log('Reset complete'); this.emit('reset');
       }
@@ -147,8 +147,8 @@ export class Fixture {
     this.pan.step(clamp(panT, -270, 270), dt, speed);
     this.tilt.step(clamp(tiltT, -135, 135), dt, speed);
 
-    // 3) 휠 · 렌즈
-    if (homing) {                                    // 리셋 중 휠 한 바퀴
+    // 3) wheels and lenses
+    if (homing) {                                    // spin the wheels once during reset
       o.colorPos = (o.colorPos + dt * 4) % N_COLOR; o.goboPos = (o.goboPos + dt * 3.5) % N_FIX; o.rotPos = (o.rotPos + dt * 3) % N_ROT;
       o.goboAngle = (o.goboAngle + dt * 300) % 360; o.zoom = approach(o.zoom, 0, dt * 0.9); o.prism = approach(o.prism, 0, dt * 3);
     } else {
@@ -171,7 +171,7 @@ export class Fixture {
       o.prismAngle = (((o.prismAngle + t.prismRot * 360 * dt) % 360) + 360) % 360;
     }
 
-    // 4) 디머 · 셔터(LED 전자식 스트로브)
+    // 4) dimmer and shutter (electronic LED strobe)
     const dimT = homing ? 0 : t.dimmer;
     o.dimmer += (dimT - o.dimmer) * Math.min(1, dt * 22);
     const st = t.strobe, T = this.time;
@@ -183,12 +183,12 @@ export class Fixture {
     if (this.identify) sh = (T * 2) % 1 < 0.5 ? 1 : 0;
     o.shutter = sh;
 
-    // 5) 온도(표시용): LED 출력에 따라 완만히 변화
+    // 5) temperature (display only): follows the LED output slowly
     const load = (this.identify ? 1 : o.dimmer) * (sh > 0 ? 1 : 0.2);
     this.tempC += ((30 + 38 * load) - this.tempC) * dt * 0.03;
   }
 
-  /** Host / Sound 내장 프로그램 → 채널 값 */
+  /** Host / Sound built-in program → channel values */
   runProgram(dt, chans) {
     const p = this.prog, sound = this.settings.runMode === 'SOUND';
     p.t += dt;
@@ -198,16 +198,16 @@ export class Fixture {
     chans.forEach(k => { v[k] = s[k] ?? 0; });
     v.dimmer = 255; v.strobe = 255; v.ptSpeed = sound ? 0 : 60; v.focus = 96; v.reset = 0;
     if ('dimmerFine' in v) v.dimmerFine = 0;
-    if (sound) v.dimmer = Math.round(255 * Math.max(0.25, 1 - p.t * 1.6));   // 비트에 맞춰 번쩍
+    if (sound) v.dimmer = Math.round(255 * Math.max(0.25, 1 - p.t * 1.6));   // flash on the beat
     return v;
   }
 
-  /* ── 렌더러가 읽는 값 ── */
+  /* ── values read by the renderer ── */
   get beamAngleDeg() { return SPEC.zoomMin + (SPEC.zoomMax - SPEC.zoomMin) * this.o.zoom; }
-  get intensity() { return this.power ? (this.identify ? 1 : this.o.dimmer * this.o.dimmer) * this.o.shutter : 0; }   // 디머 곡선 ≈ 제곱
-  /** 포커스가 맞는 위치는 줌에 따라 조금 이동한다. 0 = 선명 */
+  get intensity() { return this.power ? (this.identify ? 1 : this.o.dimmer * this.o.dimmer) * this.o.shutter : 0; }   // dimmer curve ≈ square law
+  /** The in-focus position shifts slightly with zoom. 0 = sharp */
   get defocus() { const ideal = 0.33 + 0.22 * this.o.zoom; return Math.abs(this.o.focus - ideal); }
-  /** 현재 빔의 대표 색(렌즈 글로우용) */
+  /** Representative colour of the current beam (for the lens glow) */
   get tint() {
     const p = this.o.colorPos, i = Math.floor(p) % N_COLOR, f = p - Math.floor(p);
     const a = COLORS[i].rgb, b = COLORS[(i + 1) % N_COLOR].rgb, w = SPEC.ledWhite;

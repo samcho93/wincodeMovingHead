@@ -1,6 +1,6 @@
-// menu.js — 본체 컬러 LCD(320×240)와 메뉴(메뉴얼 4.3 "Main Function" 표 그대로)
-//  버튼: MENU / UP / DOWN / ENTER. 조작법 = 메뉴얼: ENTER 로 선택하면 값이 깜박이고, UP/DOWN 으로 바꾼 뒤 ENTER 로 확정,
-//  MENU 는 변경 없이 뒤로. MENU 를 1초 누르거나 1분간 조작이 없으면 메뉴에서 나간다.
+// menu.js — the fixture's colour LCD (320×240) and its menu (as in the manual's 4.3 "Main Function" table)
+//  Buttons: MENU / UP / DOWN / ENTER. As in the manual: ENTER selects and the value blinks, UP/DOWN changes it, ENTER confirms,
+//  MENU goes back without saving. Holding MENU for 1 s, or one minute without a key, leaves the menu.
 import { MODES, KEYS, CH, describe } from './personality.js';
 
 const ZH = {
@@ -13,7 +13,7 @@ const ZH = {
   'Frost': '雾化', 'Prism': '棱镜', 'PrismRot': '棱镜旋转', 'Current Time': '本次时间', 'Total Time': '累计时间', 'Power Count': '开机次数',
   'Resetting...': '复位中...', 'No Signal': '无信号', 'Menu': '菜单', 'Locked': '已锁定', 'Type Information': '类型信息',
 };
-export const FACTORY_PASSWORD = 50;   // 메뉴얼에 없는 값 — 시뮬레이터 가정(README)
+export const FACTORY_PASSWORD = 50;   // not in the manual — simulator assumption (README)
 
 export class Menu {
   constructor(fx) {
@@ -29,7 +29,7 @@ export class Menu {
   build() {
     const fx = this.fx, S = () => fx.settings;
     const onoff = (label, key, a = 'Close', b = 'Open') => ({ label, type: 'enum', opts: [[false, a], [true, b]], get: () => S()[key], set: v => fx.set(key, v) });
-    // 메뉴얼의 Manual 목록(Pan … Reset) + 표에서 빠진 고정 고보(FixGobo)
+    // the manual's Manual list (Pan … Reset) + the static gobo (FixGobo) missing from that table
     const manualKeys = ['pan', 'panFine', 'tilt', 'tiltFine', 'ptSpeed', 'strobe', 'dimmer', 'color', 'gobo', 'rotGobo', 'goboRot', 'zoom', 'focus', 'frost', 'prism', 'prismRot', 'reset'];
     const calKeys = ['pan', 'tilt', 'color', 'dimmer', 'gobo', 'rotGobo', 'goboRot', 'zoom', 'focus', 'frost', 'prism', 'prismRot', 'reset'];
     return { label: 'Menu', items: [
@@ -65,11 +65,11 @@ export class Menu {
   cancelEdit() { if (this.edit) { if (this.edit.item.live) this.edit.item.set(this.edit.orig); this.edit = null; } }
   get cur() { return this.stack[this.stack.length - 1]; }
 
-  /** key: 'menu' | 'up' | 'down' | 'enter', rep: 누르고 있는 동안의 반복 횟수(값 가속), long: MENU 길게 */
+  /** key: 'menu' | 'up' | 'down' | 'enter', rep: repeat count while held (value acceleration), long: MENU held */
   key(key, { rep = 0, long = false } = {}) {
     const fx = this.fx; if (!fx.power) return;
     this.lastKey = performance.now(); this.dirty = true;
-    if (this.asleep) { this.asleep = false; return; }                  // 꺼진 화면은 첫 키로 켜기만 한다
+    if (this.asleep) { this.asleep = false; return; }                  // a dark screen only wakes on the first key
     if (fx.resetting) return;
     if (long && key === 'menu') return this.home();
     if (!this.stack.length) { if (key === 'menu' || key === 'enter') this.stack.push({ node: this.root, sel: 0 }); return; }
@@ -104,7 +104,7 @@ export class Menu {
     return '';
   }
 
-  /** 변경이 있을 때만 다시 그린다. 다시 그렸으면 true */
+  /** Redraws only when something changed. Returns true if it redrew */
   draw(now) {
     const fx = this.fx, S = fx.settings, g = this.g, W = 320, H = 240;
     if (fx.power && (this.stack.length || this.asleep === false) && now - this.lastKey > 60000) {
@@ -132,7 +132,7 @@ export class Menu {
       g.strokeStyle = '#36527f'; g.strokeRect(40, 150, 240, 16); g.fillStyle = '#ffd24a'; g.fillRect(42, 152, 236 * Math.min(1, fx.resetT / 6.5), 12);
       return true;
     }
-    if (!this.stack.length) {                                           // 대기 화면
+    if (!this.stack.length) {                                           // home screen
       const m = MODES[S.mode];
       header('250W BSW', `${fx.tempC.toFixed(0)}℃`);
       g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = F(74); g.fillText('A' + String(S.address).padStart(3, '0'), W / 2, 100);

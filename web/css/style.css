@@ -94,7 +94,7 @@ table.ch td.d { color: #c6ced6; overflow: hidden; text-overflow: ellipsis; max-w
 .help ul { padding-left: 18px; margin: 4px 0; }
 .help code { background: #0a0c0f; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12px; }
 
-/* ── DMX 송신기(console.html) ── */
+/* ── DMX transmitter (console.html) ── */
 body.tx { overflow: auto; background: #0b0d10; }
 .tx-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #101317; position: sticky; top: 0; z-index: 2; }
 .tx-bar label { display: flex; align-items: center; gap: 5px; color: var(--dim); }

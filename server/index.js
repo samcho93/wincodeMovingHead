@@ -1,17 +1,17 @@
 /* =====================================================================
- *  Wincode MovingHead Sim 서버 — 250W BSW 무빙헤드 3D 디지털 트윈
+ *  Wincode MovingHead Sim server — 3D digital twin of the 250W BSW moving head
  * ---------------------------------------------------------------------
- *   http://127.0.0.1:7740            3D 웹 UI (web/)
- *   http://127.0.0.1:7740/console.html  슬라이더식 DMX512 송신기(테스트용)
- *   ws://127.0.0.1:7740/ws           브라우저 ↔ 서버 (상태 JSON + DMX 프레임 바이너리)
- *   udp 6454 (Art-Net) · udp 5568 (sACN/E1.31) · USB-DMX(시리얼)  → DMX 수신
+ *   http://127.0.0.1:7740            3D web UI (web/)
+ *   http://127.0.0.1:7740/console.html  slider-type DMX512 transmitter (for testing)
+ *   ws://127.0.0.1:7740/ws           browser ↔ server (status JSON + binary DMX frames)
+ *   udp 6454 (Art-Net) · udp 5568 (sACN/E1.31) · USB-DMX (serial)  → DMX input
  *
- *  조명기 동작(채널 해석·모터·메뉴)은 브라우저의 web/js/fixture.js 가 맡는다.
- *  서버는 브라우저가 직접 열 수 없는 통신(UDP·시리얼)을 받아 넘겨 주는 "DMX IN 커넥터" 역할이다.
+ *  The fixture behaviour (channel decoding, motors, menu) lives in the browser: web/js/fixture.js.
+ *  The server is the "DMX IN connector": it receives what a browser cannot open itself (UDP, serial) and passes it on.
  *
- *  바이너리 프레임
- *   서버→브라우저  [1, src(0=Art-Net 1=sACN 2=USB-DMX), 슬롯 512바이트]
- *   브라우저→서버  [2, proto(0=Art-Net 1=sACN), 유니버스 lo, hi, 슬롯 512바이트]   ← 송신기
+ *  Binary frames
+ *   server→browser  [1, src(0=Art-Net 1=sACN 2=USB-DMX), 512 slot bytes]
+ *   browser→server  [2, proto(0=Art-Net 1=sACN), universe lo, hi, 512 slot bytes]   ← transmitter
  * ===================================================================== */
 'use strict';
 const http = require('http');
@@ -28,19 +28,19 @@ const THREE_DIR = path.join(ROOT, 'node_modules', 'three');
 const DATA = path.join(ROOT, 'data');
 fs.mkdirSync(DATA, { recursive: true });
 
-/* ── 설정 영속화 ── */
+/* ── persisted settings ── */
 const CFG_FILE = path.join(DATA, 'movinghead.json');
 let cfg = { artnet: { universe: 0 }, sacn: { universe: 1 }, serial: { path: '', proto: 'enttec' } };
 try { const j = JSON.parse(fs.readFileSync(CFG_FILE, 'utf8')); for (const k of Object.keys(cfg)) Object.assign(cfg[k], j[k]); } catch (e) {}
 const saveCfg = () => { try { fs.writeFileSync(CFG_FILE, JSON.stringify(cfg, null, 2)); } catch (e) {} };
 
-/* ── 브라우저 WebSocket ── */
+/* ── browser WebSocket ── */
 const clients = new Set();
 const broadcast = obj => { const s = JSON.stringify(obj); for (const c of clients) if (c.readyState === 1) c.send(s); };
 const broadcastBin = buf => { for (const c of clients) if (c.readyState === 1 && c.bufferedAmount < 1e6) c.send(buf); };
 const log = line => { console.log('[wmh]', line); broadcast({ type: 'log', line }); };
 
-/* ── DMX 수신 ── */
+/* ── DMX input ── */
 const SRC = { artnet: 0, sacn: 1, serial: 2 };
 const stat = {};
 for (const k of Object.keys(SRC)) stat[k] = { packets: 0, n: 0, fps: 0, last: 0, from: '', universes: {} };
@@ -70,7 +70,7 @@ serial.on('frame', (sc, slots) => {
   else if (sc === 0xcc) rdmIn(Buffer.from(slots), { serial: true });
 });
 
-/* ── RDM: 응답기는 브라우저(조명기)에 있다. 요청을 넘기고 응답을 되돌려 보낸다 ── */
+/* ── RDM: the responder lives in the browser (the fixture). Forward requests, return its replies ── */
 let fixtureClient = null, rdmSeq = 0;
 const rdmPending = new Map();
 function rdmIn(packet, origin) {
@@ -122,7 +122,7 @@ wss.on('connection', ws => {
   ws.send(JSON.stringify(status()));
   ws.on('close', () => { clients.delete(ws); if (fixtureClient === ws) { fixtureClient = null; net.node.uid = null; } });
   ws.on('message', async (raw, isBinary) => {
-    if (isBinary) {                                   // 송신기 → 실제 UDP 송신
+    if (isBinary) {                                   // transmitter → real UDP output
       if (raw.length >= 516 && raw[0] === 2) {
         const universe = raw[2] | (raw[3] << 8), data = raw.subarray(4, 516);
         raw[1] === 1 ? net.sendSacn(universe, data, ws.txHost) : net.sendArtDmx(universe, data, ws.txHost);
@@ -131,7 +131,7 @@ wss.on('connection', ws => {
     }
     let m; try { m = JSON.parse(raw.toString()); } catch (e) { return; }
     try {
-      if (m.type === 'fixture') {                     // 조명기 정보(ArtPollReply · RDM 장치 목록용)
+      if (m.type === 'fixture') {                     // fixture info (for ArtPollReply and the RDM device list)
         fixtureClient = ws; net.node.uid = m.uid; net.node.address = m.address;
         if (m.label) net.node.shortName = String(m.label).slice(0, 17);
       } else if (m.type === 'cfg') {
@@ -146,7 +146,7 @@ wss.on('connection', ws => {
       else if (m.type === 'rdmReply') {
         const origin = rdmPending.get(m.id); rdmPending.delete(m.id);
         if (origin && Array.isArray(m.data) && m.data.length) {
-          if (origin.serial) { /* 위젯 경유 RDM 응답은 지원하지 않는다(타이밍) */ } else net.sendRdm(Buffer.from(m.data), origin);
+          if (origin.serial) { /* RDM replies through a widget are not supported (timing) */ } else net.sendRdm(Buffer.from(m.data), origin);
         }
       }
     } catch (e) { log('Error: ' + e.message); ws.send(JSON.stringify({ type: 'error', message: e.message })); }

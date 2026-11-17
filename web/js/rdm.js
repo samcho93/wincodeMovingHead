@@ -1,5 +1,5 @@
-// rdm.js — RDM(ANSI E1.20) 응답기. 메뉴얼 2장 "Support RDM function".
-//  패킷은 시작코드(0xCC)를 뺀 형태(= Art-Net ArtRdm 페이로드)로 주고받는다.
+// rdm.js — RDM (ANSI E1.20) responder. Manual chapter 2: "Support RDM function".
+//  Packets are exchanged without the start code (0xCC) (= the Art-Net ArtRdm payload).
 import { MODES } from './personality.js';
 
 const CC = { DISC: 0x10, DISC_RESP: 0x11, GET: 0x20, GET_RESP: 0x21, SET: 0x30, SET_RESP: 0x31 };
@@ -21,16 +21,16 @@ export class RdmResponder {
     this.fx = fx; this.muted = false; this.label = 'Wincode BSW250'; this.last = '';
     let id = 0; try { id = parseInt(localStorage.getItem('wmh.rdm.id') || '0', 10); } catch (e) {}
     if (!id) { id = (Math.random() * 0xfffffffe + 1) >>> 0; try { localStorage.setItem('wmh.rdm.id', String(id)); } catch (e) {} }
-    this.uid = [0x7f, 0xf0, ...u32(id)];                         // 0x7FF0 = ESTA 시제품용 제조사 ID
+    this.uid = [0x7f, 0xf0, ...u32(id)];                         // 0x7FF0 = ESTA prototype manufacturer ID
     try { this.label = localStorage.getItem('wmh.rdm.label') || this.label; } catch (e) {}
   }
   get uidText() { const h = this.uid.map(b => b.toString(16).padStart(2, '0')).join(''); return (h.slice(0, 4) + ':' + h.slice(4)).toUpperCase(); }
   static checksum(bytes) { let s = 0xcc; for (const b of bytes) s += b; return s & 0xffff; }
 
-  /** 요청 → 응답. 응답이 없으면 null. DISC_UNIQUE_BRANCH 는 { disc: Uint8Array } (시리얼 전용, 프리앰블 포함) */
+  /** Request → response, or null when there is none. DISC_UNIQUE_BRANCH returns { disc: Uint8Array } (serial only, with preamble) */
   handle(pkt) {
     if (pkt.length < 25 || pkt[0] !== 0x01) return null;
-    const len = pkt[1]; if (pkt.length < len + 1) return null;      // len 은 시작코드 포함 길이
+    const len = pkt[1]; if (pkt.length < len + 1) return null;      // len includes the start code
     const body = pkt.subarray(0, len - 1), sum = (pkt[len - 1] << 8) | pkt[len];
     if (RdmResponder.checksum(body) !== sum) return null;
     const dest = [...pkt.subarray(2, 8)], src = [...pkt.subarray(8, 14)], tn = pkt[14], sub = (pkt[17] << 8) | pkt[18];
@@ -40,7 +40,7 @@ export class RdmResponder {
     if (!mine && !bcast) return null;
     this.last = `${cc === CC.GET ? 'GET' : cc === CC.SET ? 'SET' : 'DISC'} ${PID_NAME[pid] || '0x' + pid.toString(16)}`;
     const reply = (type, data, rcc = cc + 1) => {
-      if (!mine) return null;                                       // 브로드캐스트에는 응답하지 않는다
+      if (!mine) return null;                                       // no reply to broadcasts
       const b = [0x01, 24 + data.length, ...src, ...this.uid, tn, type, 0, ...u16(sub), rcc, ...u16(pid), data.length, ...data];
       return new Uint8Array([...b, ...u16(RdmResponder.checksum(b))]);
     };

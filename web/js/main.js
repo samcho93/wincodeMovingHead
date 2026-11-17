@@ -1,4 +1,4 @@
-// main.js — Wincode 250W BSW 무빙헤드 3D 시뮬레이터(웹 클라이언트)
+// main.js — Wincode 250W BSW moving head 3D simulator (web client)
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -17,7 +17,7 @@ import { Panel } from './panel.js';
 
 const $ = s => document.querySelector(s);
 
-/* ───────── 조명기(펌웨어 모델) · 통신 ───────── */
+/* ───────── fixture (firmware model) · communication ───────── */
 const fx = new Fixture();
 const menu = new Menu(fx);
 const rdm = new RdmResponder(fx);
@@ -26,9 +26,9 @@ const log = line => panel && panel.log(line);
 const dmx = new DmxInput(fx, rdm, line => log(line));
 fx.log = line => log(line);
 panel = new Panel(fx, dmx, rdm);
-window.WMH = { fx, menu, dmx, rdm };                     // 콘솔 디버그용
+window.WMH = { fx, menu, dmx, rdm };                     // for debugging from the console
 
-/* ───────── 렌더러 / 씬 ───────── */
+/* ───────── renderer / scene ───────── */
 const host = $('#viewport');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -44,7 +44,7 @@ const camera = new THREE.PerspectiveCamera(38, 1, 0.03, 80);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 0.12; controls.maxDistance = 16;
 
-/* 무대: 바닥 + 뒤·옆 벽(스폿이 맺히는 면) + 트러스 */
+/* Stage: floor + back/side walls (where the spot lands) + truss */
 const ROOM = { w: 14, d: 13, h: 6.5, back: -6 };
 {
   const floorM = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.78, metalness: 0.05 });
@@ -55,9 +55,9 @@ const ROOM = { w: 14, d: 13, h: 6.5, back: -6 };
   mk(ROOM.d, ROOM.h, wallM, -ROOM.w / 2, ROOM.h / 2, ROOM.back + ROOM.d / 2, 0, Math.PI / 2);
   mk(ROOM.d, ROOM.h, wallM, ROOM.w / 2, ROOM.h / 2, ROOM.back + ROOM.d / 2, 0, -Math.PI / 2);
   mk(ROOM.w, ROOM.d, wallM, 0, ROOM.h, ROOM.back + ROOM.d / 2, Math.PI / 2, 0);
-  // 바닥 눈금(1m)
+  // floor grid (1 m)
   const grid = new THREE.GridHelper(14, 14, 0x2a2a30, 0x202024); grid.position.set(0, 0.002, ROOM.back + 7); grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
-  // 그림자가 보이도록 세운 소품(사람 키 기준 기둥)
+  // a prop to show shadows (person-height pillar)
   const prop = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.7, 24), new THREE.MeshStandardMaterial({ color: 0x8a8a90, roughness: 0.7 }));
   prop.position.set(1.6, 0.85, -3.4); prop.castShadow = true; prop.receiveShadow = true; scene.add(prop);
 }
@@ -72,9 +72,9 @@ const truss = new THREE.Group(); truss.visible = false; scene.add(truss);
 }
 const hemi = new THREE.HemisphereLight(0x55607a, 0x0a0a0c, 0.18); scene.add(hemi);
 const work = new THREE.DirectionalLight(0xfff2e0, 0); work.position.set(2.5, 5, 4); scene.add(work);
-const key = new THREE.SpotLight(0xdfe8ff, 6, 9, 0.5, 0.8, 1.5); key.position.set(1.2, 2.4, 2.6); scene.add(key, key.target);   // 조명기 형태가 보이도록 약한 키라이트
+const key = new THREE.SpotLight(0xdfe8ff, 6, 9, 0.5, 0.8, 1.5); key.position.set(1.2, 2.4, 2.6); scene.add(key, key.target);   // weak key light so the fixture's shape is visible
 
-/* ───────── 모델 · 빛 ───────── */
+/* ───────── model · light ───────── */
 const R = buildMachine(menu.canvas);
 scene.add(R.root);
 R.M.glass.depthWrite = false;
@@ -82,7 +82,7 @@ const beamImg = new BeamImage(384);
 const beam = new Beam(R.tilt, beamImg.out);
 const lcdView = $('#lcdView').getContext('2d'), beamView = $('#beamView').getContext('2d');
 
-/* 후처리: 블룸(렌즈·빔의 번짐) + 깊이 프리패스(빔이 몸체·벽에 가려지는 지점) */
+/* Post-processing: bloom (lens/beam glow) + depth pre-pass (where the beam is cut by the body and walls) */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.7, 0.92); composer.addPass(bloom);
@@ -97,7 +97,7 @@ function resize() {
 }
 new ResizeObserver(resize).observe(host); resize();
 
-/* ───────── 설치(바닥 / 트러스) · 시점 ───────── */
+/* ───────── mounting (floor / truss) · views ───────── */
 let mount = 'floor';
 function setMount(m) {
   mount = m; truss.visible = m === 'truss';
@@ -107,7 +107,7 @@ function setMount(m) {
   try { localStorage.setItem('wmh.mount', m); } catch (e) {}
   setView(curView, true);
 }
-const VIEWS = {   // 조명기 로컬 좌표(바닥 설치 기준) → 설치 방식에 맞춰 변환. world:true 는 월드 좌표
+const VIEWS = {   // fixture-local coordinates (floor mount) → transformed for the mount. world:true = world coordinates
   stage: { world: true, pos: [4.6, 2.3, 6.2], tgt: [0, 1.9, -2.2] },
   front: { pos: [0.35, 0.42, 1.25], tgt: [0, 0.25, 0] },
   rear:  { pos: [-0.3, 0.3, -0.95], tgt: [0, 0.2, 0] },
@@ -126,7 +126,7 @@ function setView(name, instant) {
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 controls.addEventListener('start', () => { fly = null; });
 
-/* ───────── 버튼 입력(본체 3D · 확대창 · 키보드) ───────── */
+/* ───────── button input (3D body · LCD panel · keyboard) ───────── */
 const KEYMAP = { up: 'up', down: 'down', left: 'menu', menu: 'menu', enter: 'enter', right: 'enter' };
 let held = null;
 function press(k, mesh) {
@@ -135,7 +135,7 @@ function press(k, mesh) {
   held = { key, t0: performance.now(), rep: 0, next: performance.now() + 420, mesh, long: false };
   if (mesh) mesh.position.z = 0.0008;
   document.querySelectorAll(`.key[data-key="${key}"]`).forEach(b => b.classList.add('down'));
-  if (key !== 'menu') menu.key(key);                    // MENU 는 뗄 때(짧게) 또는 1초 유지(길게)로 구분
+  if (key !== 'menu') menu.key(key);                    // MENU acts on release (short) or after 1 s held (long)
 }
 function release() {
   if (!held) return;
@@ -183,7 +183,7 @@ addEventListener('pointerup', e => {
 });
 renderer.domElement.addEventListener('pointermove', e => { renderer.domElement.style.cursor = pick(e) ? 'pointer' : ''; });
 
-/* ───────── 상단 바 ───────── */
+/* ───────── top bar ───────── */
 function setPower(on) {
   fx.setPower(on);
   try { localStorage.setItem('wmh.power', on ? '1' : '0'); } catch (e) {}
@@ -197,7 +197,7 @@ $('#rngHaze').addEventListener('input', e => { haze = e.target.value / 100; });
 $('#chkWork').addEventListener('change', e => { work.intensity = e.target.checked ? 1.6 : 0; hemi.intensity = e.target.checked ? 0.9 : 0.18; scene.environmentIntensity = e.target.checked ? 0.5 : 0.1; });
 $('#chkDock').addEventListener('change', e => $('#lcdDock').classList.toggle('hidden', !e.target.checked));
 $('#selMount').addEventListener('change', e => setMount(e.target.value));
-// 테스트용 DMX 송신기: 조명기와 분리된 장치로 "추가"한다(같은 페이지를 새 창으로도 열 수 있다)
+// DMX test transmitter: "added" as a device separate from the fixture (the same page also opens in a new window)
 function toggleTx(show) {
   const d = $('#txDock'), on = show ?? d.classList.contains('hidden');
   d.classList.toggle('hidden', !on);
@@ -208,7 +208,7 @@ function toggleTx(show) {
 $('#btnTx').addEventListener('click', () => toggleTx());
 $('#txClose').addEventListener('click', () => toggleTx(false));
 
-/* ───────── 사운드 모드(마이크) ───────── */
+/* ───────── sound mode (microphone) ───────── */
 const mic = { ctx: null, an: null, buf: null, avg: 0, last: 0, state: '' };
 async function micStart() {
   if (mic.ctx || mic.state === 'denied') return;
@@ -227,13 +227,13 @@ function micPoll(now) {
 }
 document.addEventListener('click', e => { if (e.target.id === 'btnBeat') fx.beat = true; });
 
-/* ───────── 설정 변경 → 서버/표시 ───────── */
+/* ───────── settings change → server / display ───────── */
 fx.on(ev => {
   if (ev === 'settings') { dmx.sendFixture(); menu.dirty = true; if (fx.settings.runMode === 'SOUND') micStart(); }
   if (ev === 'signal') { const s = $('#sig'); s.className = 'pill ' + (fx.dmxSignal ? 'on' : 'off'); s.textContent = fx.dmxSignal ? 'DMX receiving' : 'No DMX signal'; }
 });
 
-/* ───────── 루프 ───────── */
+/* ───────── loop ───────── */
 const clock = new THREE.Clock();
 let uiT = 0, outT = 0;
 function frame() {
@@ -254,7 +254,7 @@ function frame() {
   if (fly) { fly.t = Math.min(1, fly.t + dt * 1.8); const k = fly.t * fly.t * (3 - 2 * fly.t); camera.position.lerpVectors(fly.p0, fly.pos, k); controls.target.lerpVectors(fly.t0, fly.tgt, k); if (fly.t >= 1) fly = null; }
   controls.update();
 
-  // 깊이 프리패스(빔 제외) → 본 렌더
+  // depth pre-pass (without the beam) → main render
   renderer.shadowMap.needsUpdate = true;
   beam.vol.visible = false; const fv = beam.flare.visible; beam.flare.visible = false;
   renderer.setRenderTarget(depthRT); renderer.render(scene, camera); renderer.setRenderTarget(null);
@@ -264,7 +264,7 @@ function frame() {
   if (now - uiT > 200) { uiT = now; panel.updateStatus(); panel.refreshDmx(); $('#lcdState').textContent = !fx.power ? 'Off' : menu.asleep ? 'Sleep' : ''; const ms = document.getElementById('micState'); if (ms) ms.textContent = mic.state === 'denied' ? 'No microphone' : mic.state; }
 }
 
-/* ───────── 시작 ───────── */
+/* ───────── start ───────── */
 let saved = {}; try { saved = { mount: localStorage.getItem('wmh.mount'), power: localStorage.getItem('wmh.power'), tx: localStorage.getItem('wmh.tx') }; } catch (e) {}
 if (saved.mount === 'truss') { $('#selMount').value = 'truss'; setMount('truss'); } else setView('stage', true);
 log('Simulator started');

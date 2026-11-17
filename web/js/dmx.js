@@ -1,7 +1,7 @@
-// dmx.js — 조명기의 "DMX IN 커넥터". 한 번에 한 입력만 연결한다(실제 XLR 한 개와 같음).
-//   cable     가상 DMX 케이블(BroadcastChannel) — 슬라이더 송신기(console.html)·Host 모드의 다른 시뮬레이터 탭
-//   artnet    Art-Net (서버 UDP 6454)            sacn   sACN/E1.31 (서버 UDP 5568)
-//   serial    USB-DMX (서버 시리얼, ENTTEC Pro)   webserial  USB-RS485 직결(브라우저 Web Serial, 브레이크 감지)
+// dmx.js — the fixture's "DMX IN connector". Only one input is connected at a time (like a single real XLR).
+//   cable     virtual DMX cable (BroadcastChannel) — slider transmitter (console.html) and other simulator tabs in Host mode
+//   artnet    Art-Net (server, UDP 6454)            sacn   sACN/E1.31 (server, UDP 5568)
+//   serial    USB-DMX (server serial, ENTTEC Pro)   webserial  USB-RS485 direct (browser Web Serial, break detection)
 export const SOURCES = {
   none:      { name: 'Not connected', server: false },
   cable:     { name: 'Virtual DMX cable (slider transmitter / master tab)', server: false },
@@ -11,7 +11,7 @@ export const SOURCES = {
   webserial: { name: 'USB-RS485 direct (browser Web Serial)', server: false },
 };
 const SRC_ID = ['artnet', 'sacn', 'serial'];
-export const CABLE = 'wmh-dmx';                       // BroadcastChannel 이름(송신기와 공유)
+export const CABLE = 'wmh-dmx';                       // BroadcastChannel name (shared with the transmitter)
 
 export class DmxInput {
   constructor(fx, rdm, log) {
@@ -29,10 +29,10 @@ export class DmxInput {
     this.source = id; try { localStorage.setItem('wmh.source', id); } catch (e) {}
     this.fx.lastDmx = -1e9; this.log(`DMX IN → ${SOURCES[id].name}`); this.onStatus();
   }
-  /** Host(마스터) 모드: DMX OUT 을 가상 케이블로 내보낸다 → 다른 탭(슬레이브)이 받는다 */
+  /** Host (master) mode: send DMX OUT over the virtual cable → other tabs (slaves) receive it */
   sendOut(data) { this.bc.postMessage({ t: 'dmx', from: this.tabId, data }); }
 
-  /* ── 서버(WebSocket) ── */
+  /* ── server (WebSocket) ── */
   async connect() {
     if (window.WMH_STATIC) return false;
     try { const r = await fetch('api/status', { cache: 'no-store' }); const j = await r.json(); if (j.app !== 'wincode-movinghead-sim') return false; } catch (e) { return false; }
@@ -64,8 +64,8 @@ export class DmxInput {
   send(obj) { if (this.online) this.ws.send(JSON.stringify(obj)); }
   sendFixture() { this.send({ type: 'fixture', uid: this.rdm.uid, address: this.fx.settings.address, label: this.rdm.label }); }
 
-  /* ── Web Serial: USB-RS485 어댑터로 DMX 선을 직접 수신 ──
-   *  DMX 프레임의 시작(브레이크)은 수신 측에서 BreakError/FramingError 로 나타난다 → 그 지점을 프레임 경계로 쓴다. */
+  /* ── Web Serial: receive the DMX line directly through a USB-RS485 adapter ──
+   *  The start of a DMX frame (the break) shows up on the receiver as BreakError/FramingError → used as the frame boundary. */
   get webSerialOk() { return 'serial' in navigator; }
   async openWebSerial() {
     const S = this.serial;
@@ -100,19 +100,19 @@ export class DmxInput {
         for (;;) {
           const { value, done } = await reader.read(); if (done) break;
           const now = performance.now();
-          if (now - lastT > 8 && buf.length >= 25) flush();              // 브레이크를 알려 주지 않는 어댑터 대비: 공백으로도 구분
+          if (now - lastT > 8 && buf.length >= 25) flush();              // for adapters that do not report breaks: also split on idle gaps
           lastT = now;
           for (const b of value) buf.push(b);
           if (buf.length >= 513) flush();
         }
       } catch (e) {
-        if (e.name === 'BreakError' || e.name === 'FramingError') flush();   // 프레임 경계
+        if (e.name === 'BreakError' || e.name === 'FramingError') flush();   // frame boundary
         else if (e.name !== 'BufferOverrunError' && e.name !== 'ParityError') { S.error = e.message; S.reading = false; }
       } finally { try { reader.releaseLock(); } catch (e) {} }
     }
     this.onStatus();
   }
-  /** RDM 요청에 같은 선으로 응답(어댑터가 자동 방향 전환일 때만 통한다 — 타이밍 보장 없음) */
+  /** Answer an RDM request on the same line (only works with auto-direction adapters — no timing guarantee) */
   async serialRdm(port, pkt) {
     const r = this.rdm.handle(pkt); this.log(`RDM (direct) ${this.rdm.last}`);
     if (!r || !port.writable) return;

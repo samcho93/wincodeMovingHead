@@ -1,9 +1,9 @@
 /* =====================================================================
- *  dmxnet.js — 네트워크 DMX: Art-Net 4(UDP 6454) · sACN / E1.31(UDP 5568)
- *   수신: ArtDmx, E1.31 Data  → 'dmx' (proto, universe, Buffer(≤512), from)
- *   응답: ArtPoll → ArtPollReply, ArtTodRequest/Control → ArtTodData (RDM 장치 목록)
- *   중계: ArtRdm → 'rdm' (packet(시작코드 제외), rinfo) / sendRdm() 으로 응답
- *   송신: sendArtDmx / sendSacn — 테스트용 슬라이더 송신기가 쓴다
+ *  dmxnet.js — network DMX: Art-Net 4 (UDP 6454) · sACN / E1.31 (UDP 5568)
+ *   receive: ArtDmx, E1.31 Data  → 'dmx' (proto, universe, Buffer(≤512), from)
+ *   reply:   ArtPoll → ArtPollReply, ArtTodRequest/Control → ArtTodData (RDM device list)
+ *   relay:   ArtRdm → 'rdm' (packet without start code, rinfo) / answer with sendRdm()
+ *   send:    sendArtDmx / sendSacn — used by the slider test transmitter
  * ===================================================================== */
 'use strict';
 const dgram = require('dgram');
@@ -58,13 +58,13 @@ class DmxNet extends EventEmitter {
     (ifc ? ifc.address : '127.0.0.1').split('.').forEach((v, i) => { b[10 + i] = +v; b[207 + i] = +v; });
     b.writeUInt16LE(ARTNET_PORT, 14); b[16] = 1; b[17] = 0;
     b[18] = (n.universe >> 8) & 0x7f; b[19] = (n.universe >> 4) & 0x0f;
-    b[23] = 0xd2;                                   // 표시등 정상 · 주소는 네트워크 설정 · RDM 지원
-    b.writeUInt16LE(0x7ff0, 24);                    // ESTA 시제품용 제조사 ID
+    b[23] = 0xd2;                                   // indicators normal · address set over the network · RDM capable
+    b.writeUInt16LE(0x7ff0, 24);                    // ESTA prototype manufacturer ID
     b.write(n.shortName.slice(0, 17), 26, 'latin1'); b.write(n.longName.slice(0, 63), 44, 'latin1');
     b.write(`#0001 [0001] DMX start ${n.address}`, 108, 'latin1');
     b[173] = 1; b[174] = 0x80; b[182] = 0x80; b[190] = n.universe & 0x0f;
     if (ifc && ifc.mac) ifc.mac.split(':').forEach((v, i) => { b[201 + i] = parseInt(v, 16); });
-    b[211] = 1; b[212] = 0x08;                      // 15비트 포트 주소
+    b[211] = 1; b[212] = 0x08;                      // 15-bit port address
     this.art && this.art.send(b, ARTNET_PORT, r.address);
   }
   sendTod(r) {
@@ -74,7 +74,7 @@ class DmxNet extends EventEmitter {
     uids.forEach((u, i) => Buffer.from(u).copy(b, 28 + i * 6));
     this.art && this.art.send(b, ARTNET_PORT, r.address);
   }
-  /** RDM 응답(시작코드 0xCC 제외)을 요청한 컨트롤러로 */
+  /** Send an RDM response (without the 0xCC start code) back to the requesting controller */
   sendRdm(packet, r) {
     const n = this.node, b = Buffer.alloc(24 + packet.length);
     ART_ID.copy(b); b.writeUInt16LE(OP.Rdm, 8); b[11] = 14; b[12] = 1;
@@ -110,17 +110,17 @@ class DmxNet extends EventEmitter {
   }
   onSacn(m, r) {
     if (m.length < 126 || m.readUInt16BE(0) !== 0x0010 || m.compare(ACN_ID, 0, 12, 4, 16) !== 0) return;
-    if (m.readUInt32BE(18) !== 4 || m.readUInt32BE(40) !== 2 || m[117] !== 0x02) return;      // 데이터 패킷만
+    if (m.readUInt32BE(18) !== 4 || m.readUInt32BE(40) !== 2 || m[117] !== 0x02) return;      // data packets only
     const universe = m.readUInt16BE(113), prio = m[108], opts = m[112];
-    if (opts & 0x80) return;                                                                    // 미리보기 데이터는 무시
+    if (opts & 0x80) return;                                                                    // ignore preview data
     const cid = m.toString('hex', 22, 38), now = Date.now();
-    if (universe === this.sacnUniverse) {                                                       // 우선순위가 가장 높은 소스만 반영
-      if (opts & 0x40) { this.sacnSources.delete(cid); return; }                               // 스트림 종료
+    if (universe === this.sacnUniverse) {                                                       // only the highest-priority source is used
+      if (opts & 0x40) { this.sacnSources.delete(cid); return; }                               // stream terminated
       this.sacnSources.set(cid, { prio, last: now });
       let top = 0; for (const [k, v] of this.sacnSources) { if (now - v.last > 2500) this.sacnSources.delete(k); else top = Math.max(top, v.prio); }
       if (prio < top) return;
     }
-    if (m[125] !== 0) return;                                                                   // 시작코드 0(딤머 데이터)만
+    if (m[125] !== 0) return;                                                                   // start code 0 (dimmer data) only
     const count = Math.min(512, m.readUInt16BE(123) - 1, m.length - 126);
     this.emit('dmx', 'sacn', universe, m.subarray(126, 126 + count), r.address);
   }
