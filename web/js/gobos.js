@@ -50,11 +50,11 @@ export class BeamImage {
     }
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over';
   }
-  /** Fixture optical state → beam section. Returns false when nothing changed */
-  render(fx) {
+  /** Optical state of one head → beam section. Returns false when nothing changed */
+  render(fx) {                                                  // fx: a Head (or the Fixture, which forwards to head 1)
     const o = fx.o, M = this.model, F = M.features, { S, R } = this;
-    const blur = (fx.defocus * 46 + o.frost * 34) * (S / 512), fl = fx.filter;
-    const key = [o.colorPos.toFixed(3), (o.goboPos + o.goboOfs).toFixed(3), (o.rotPos + o.rotOfs).toFixed(3), o.goboAngle.toFixed(1), o.prism.toFixed(2), o.prismAngle.toFixed(1), blur.toFixed(1),
+    const blur = (fx.defocus * 46 + o.frost * 34 + (M.spec.soft || 0)) * (S / 512), fl = fx.filter;
+    const key = [o.colorPos.toFixed(3), (o.goboPos + o.goboOfs).toFixed(3), (o.rotPos + o.rotOfs).toFixed(3), o.goboAngle.toFixed(1), o.prism.toFixed(2), o.prismAngle.toFixed(1), blur.toFixed(1), F.rgbl ? o.rgb.map(v => v.toFixed(3)).join() : '',
       fl.map(v => v.toFixed(3)).join(), F.blades ? o.blades.map(v => v.toFixed(3)).join() + o.bladeRot.toFixed(3) : ''].join('|');
     if (key === this.key) return false;
     this.key = key;
@@ -62,7 +62,8 @@ export class BeamImage {
     // 1) colour wheel: the filters are butted together, so a half position shows two colours split down the middle
     ag.setTransform(1, 0, 0, 1, 0, 0); ag.globalCompositeOperation = 'source-over'; ag.clearRect(0, 0, S, S);
     const c0 = Math.floor(o.colorPos);
-    for (let k = c0; k <= c0 + 1; k++) {
+    if (F.rgbl) { ag.fillStyle = css(o.rgb.map((v, i) => v * w[i])); ag.fillRect(0, 0, S, S); }   // colour-mixing LED engine: no wheel
+    else for (let k = c0; k <= c0 + 1; k++) {
       const x0 = S / 2 + (k - o.colorPos) * R * 2 - R;
       ag.fillStyle = css(C[((k % nC) + nC) % nC].rgb.map((v, i) => v * w[i]));
       ag.fillRect(Math.floor(x0), 0, Math.ceil(R * 2) + 1, S);

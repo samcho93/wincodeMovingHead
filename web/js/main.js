@@ -83,8 +83,12 @@ const key = new THREE.SpotLight(0xdfe8ff, 6, 9, 0.5, 0.8, 1.5); key.position.set
 /* ───────── model · light ───────── */
 const R = buildMachine(menu.canvas, MODEL.body);
 scene.add(R.root);
-const beamImg = new BeamImage(MODEL, 384);
-const beam = new Beam(R.tilt, beamImg.out, R.dim);
+// one beam (spot light + volumetric cone + beam-section canvas) per head; multi-head fixtures use lighter settings
+const MULTI = R.heads.length > 1;
+const BEAMS = R.heads.map((r, i) => {
+  const img = new BeamImage(MODEL, MULTI ? 192 : 384);
+  return { r, head: fx.heads[i], img, beam: new Beam(r.tilt, img.out, R.dim, MULTI ? { steps: 24, shadow: 512 } : {}) };
+});
 const lcdView = $('#lcdView').getContext('2d'), beamView = $('#beamView').getContext('2d');
 
 /* Post-processing: bloom (lens/beam glow) + depth pre-pass (where the beam is cut by the body and walls) */
@@ -98,7 +102,7 @@ function resize() {
   const w = host.clientWidth || 1, h = host.clientHeight || 1, pr = renderer.getPixelRatio();
   renderer.setSize(w, h); composer.setSize(w, h); depthRT.setSize(Math.floor(w * pr), Math.floor(h * pr));
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  beam.setDepth(depthRT.depthTexture, Math.floor(w * pr), Math.floor(h * pr), camera);
+  for (const B of BEAMS) B.beam.setDepth(depthRT.depthTexture, Math.floor(w * pr), Math.floor(h * pr), camera);
 }
 new ResizeObserver(resize).observe(host); resize();
 
@@ -112,11 +116,11 @@ function setMount(m) {
   try { localStorage.setItem('wmh.mount', m); } catch (e) {}
   setView(curView, true);
 }
-const VS = MODEL.body.H / 0.492, PB = MODEL.body.base, LZ = PB.depth / 2 + 0.006;   // views scale with the fixture height
+const VS = MODEL.body.viewScale || MODEL.body.H / 0.492, PB = MODEL.body.base, BH = MODEL.body.H, LZ = PB.depth / 2 + 0.006;   // views scale with the fixture height
 const VIEWS = {   // fixture-local coordinates (floor mount) → transformed for the mount. world:true = world coordinates
   stage: { world: true, pos: [4.6, 2.3, 6.2], tgt: [0, 1.9, -2.2] },
-  front: { pos: [0.35 * VS, 0.42 * VS, 1.25 * VS], tgt: [0, 0.25 * VS, 0] },
-  rear:  { pos: [-0.3 * VS, 0.3 * VS, -0.95 * VS], tgt: [0, 0.2 * VS, 0] },
+  front: { pos: [0.35 * VS, BH * 0.5 + 0.17 * VS, 1.25 * VS], tgt: [0, BH * 0.5, 0] },
+  rear:  { pos: [-0.3 * VS, BH * 0.4 + 0.1 * VS, -0.95 * VS], tgt: [0, BH * 0.4, 0] },
   beam:  { world: true, pos: [0.6, 1.5, -5.2], tgt: [0, 1.2, 0] },
   lcd:   { pos: [0.02, PB.panelY + 0.02, LZ + 0.32], tgt: [0.005, PB.panelY, LZ] },
 };
@@ -279,16 +283,20 @@ function frame() {
   fx.update(dt);
   if (fx.dmxOut && now - outT > 25) { outT = now; dmx.sendOut(fx.dmxOut); }      // Host/Sound: DMX OUT (40Hz)
 
-  R.pan.rotation.y = THREE.MathUtils.degToRad(fx.pan.pos);
-  R.tilt.rotation.x = THREE.MathUtils.degToRad(fx.tilt.pos);
   if (menu.draw(now)) { R.lcdTex.needsUpdate = true; lcdView.drawImage(menu.canvas, 0, 0); }
   {                                                            // DMX signal LED (models with a "DMX Indicate" setting choose how it shows)
     const sig = fx.dmxSignal, mode = fx.settings.dmxInd, br = (fx.settings.sigBright ?? 10) / 10, blink = Math.floor(now / 120) % 2;
     const on = !fx.power ? 0 : mode === 'Mode1' ? +sig : mode === 'Mode2' ? +!sig : mode === 'Mode3' ? (sig ? blink : 0) : (sig ? 0.35 + 0.65 * blink : -1);
     R.led.material.color.setRGB(on < 0 ? 1 : 0.05, on < 0 ? 0.15 : 0.05 + 0.95 * on * br, on < 0 ? 0.1 : 0.05 + 0.3 * on * br);
   }
-  if (beamImg.render(fx)) { beam.tex.needsUpdate = true; beamView.drawImage(beamImg.out, 0, 0, 160, 160); }
-  beam.update(fx, camera, haze, time, R.lensMat);
+  for (const B of BEAMS) {
+    const h = B.head, r = B.r;
+    r.pan.rotation.y = THREE.MathUtils.degToRad(h.pan.pos);
+    r.tilt.rotation.x = THREE.MathUtils.degToRad(h.tilt.pos);
+    if (B.img.render(h)) { B.beam.tex.needsUpdate = true; if (h.index === 0) beamView.drawImage(B.img.out, 0, 0, 160, 160); }
+    B.beam.update(h, camera, haze, time, r.lensMat);
+    for (let k = 0; k < r.ring.length; k++) { const c = h.o.ring[k]; r.ring[k].color.setRGB(0.02 + c[0] * 2.6, 0.02 + c[1] * 2.6, 0.02 + c[2] * 2.6); }   // pixel ring (HDR → blooms)
+  }
   $('#beamView').style.opacity = 0.25 + 0.75 * Math.min(1, fx.intensity * 3);
 
   if (fly) { fly.t = Math.min(1, fly.t + dt * 1.8); const k = fly.t * fly.t * (3 - 2 * fly.t); camera.position.lerpVectors(fly.p0, fly.pos, k); controls.target.lerpVectors(fly.t0, fly.tgt, k); if (fly.t >= 1) fly = null; }
@@ -296,9 +304,9 @@ function frame() {
 
   // depth pre-pass (without the beam) → main render
   renderer.shadowMap.needsUpdate = true;
-  beam.vol.visible = false; const fv = beam.flare.visible; beam.flare.visible = false;
+  for (const B of BEAMS) { B.fv = B.beam.flare.visible; B.vv = B.beam.vol.visible; B.beam.vol.visible = false; B.beam.flare.visible = false; }
   renderer.setRenderTarget(depthRT); renderer.render(scene, camera); renderer.setRenderTarget(null);
-  beam.vol.visible = fx.intensity > 0.0005 && haze > 0.001; beam.flare.visible = fv;
+  for (const B of BEAMS) { B.beam.vol.visible = B.vv; B.beam.flare.visible = B.fv; }
   composer.render();
 
   if (now - uiT > 200) { uiT = now; const bd = $('#btnDemo'); bd.classList.toggle('active', fx.demo); bd.textContent = fx.demo ? `■ Demo · ${fx.demoScene}` : '▶ Demo'; panel.updateStatus(); panel.refreshDmx(); $('#lcdState').textContent = !fx.power ? 'Off' : menu.asleep ? 'Sleep' : ''; const ms = document.getElementById('micState'); if (ms) ms.textContent = mic.state === 'denied' ? 'No microphone' : mic.state; }

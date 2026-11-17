@@ -71,8 +71,13 @@ export class Panel {
     if (F.cmy) rows.push(['CMY', `C ${pc(o.cmy[0])} · M ${pc(o.cmy[1])} · Y ${pc(o.cmy[2])}${F.cto ? ` · CTO ${pc(o.cto)}` : ''}`]);
     if (F.gobos) rows.push(['Static gobo', slotName(M.gobos.fix, o.goboPos, M.gobos.fix.length)], ['Rotating gobo', `${slotName(M.gobos.rot, o.rotPos, M.gobos.rot.length)} · ${o.goboAngle.toFixed(0)}°`]);
     if (F.blades) rows.push(['Framing blades', `${[0, 1, 2, 3].map(k => 'TRBL'[k] + ' ' + pc((o.blades[2 * k] + o.blades[2 * k + 1]) / 2)).join(' · ')} · rot ${(o.bladeRot * 45).toFixed(0)}°`]);
-    rows.push(['Zoom', `${fx.beamAngleDeg.toFixed(1)}° (${M.spec.zoomMin}°–${M.spec.zoomMax}°)`], ['Focus', `${pc(o.focus)} ${fx.defocus < 0.03 ? '· sharp' : '· soft'}`], ['Frost', pc(o.frost)]);
+    rows.push(['Zoom', `${fx.beamAngleDeg.toFixed(1)}° (${M.spec.zoomMin}°–${M.spec.zoomMax}°)`], ...(M.spec.focus ? [['Focus', `${pc(o.focus)} ${fx.defocus < 0.03 ? '· sharp' : '· soft'}`]] : []), ['Frost', pc(o.frost)]);
     if (F.prism) rows.push(['Prism', o.prism > 0.5 ? `3-facet ON · ${o.prismAngle.toFixed(0)}°` : 'OFF']);
+    if (fx.heads.length > 1) {                                    // multi-head fixture: one line per head
+      rows.length = 0;
+      fx.heads.forEach((h, i) => rows.push([`Head ${i + 1}`, `<i class="swatch" style="background:${css(h.tint.map(v => v * Math.min(1, h.intensity * 4)))}"></i>${h.pan.pos.toFixed(0)}° / ${h.tilt.pos.toFixed(0)}° · zoom ${h.beamAngleDeg.toFixed(0)}° · ${pc(h.intensity)}`]));
+      if (F.ring) rows.push(['Pixel rings', fx.heads.map(h => h.o.ring.map(c => `<i class="swatch" style="background:${css(c)};width:5px;margin:0;border:0;border-radius:0"></i>`).join('')).join(' ')]);
+    }
     $('#kvOpt').innerHTML = rows.map(r => `<span>${r[0]}</span><b>${r[1]}</b>`).join('');
     $('#chSrc').textContent = fx.power ? `— ${src}` : '';
     for (const tr of $('#chTable').rows) {

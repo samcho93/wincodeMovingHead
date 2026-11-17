@@ -78,7 +78,7 @@ void main() {
 
 export class Beam {
   /** tilt: head group, canvas: BeamImage.out, DIM: { lensY, lensR } of the model body */
-  constructor(tilt, canvas, DIM) {
+  constructor(tilt, canvas, DIM, opts = {}) {                    // opts: { steps, shadow } — lighter settings for multi-head fixtures
     this.tilt = tilt;
     this.tex = new THREE.CanvasTexture(canvas);
     this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.minFilter = THREE.LinearFilter; this.tex.generateMipmaps = false;
@@ -88,7 +88,7 @@ export class Beam {
     // ① projected light
     const L = this.light = new THREE.SpotLight(0xffffff, 0, 60, 0.1, 0, 2);
     L.position.set(0, y, 0); L.map = this.tex; L.castShadow = true;
-    L.shadow.mapSize.set(1024, 1024); L.shadow.camera.near = 0.08; L.shadow.camera.far = 40; L.shadow.bias = -0.0004;
+    L.shadow.mapSize.set(opts.shadow || 1024, opts.shadow || 1024); L.shadow.camera.near = 0.08; L.shadow.camera.far = 40; L.shadow.bias = -0.0004;
     L.target.position.set(0, y + 1, 0);
     tilt.add(L, L.target);
     // make the projected image turn with the head: shadow camera up = head local +Z
@@ -104,7 +104,7 @@ export class Beam {
       uR0: { value: this.R0 }, uTan: { value: 0.05 }, uLen: { value: this.len }, uHaze: { value: 1 }, uTime: { value: 0 }, uNear: { value: 0.05 }, uFar: { value: 100 },
     };
     this.vol = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-      uniforms: this.uni, vertexShader: VERT, fragmentShader: FRAG, side: THREE.BackSide,
+      uniforms: this.uni, vertexShader: VERT, fragmentShader: FRAG.replace('const int N = 40;', `const int N = ${opts.steps || 40};`), side: THREE.BackSide,
       blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true, fog: false, toneMapped: false,
     }));
     this.vol.position.y = y; this.vol.frustumCulled = false; this.vol.renderOrder = 10; this.vol.userData.beam = true;

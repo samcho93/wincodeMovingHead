@@ -1,6 +1,7 @@
 // machine.js — procedural 3D model of a moving head, built from a model definition's `body` dimensions.
 //  Coordinates: origin = floor centre, +Z = control panel (LCD) side, units = m. Head local +Y = beam direction.
-//  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins.
+//  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins,
+//             'bar' = a long base carrying body.headCount small heads, each with a pixel ring.
 //  body.controls 'cross5' = five buttons in a cross, 'encoder' = one rotary encoder with push button.
 import * as THREE from 'three';
 
@@ -69,17 +70,29 @@ export function buildMachine(lcdCanvas, B) {
 
   /* ── base ── */
   const base = new THREE.Group(); root.add(base);
-  const b = B.base, hw = b.hw, zf = b.depth / 2 + 0.006;      // zf: outer face of the front/rear panel frames
-  add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);
-  if (B.handles) for (const sx of [-1, 1]) {                    // carrying handles (sides, ribbed)
-    const h = add(base, extrude([[0, b.bot + 0.006], [0.035, b.bot + 0.02], [0.035, b.top - 0.021], [0, b.top - 0.007]], b.depth * 0.75, 0.003), M.body, sx * hw);
-    if (sx < 0) h.scale.x = -1;
-    for (let i = -4; i <= 4; i++) add(base, new THREE.BoxGeometry(0.02, 0.044, 0.004), M.trim, sx * (hw + 0.014), b.panelY, i * 0.014).rotation.z = sx * -0.38;
-    add(base, new THREE.BoxGeometry(0.01, 0.02, 0.05), M.trim, sx * (hw + 0.031), b.panelY, 0);
+  const b = B.base, hw = b.hw || 0, zf = b.depth / 2 + 0.006;      // zf: outer face of the front/rear panel frames
+  if (B.style === 'bar') {                                      // long bar carrying several heads
+    const hl = b.length / 2, hd = b.depth / 2;
+    add(base, extrude([[-hd, b.bot], [hd, b.bot], [hd, b.top - 0.03], [hd - 0.03, b.top], [-hd + 0.03, b.top], [-hd, b.top - 0.03]], b.length - 0.05, 0.005), M.body).rotation.y = Math.PI / 2;
+    for (const sx of [-1, 1]) {                                 // end caps with carrying handles
+      add(base, new THREE.BoxGeometry(0.025, b.top - b.bot - 0.004, b.depth - 0.004), M.trim, sx * (hl - 0.0125), (b.top + b.bot) / 2, 0);
+      add(base, new THREE.BoxGeometry(0.012, 0.03, 0.09), M.rubber, sx * (hl - 0.006), b.top - 0.035, 0);
+      for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(0.016, 0.013, b.bot, 16), M.rubber, sx * (hl - 0.09), b.bot / 2, sz * (hd - 0.035));   // feet
+    }
+    for (let i = 0; i < B.headCount; i++) for (let k = -5; k <= 5; k++) add(base, new THREE.BoxGeometry(0.006, 0.004, b.depth * 0.5), M.trim, (i - (B.headCount - 1) / 2) * B.headPitch + k * 0.012, b.top + 0.001, 0);   // cooling ribs under each head
+    for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * (hd + 0.006));
+  } else {
+    add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);
+    if (B.handles) for (const sx of [-1, 1]) {                    // carrying handles (sides, ribbed)
+      const h = add(base, extrude([[0, b.bot + 0.006], [0.035, b.bot + 0.02], [0.035, b.top - 0.021], [0, b.top - 0.007]], b.depth * 0.75, 0.003), M.body, sx * hw);
+      if (sx < 0) h.scale.x = -1;
+      for (let i = -4; i <= 4; i++) add(base, new THREE.BoxGeometry(0.02, 0.044, 0.004), M.trim, sx * (hw + 0.014), b.panelY, i * 0.014).rotation.z = sx * -0.38;
+      add(base, new THREE.BoxGeometry(0.01, 0.02, 0.05), M.trim, sx * (hw + 0.031), b.panelY, 0);
+    }
+    const f = B.feet;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(f.r, f.r * 0.8, f.h, 20), M.rubber, sx * f.x, f.h / 2, sz * f.z);
+    for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * (b.depth / 2 + 0.006));
   }
-  const f = B.feet;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(f.r, f.r * 0.8, f.h, 20), M.rubber, sx * f.x, f.h / 2, sz * f.z);
-  for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * (b.depth / 2 + 0.006));
 
   // front panel: LCD + controls
   const front = new THREE.Group(); front.position.set(0, b.panelY, zf + 0.0005); base.add(front);
@@ -120,6 +133,37 @@ export function buildMachine(lcdCanvas, B) {
   const rocker = add(rear, new THREE.BoxGeometry(0.02, 0.015, 0.006), new THREE.MeshStandardMaterial({ color: 0x8a1410, roughness: 0.4, emissive: 0x000000 }), 0.046, 0.012, 0.004);
   rocker.userData.key = 'power'; clickables.push(rocker);
 
+  const heads = [];
+  if (B.style === 'bar') {
+    /* ── heads: small yoke (pan) + round head (tilt) with a pixel ring around the lens ── */
+    const Y = B.yoke, domeR = B.lensR * 1.67, sag = domeR - Math.sqrt(domeR * domeR - B.lensR * B.lensR), headTop = B.head[B.head.length - 1].y;
+    const bridgeGeo = loft([{ y: 0, w: Y.w * 0.8, d: Y.d * 0.85, r: 0.02 }, { y: 0.008, w: Y.w, d: Y.d, r: 0.02 }, { y: Y.h, w: Y.w, d: Y.d * 0.9, r: 0.02 }]);
+    const armGeo = extrude([[-Y.armD / 2, Y.h - 0.01], [Y.armD / 2, Y.h - 0.01], [Y.armD * 0.36, Y.armTop - 0.012], [Y.armD * 0.2, Y.armTop], [-Y.armD * 0.2, Y.armTop], [-Y.armD * 0.36, Y.armTop - 0.012]], Y.armT, 0.003);
+    const headGeo = loft(B.head, 48), lensGeo = new THREE.CircleGeometry(B.lensR, 40);
+    const domeGeo = new THREE.SphereGeometry(domeR, 32, 10, 0, Math.PI * 2, 0, Math.asin(Math.min(1, B.lensR / domeR)));
+    const blockGeo = new THREE.TorusGeometry(B.ringR, 0.0055, 8, 10, Math.PI / 4 - 0.06);   // one of 8 pixel-ring blocks
+    for (let i = 0; i < B.headCount; i++) {
+      const pan = new THREE.Group(); pan.position.set((i - (B.headCount - 1) / 2) * B.headPitch, B.panY, 0); root.add(pan);
+      add(pan, new THREE.CylinderGeometry(Y.d * 0.42, Y.d * 0.46, 0.008, 32), M.trim, 0, -0.002, 0);
+      add(pan, bridgeGeo, M.body);
+      for (const sx of [-1, 1]) add(pan, armGeo, M.body, sx * Y.armX, 0, 0).rotation.y = Math.PI / 2;
+      const tilt = new THREE.Group(); tilt.position.y = B.tiltY; pan.add(tilt);
+      add(tilt, headGeo, M.body);
+      for (const sx of [-1, 1]) { const hub = add(tilt, new THREE.CylinderGeometry(0.016, 0.016, 0.006, 20), M.trim, sx * (Y.armX - Y.armT / 2 - 0.004), 0, 0); hub.rotation.z = Math.PI / 2; }
+      const lensMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: true });
+      const lens = add(tilt, lensGeo, lensMat, 0, B.lensY - 0.003, 0); lens.rotation.x = -Math.PI / 2; lens.castShadow = false;
+      add(tilt, domeGeo, M.glass, 0, B.lensY - (domeR - sag) + 0.001, 0).castShadow = false;
+      const ring = [];
+      for (let k = 0; k < 8; k++) {
+        const m = add(tilt, blockGeo, new THREE.MeshBasicMaterial({ color: 0x050505 }), 0, headTop + 0.002, 0);
+        m.rotation.set(Math.PI / 2, 0, k * Math.PI / 4 + 0.03); m.castShadow = false; ring.push(m.material);
+      }
+      heads.push({ pan, tilt, lensMat, ring });
+    }
+    root.traverse(o => { if (o.isMesh) o.userData.fixture = true; });
+    return { root, base, heads, buttons, knob, rocker, led, lcd, lcdTex, lcdMat, clickables, M, dim: { lensY: B.lensY + sag, lensR: B.lensR, H: B.H } };
+  }
+
   const tt = B.turntable;
   add(base, new THREE.CylinderGeometry(tt.r, tt.r + 0.004, tt.h, 48), M.trim, 0, b.top + tt.h / 2, 0);
 
@@ -153,5 +197,6 @@ export function buildMachine(lcdCanvas, B) {
   const dome = add(tilt, new THREE.SphereGeometry(domeR, 40, 12, 0, Math.PI * 2, 0, Math.asin(Math.min(1, B.lensR / domeR))), M.glass, 0, B.lensY - Math.sqrt(domeR * domeR - B.lensR * B.lensR) + 0.001, 0); dome.castShadow = false;
 
   root.traverse(o => { if (o.isMesh) o.userData.fixture = true; });
-  return { root, base, pan, tilt, buttons, knob, rocker, led, lcd, lcdTex, lcdMat, lensMat, lens, clickables, M, dim: { lensY: B.lensY + (domeR - Math.sqrt(domeR * domeR - B.lensR * B.lensR)), lensR: B.lensR, H: B.H } };
+  heads.push({ pan, tilt, lensMat, ring: [] });
+  return { root, base, heads, buttons, knob, rocker, led, lcd, lcdTex, lcdMat, lensMat, lens, clickables, M, dim: { lensY: B.lensY + (domeR - Math.sqrt(domeR * domeR - B.lensR * B.lensR)), lensR: B.lensR, H: B.H } };
 }

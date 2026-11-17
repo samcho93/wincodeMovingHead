@@ -29,6 +29,7 @@ Pick the model with the selector at the top left (the page reloads with that fix
 |---|---|---|---|---|
 | `lm1012b` | **WOP-LM1012B** 250W LED 3-in-1 Beam/Spot/Wash | 17CH (STD) / 20CH (EXT) | colour LCD + buttons | colour wheel, static + rotating gobo wheels, 3-facet prism, zoom 6–26°, frost |
 | `lm500wf` | **WOP-LM500WF** 500W LED Framing Moving Head Wash | 26CH | touch LCD + rotary encoder | colour wheel, linear CMY, CTO, 4 framing blades (8 channels) + rotation, zoom 6–48°, frost, 10 editable scenes, master/slave selection |
+| `tb5` | **WOP-AVortex TB5** AquaVortex TB5 IP65 multi-head, 5 × 120W RGBL | 21 / 41 / 71 / 75 / 85 / 170CH | display + buttons | five heads on a bar, each with pan 59° / tilt 221°, zoom 4–32°, RGBL colour mixing and an 8-block RGB pixel ring; LEE colour presets, CTO, ring macros, function channel |
 
 Channel charts, panel operation and the assumptions made for each model are shown in the **Guide** tab of the simulator.
 
@@ -78,6 +79,7 @@ Panel operation per model:
 
 - **WOP-LM1012B** — MENU / UP / DOWN / ENTER. ENTER selects (the value blinks), UP/DOWN changes, ENTER confirms,
   MENU goes back without saving. Menu: `Dmx Address` · `Fixture` · `Manual` · `Information` · `Display` · `Factory` · `Reset`.
+- **WOP-AVortex TB5** — same button operation as the 250W; menu: `Dmx Address` · `Fixture` (CH Mode, Run Mode, inverts, fan, dim curve, dim speed, No DMX State, LED refresh) · `Manual` · `Information` · `Factory` · `FixReset` · `Display`.
 - **WOP-LM500WF** — tap the LCD, or turn/press the encoder (mouse wheel over the knob = turn, click = press).
   Pages: `Address` · `WorkMode` · `Display` · `Scene` · `Advanced` · `Status`.
 
@@ -120,6 +122,17 @@ Panel operation per model:
 | 17–24 | CUT1–CUT8: four framing blades, two ends each |
 | 25 | Cut Rot: framing module rotation |
 | 26 | Reset (held 4 s): 210–215 pan/tilt · 220–235 effects · 240–255 all |
+
+**WOP-AVortex TB5** (manual chapter 7) — channels repeat per head; the shared ones follow at the end
+
+| Mode | Per head | Shared |
+|---|---|---|
+| 21CH | — (all heads together: pan/fine, tilt/fine, zoom) | RGBL, CTO, LED colour, ring RGB, ring macro, dimmer/fine, LED strobe, ring strobe, P/T speed, function |
+| 41CH | pan/fine, tilt/fine, zoom | as 21CH from RGBL on |
+| 71CH | pan/fine, tilt/fine, RGBL, zoom, ring RGB, ring macro | dimmer/fine, LED strobe, ring strobe, P/T speed, function |
+| 75CH | as 71CH + LED strobe | dimmer/fine, ring strobe, P/T speed, function |
+| 85CH | as 75CH + LED dimmer/fine | dimmer/fine, ring strobe, P/T speed, function |
+| 170CH | pan/fine, tilt/fine, RGBL, zoom, 8 ring blocks × RGB | dimmer/fine, LED strobe, P/T speed, function |
 
 ## Communication
 

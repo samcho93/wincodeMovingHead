@@ -1,6 +1,8 @@
 // fixture.js — generic moving head "firmware": settings (NVS) · run modes · channels → mechanical/optical state
 //  Everything model-specific (channel chart, wheels, defaults, panel type, body) comes from a model definition
 //  in models/*.js. See models/index.js for the definition contract.
+//  A fixture has one or more heads (model.heads). Each Head owns its pan/tilt axes and optical state and is what the
+//  renderer reads; the Fixture's own pan/tilt/o/intensity… getters are shortcuts to head 1.
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const approach = (cur, tgt, step) => (Math.abs(tgt - cur) <= step ? tgt : cur + Math.sign(tgt - cur) * step);
@@ -12,6 +14,20 @@ function approachWheel(cur, tgt, step, n) {
 }
 const wrap = (v, n) => ((v % n) + n) % n;
 const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+/** Dimmer curves (0..1 → 0..1). Models without a curve setting use the square law. */
+const CURVES = {
+  'Linear': d => d, 'Square Law': d => d * d, 'Inv SQ Law': d => 1 - (1 - d) * (1 - d), 'S Curve': d => d * d * (3 - 2 * d),
+};
+/** Shutter opening (0..1) of a strobe target at time T */
+function shutter(st, T) {
+  if (!st || st.mode === 'open') return 1;
+  if (st.mode === 'closed') return 0;
+  if (st.mode === 'strobe') return (T * st.hz) % 1 < 0.42 ? 1 : 0;
+  if (st.mode === 'pulse') return Math.pow(1 - (T * st.hz) % 1, 2.2);       // fast open, slow close
+  if (st.mode === 'fadein') return Math.pow((T * st.hz) % 1, 1.6);          // slow open, fast close
+  if (st.mode === 'random') { const n = Math.floor(T * st.hz); return hash(n) < 0.45 && (T * st.hz) % 1 < 0.5 ? 1 : 0; }
+  return 1;
+}
 
 /** One axis (pan/tilt): critically damped follower with a speed limit.
  *  A real head's motor driver smooths the 8-bit / 40 Hz steps of a DMX channel; chasing the target directly made the
@@ -29,6 +45,41 @@ class Axis {
   }
 }
 
+/** One head: axes + optical state (actual motor positions) + the values the renderer reads */
+export class Head {
+  constructor(fx, index) {
+    this.fx = fx; this.index = index;
+    this.pan = new Axis(215, 0.2); this.tilt = new Axis(185, 0.2);
+    this.tilt.pos = -fx.model.spec.tiltRange / 2;                // an unpowered head hangs down
+    this.o = { colorPos: 0, cmy: [0, 0, 0], cto: 0, goboPos: 0, goboOfs: 0, rotPos: 0, rotOfs: 0, goboAngle: 0, zoom: 0, focus: 0.4, frost: 0,
+      prism: 0, prismAngle: 0, blades: [0, 0, 0, 0, 0, 0, 0, 0], bladeRot: 0, dimmer: 0, shutter: 0,
+      rgb: [1, 1, 1], level: 1,                                 // colour-mixing LED engines: hue (max component 1) and output level
+      ring: Array.from({ length: 8 }, () => [0, 0, 0]) };       // pixel ring: 8 blocks, RGB 0..1 (after macro and strobe)
+  }
+  get model() { return this.fx.model; }
+  get beamAngleDeg() { const SP = this.model.spec; return SP.zoomMin + (SP.zoomMax - SP.zoomMin) * this.o.zoom; }
+  get intensity() {
+    const fx = this.fx; if (!fx.power || !fx.lampOn) return 0;
+    const curve = CURVES[fx.settings.dimCurve] || CURVES['Square Law'];
+    return (fx.identify ? 1 : curve(this.o.dimmer)) * this.o.shutter * (this.model.features.rgbl ? this.o.level : 1);
+  }
+  /** The in-focus position shifts slightly with zoom. 0 = sharp (fixtures without a focus channel are always sharp) */
+  get defocus() { const f = this.model.spec.focus; return f ? Math.abs(this.o.focus - (f[0] + f[1] * this.o.zoom)) : 0; }
+  /** Colour filtering after the wheel: CMY flags (subtractive) and CTO */
+  get filter() {
+    const [c, m, y] = this.o.cmy, k = this.o.cto;
+    return [(1 - 0.96 * c) * (1 - 0.06 * m), (1 - 0.94 * m) * (1 - 0.12 * c) * (1 - 0.1 * y) * (1 - 0.3 * k), (1 - 0.95 * y) * (1 - 0.1 * m) * (1 - 0.62 * k)];
+  }
+  /** Colour of the beam */
+  get tint() {
+    const M = this.model, w = M.spec.ledWhite;
+    if (M.features.rgbl) return this.o.rgb.map((v, k) => v * w[k]);
+    const C = M.colors, n = C.length, p = this.o.colorPos, i = Math.floor(p) % n, f = p - Math.floor(p);
+    const a = C[i].rgb, b = C[(i + 1) % n].rgb, fl = this.filter;
+    return [0, 1, 2].map(k => (a[k] * (1 - f) + b[k] * f) * w[k] * fl[k]);
+  }
+}
+
 const COMMON_SETTINGS = { address: 1, runMode: 'DMX', panInvert: false, tiltInvert: false, lang: 'EN', totalHours: 0, powerCount: 0 };
 
 export class Fixture {
@@ -43,27 +94,35 @@ export class Fixture {
     this.home = this.blank(model.homeValues);                    // state right after reset
     this.ch = Object.assign({}, this.home); this.chSource = 'home'; this.held = null;
     this.dmx = new Uint8Array(512); this.lastDmx = -1e9; this.dmxSignal = false; this.dmxFps = 0; this._fpsN = 0; this._fpsT = 0;
-    this.power = false; this.resetT = -1; this.resetKind = 'all'; this.resetHold = 0; this.identify = false; this.inverted = false;
+    this.power = false; this.resetT = -1; this.resetKind = 'all'; this.resetHold = 0; this.funcHold = 0; this.funcKey = ''; this.identify = false; this.inverted = false;
     this.local = null; this.localSrc = 'local';                  // simulator override: values set from the Status sliders ('local') or the demo ('demo')
     this.demo = false; this.demoT = 0; this.demoScene = '';
     this.lampOn = true; this.sceneEdit = null;                   // sceneEdit: index of the scene being edited on the panel
     this.sessionSec = 0; this.tempC = 26; this.time = 0;
-    this.pan = new Axis(215, 0.2); this.tilt = new Axis(185, 0.2);
-    this.tilt.pos = -model.spec.tiltRange / 2;                    // an unpowered head hangs down
-    // optical state (actual motor positions)
-    this.o = { colorPos: 0, cmy: [0, 0, 0], cto: 0, goboPos: 0, goboOfs: 0, rotPos: 0, rotOfs: 0, goboAngle: 0, zoom: 0, focus: 0.4, frost: 0,
-      prism: 0, prismAngle: 0, blades: [0, 0, 0, 0, 0, 0, 0, 0], bladeRot: 0, dimmer: 0, shutter: 0 };
+    this.heads = Array.from({ length: model.heads || 1 }, (_, i) => new Head(this, i));
     this.prog = { step: 0, t: 0 }; this.scn = { i: 0, t: 0 }; this.beat = false;
     this.listeners = new Set(); this.dmxOut = null;               // dmxOut: frame sent as master (DMX OUT)
     this.log = () => {};
   }
+  // shortcuts to head 1 (single-head fixtures, panels, status)
+  get pan() { return this.heads[0].pan; }
+  get tilt() { return this.heads[0].tilt; }
+  get o() { return this.heads[0].o; }
+  get beamAngleDeg() { return this.heads[0].beamAngleDeg; }
+  get defocus() { return this.heads[0].defocus; }
+  get filter() { return this.heads[0].filter; }
+  get tint() { return this.heads[0].tint; }
+  /** Brightest head (for "is the fixture lit" decisions) */
+  get intensity() { let m = 0; for (const h of this.heads) m = Math.max(m, h.intensity); return m; }
+
   defaults() {
     const s = Object.assign({}, COMMON_SETTINGS, structuredClone(this.model.settings || {}), { mode: this.model.defaultMode });
     if (this.model.features.scenes) s.scenes = Array.from({ length: 10 }, (_, i) => ({ time: i ? 0 : 30, v: this.blank(i ? this.model.homeValues : this.model.sceneDefault) }));
     return s;
   }
   merge(def, saved) { for (const k of Object.keys(saved)) { if (def[k] && typeof def[k] === 'object' && !Array.isArray(def[k])) Object.assign(def[k], saved[k]); else def[k] = saved[k]; } return def; }
-  blank(vals) { const o = {}; (this.KEYS || []).forEach(k => { o[k] = (vals && vals[k]) ?? 0; }); return o; }
+  /** A value for every channel key; `vals` may be an object or a function key → value */
+  blank(vals) { const o = {}, f = typeof vals === 'function' ? vals : k => vals && vals[k]; (this.KEYS || []).forEach(k => { o[k] = f(k) ?? 0; }); return o; }
   on(fn) { this.listeners.add(fn); }
   emit(ev) { this.listeners.forEach(f => f(ev)); }
   save() { try { localStorage.setItem(this.lsKey, JSON.stringify(this.settings)); } catch (e) {} this.emit('settings'); }
@@ -110,8 +169,8 @@ export class Fixture {
     if (this.sceneEdit != null && F.scenes) return { v: pickKeys(S.scenes[this.sceneEdit].v), src: 'edit' };
     if (S.runMode === 'DMX' || (F.ms && S.msMode === 'Auto' && sig)) {
       if (sig) { const v = {}; chans.forEach((k, i) => { const a = S.address - 1 + i; v[k] = a < 512 ? this.dmx[a] : 0; }); this.held = v; return { v, src: 'dmx' }; }
+      if (S.dataHold && this.held) return { v: pickKeys(this.held), src: 'hold' };   // "Data hold" / "No DMX State: Keep"
       if (M.noSignal === 'manual') return { v: pickKeys(this.manual), src: 'manual' };
-      if (S.dataHold && this.held) return { v: this.held, src: 'hold' };
       return { v: pickKeys(this.home), src: 'home' };
     }
     if (S.runMode === 'SCENE' && F.scenes) return { v: pickKeys(this.runScenes(dt)), src: 'scene' };
@@ -125,9 +184,8 @@ export class Fixture {
     if (now - this._fpsT > 1000) { this.dmxFps = this._fpsN * 1000 / (now - this._fpsT); this._fpsN = 0; this._fpsT = now; }
     const sig = now - this.lastDmx < 1500;
     if (sig !== this.dmxSignal) { this.dmxSignal = sig; this.emit('signal'); }
-    const o = this.o;
-    if (!this.power) {                               // power OFF: dark, head sags under its own weight
-      o.dimmer = 0; o.shutter = 0; this.tilt.step(-SP.tiltRange / 2, dt, 0.25); this.pan.vel = 0;
+    if (!this.power) {                               // power OFF: dark, heads sag under their own weight
+      for (const h of this.heads) { h.o.dimmer = 0; h.o.shutter = 0; h.tilt.step(-SP.tiltRange / 2, dt, 0.25); h.pan.vel = 0; for (const b of h.o.ring) b[0] = b[1] = b[2] = 0; }
       this.tempC += (24 - this.tempC) * dt * 0.02; this.dmxOut = null;
       return;
     }
@@ -143,81 +201,89 @@ export class Fixture {
     if (src === 'auto' || src === 'sound' || src === 'scene') {       // running stand-alone → may drive slaves (they listen at address 1)
       if (M.features.ms ? (S.msMode === 'Master' && !sig) : true) { const out = new Uint8Array(512); chans.forEach((k, i) => { out[i] = v[k]; }); this.dmxOut = out; }
     }
-    const t = M.decode(v);
+    const t = M.decode(v), ts = t.heads || [t];
 
-    // 2) reset channel (held for model.resetHold seconds) / reset sequence
-    const wantReset = src === 'dmx' && t.reset ? (t.reset === true ? 'all' : t.reset) : null;
+    // 2) reset / function channel (value held for model.resetHold seconds) and the reset sequence
+    const live = src === 'dmx' || src === 'local';
+    const wantReset = live && t.reset ? (t.reset === true ? 'all' : t.reset) : null;
     this.resetHold = wantReset ? this.resetHold + dt : 0;
     if (this.resetHold > M.resetHold && !this.resetting) { this.resetHold = -1e9; this.startReset('DMX', wantReset); }
-    const [offP, offT] = M.offsets ? M.offsets(S) : [0, 0];
-    let panT = (t.pan - 0.5) * SP.panRange * (S.panInvert ? -1 : 1) + offP;
-    let tiltT = (t.tilt - 0.5) * SP.tiltRange * (S.tiltInvert ? -1 : 1) + offT;
-    let speed = 1 - 0.965 * (t.ptSpeed || 0), homing = false, homeFx = false;
+    const fk = live && t.apply ? JSON.stringify(t.apply) : '';   // settings a "function" channel asks for (dimmer curve, …)
+    this.funcHold = fk && fk === this.funcKey ? this.funcHold + dt : 0; this.funcKey = fk;
+    if (fk && this.funcHold > M.resetHold) { this.funcHold = -1e9; Object.assign(S, t.apply); this.save(); this.log(`Function channel: ${Object.entries(t.apply).map(e => e.join(' = ')).join(', ')}`); }
+    let homing = false, homeFx = false, homeXY = false;
     if (this.resetting) {
-      this.resetT += dt; speed = 0.8;
-      if (this.resetT < 3.6) {                       // find home (end stops)
-        homing = true; homeFx = this.resetKind !== 'xy';
-        if (this.resetKind !== 'effect') { panT = -SP.panRange / 2; tiltT = -SP.tiltRange / 2; }
-      } else if (this.resetT > 4 && Math.abs(this.pan.pos - panT) < 0.5 && Math.abs(this.tilt.pos - tiltT) < 0.5 || this.resetT > 12) {
-        this.resetT = -1; this.log('Reset complete'); this.emit('reset');
-      }
+      this.resetT += dt;
+      if (this.resetT < 3.6) { homing = true; homeFx = this.resetKind !== 'xy'; homeXY = this.resetKind !== 'effect'; }   // find home (end stops)
     }
-    this.pan.step(clamp(panT, -SP.panRange / 2, SP.panRange / 2), dt, speed);
-    this.tilt.step(clamp(tiltT, -SP.tiltRange / 2, SP.tiltRange / 2), dt, speed);
+    const [offP, offT] = M.offsets ? M.offsets(S) : [0, 0];
+    const nC = M.colors.length, nF = M.gobos.fix.length, nR = M.gobos.rot.length, T = this.time;
+    let arrived = true, load = 0;
 
-    // 3) wheels and lenses
-    const nC = M.colors.length, nF = M.gobos.fix.length, nR = M.gobos.rot.length;
-    if (homeFx) {                                    // spin the wheels once during reset
-      o.colorPos = (o.colorPos + dt * 4) % nC; if (nF > 1) o.goboPos = (o.goboPos + dt * 3.5) % nF; if (nR > 1) o.rotPos = (o.rotPos + dt * 3) % nR;
-      o.goboAngle = (o.goboAngle + dt * 300) % 360; o.zoom = approach(o.zoom, 0, dt * 0.9); o.prism = approach(o.prism, 0, dt * 3);
-      for (let i = 0; i < 3; i++) o.cmy[i] = approach(o.cmy[i], 0, dt * 2);
-      for (let i = 0; i < 8; i++) o.blades[i] = approach(o.blades[i], 0, dt * 2);
-      o.bladeRot = approach(o.bladeRot, 0, dt * 2);
-    } else if (!homing) {
-      if (!t.color) o.colorPos = approachWheel(o.colorPos, 0, dt * 9, nC);   // wheels the model does not drive stay open
-      if (!t.gobo) o.goboPos = 0;
-      if (!t.rotGobo) o.rotPos = 0;
-      if (t.color) { if (t.color.pos != null) o.colorPos = approachWheel(o.colorPos, t.color.pos, dt * 9, nC); else o.colorPos = wrap(o.colorPos + t.color.spin * dt, nC); }
-      if (t.gobo) {
-        if (t.gobo.pos != null) o.goboPos = approachWheel(o.goboPos, t.gobo.pos, dt * 8, nF); else o.goboPos = wrap(o.goboPos + t.gobo.spin * dt, nF);
-        o.goboOfs = t.gobo.shake ? Math.sin(this.time * Math.PI * 2 * t.gobo.shake) * 0.13 : 0;
-      }
-      if (t.rotGobo) {
-        if (t.rotGobo.pos != null) o.rotPos = approachWheel(o.rotPos, t.rotGobo.pos, dt * 7, nR); else o.rotPos = wrap(o.rotPos + t.rotGobo.spin * dt, nR);
-        o.rotOfs = t.rotGobo.shake ? Math.sin(this.time * Math.PI * 2 * t.rotGobo.shake) * 0.13 : 0;
-      }
-      const gr = t.goboRot;
-      if (gr) {
-        if (gr.index != null) o.goboAngle = approachWheel(o.goboAngle, gr.index, dt * 420, 360);
-        else if (gr.bounce) o.goboAngle = 45 * Math.sin(this.time * Math.PI * 2 * gr.bounce * 0.5);
-        else o.goboAngle = wrap(o.goboAngle + gr.spin * 360 * dt, 360);
-      }
-      if (t.cmy) for (let i = 0; i < 3; i++) o.cmy[i] = approach(o.cmy[i], t.cmy[i], dt * 3.5);
-      if (t.cto != null) o.cto = approach(o.cto, t.cto, dt * 3.5);
-      if (t.blades) for (let i = 0; i < 8; i++) o.blades[i] = approach(o.blades[i], t.blades[i], dt * 2.8);
-      if (t.bladeRot != null) o.bladeRot = approach(o.bladeRot, t.bladeRot, dt * 2.2);
-      o.zoom = approach(o.zoom, t.zoom, dt * 0.85);
-      o.focus = approach(o.focus, t.focus, dt * 1.6);
-      o.frost = approach(o.frost, t.frost || 0, dt * 2.5);
-      o.prism = approach(o.prism, t.prism ? 1 : 0, dt * 3.5);
-      o.prismAngle = wrap(o.prismAngle + (t.prismRot || 0) * 360 * dt, 360);
-    }
+    this.heads.forEach((h, hi) => {
+      const th = ts[Math.min(hi, ts.length - 1)], o = h.o;
+      let panT = (th.pan - 0.5) * SP.panRange * (S.panInvert ? -1 : 1) + offP;
+      let tiltT = (th.tilt - 0.5) * SP.tiltRange * (S.tiltInvert ? -1 : 1) + offT;
+      if (homeXY) { panT = -SP.panRange / 2; tiltT = -SP.tiltRange / 2; }
+      const speed = this.resetting ? 0.8 : 1 - 0.965 * (th.ptSpeed ?? t.ptSpeed ?? 0);
+      h.pan.step(clamp(panT, -SP.panRange / 2, SP.panRange / 2), dt, speed);
+      h.tilt.step(clamp(tiltT, -SP.tiltRange / 2, SP.tiltRange / 2), dt, speed);
+      if (Math.abs(h.pan.pos - panT) > 0.5 || Math.abs(h.tilt.pos - tiltT) > 0.5) arrived = false;
 
-    // 4) dimmer and shutter (electronic LED strobe)
-    const dimT = homing ? 0 : t.dimmer;
-    o.dimmer += (dimT - o.dimmer) * Math.min(1, dt * 22);
-    const st = t.strobe, T = this.time;
-    let sh = 1;
-    if (homing || st.mode === 'closed') sh = 0;
-    else if (st.mode === 'strobe') sh = (T * st.hz) % 1 < 0.42 ? 1 : 0;
-    else if (st.mode === 'pulse') sh = Math.pow(1 - (T * st.hz) % 1, 2.2);
-    else if (st.mode === 'fadein') sh = Math.pow((T * st.hz) % 1, 1.6);
-    else if (st.mode === 'random') { const n = Math.floor(T * st.hz); sh = hash(n) < 0.45 && (T * st.hz) % 1 < 0.5 ? 1 : 0; }
-    if (this.identify) sh = (T * 2) % 1 < 0.5 ? 1 : 0;
-    o.shutter = sh;
+      // wheels and lenses
+      if (homeFx) {                                  // spin the wheels once during reset
+        o.colorPos = (o.colorPos + dt * 4) % nC; if (nF > 1) o.goboPos = (o.goboPos + dt * 3.5) % nF; if (nR > 1) o.rotPos = (o.rotPos + dt * 3) % nR;
+        o.goboAngle = (o.goboAngle + dt * 300) % 360; o.zoom = approach(o.zoom, 0, dt * 0.9); o.prism = approach(o.prism, 0, dt * 3);
+        for (let i = 0; i < 3; i++) o.cmy[i] = approach(o.cmy[i], 0, dt * 2);
+        for (let i = 0; i < 8; i++) o.blades[i] = approach(o.blades[i], 0, dt * 2);
+        o.bladeRot = approach(o.bladeRot, 0, dt * 2);
+      } else if (!homing) {
+        if (!th.color) o.colorPos = approachWheel(o.colorPos, 0, dt * 9, nC);   // wheels the model does not drive stay open
+        if (!th.gobo) o.goboPos = 0;
+        if (!th.rotGobo) o.rotPos = 0;
+        if (th.color) { if (th.color.pos != null) o.colorPos = approachWheel(o.colorPos, th.color.pos, dt * 9, nC); else o.colorPos = wrap(o.colorPos + th.color.spin * dt, nC); }
+        if (th.gobo) {
+          if (th.gobo.pos != null) o.goboPos = approachWheel(o.goboPos, th.gobo.pos, dt * 8, nF); else o.goboPos = wrap(o.goboPos + th.gobo.spin * dt, nF);
+          o.goboOfs = th.gobo.shake ? Math.sin(T * Math.PI * 2 * th.gobo.shake) * 0.13 : 0;
+        }
+        if (th.rotGobo) {
+          if (th.rotGobo.pos != null) o.rotPos = approachWheel(o.rotPos, th.rotGobo.pos, dt * 7, nR); else o.rotPos = wrap(o.rotPos + th.rotGobo.spin * dt, nR);
+          o.rotOfs = th.rotGobo.shake ? Math.sin(T * Math.PI * 2 * th.rotGobo.shake) * 0.13 : 0;
+        }
+        const gr = th.goboRot;
+        if (gr) {
+          if (gr.index != null) o.goboAngle = approachWheel(o.goboAngle, gr.index, dt * 420, 360);
+          else if (gr.bounce) o.goboAngle = 45 * Math.sin(T * Math.PI * 2 * gr.bounce * 0.5);
+          else o.goboAngle = wrap(o.goboAngle + gr.spin * 360 * dt, 360);
+        }
+        if (th.cmy) for (let i = 0; i < 3; i++) o.cmy[i] = approach(o.cmy[i], th.cmy[i], dt * 3.5);
+        if (th.cto != null) o.cto = approach(o.cto, th.cto, dt * 3.5);
+        if (th.blades) for (let i = 0; i < 8; i++) o.blades[i] = approach(o.blades[i], th.blades[i], dt * 2.8);
+        if (th.bladeRot != null) o.bladeRot = approach(o.bladeRot, th.bladeRot, dt * 2.2);
+        o.zoom = approach(o.zoom, th.zoom, dt * 0.85);
+        if (th.focus != null) o.focus = approach(o.focus, th.focus, dt * 1.6);
+        o.frost = approach(o.frost, th.frost || 0, dt * 2.5);
+        o.prism = approach(o.prism, th.prism ? 1 : 0, dt * 3.5);
+        o.prismAngle = wrap(o.prismAngle + (th.prismRot || 0) * 360 * dt, 360);
+      }
+      // colour-mixing LED engine (electronic → near instant)
+      if (th.rgb) { const k = Math.min(1, dt * 30); for (let i = 0; i < 3; i++) o.rgb[i] += (th.rgb[i] - o.rgb[i]) * k; o.level += ((th.level ?? 1) - o.level) * k; }
 
-    // 5) temperature (display only): follows the LED output slowly
-    const load = this.lampOn ? (this.identify ? 1 : o.dimmer) * (sh > 0 ? 1 : 0.2) : 0;
+      // dimmer and shutter (electronic LED strobe)
+      const dimRate = S.dimSpeed === 'Smooth' ? 6 : 22;
+      o.dimmer += ((homing ? 0 : th.dimmer) - o.dimmer) * Math.min(1, dt * dimRate);
+      o.shutter = this.identify ? ((T * 2) % 1 < 0.5 ? 1 : 0) : homing ? 0 : shutter(th.strobe, T);
+      load += (this.lampOn ? (this.identify ? 1 : o.dimmer) * (o.shutter > 0 ? 1 : 0.2) : 0) / this.heads.length;
+
+      // pixel ring: 8 blocks; the model supplies either the blocks themselves or a base colour + macro
+      if (th.ring) {
+        const rs = homing ? 0 : shutter(th.ring.strobe, T), blocks = th.ring.blocks || M.ringMacro(th.ring, T, hi);
+        for (let b = 0; b < 8; b++) for (let c = 0; c < 3; c++) o.ring[b][c] = blocks[b][c] * rs;
+      }
+    });
+
+    if (this.resetting && !homing && (this.resetT > 4 && arrived || this.resetT > 12)) { this.resetT = -1; this.log('Reset complete'); this.emit('reset'); }
+    // temperature (display only): follows the LED output slowly
     this.tempC += ((30 + (SP.tempRise || 38) * load) - this.tempC) * dt * 0.03;
   }
 
@@ -225,12 +291,12 @@ export class Fixture {
   runProgram(dt, chans) {
     const p = this.prog, P = this.model.program, sound = this.settings.runMode === 'SOUND';
     p.t += dt;
-    if (sound ? this.beat : p.t > 3.2) { p.step = (p.step + 1) % P.steps.length; p.t = 0; }
+    if (sound ? this.beat : p.t > (P.stepTime || 3.2)) { p.step = (p.step + 1) % P.steps.length; p.t = 0; }
     this.beat = false;
     const s = Object.assign({}, P.base, P.steps[p.step]), v = {};
-    chans.forEach(k => { v[k] = s[k] ?? 0; });
+    chans.forEach(k => { v[k] = s[k] ?? (P.fill ? P.fill(k, s, p.step) : undefined) ?? 0; });
     if ('ptSpeed' in v) v.ptSpeed = sound ? 0 : 60;
-    if (sound) v.dimmer = Math.round(255 * Math.max(0.25, 1 - p.t * 1.6));   // flash on the beat
+    if (sound && 'dimmer' in v) v.dimmer = Math.round(255 * Math.max(0.25, 1 - p.t * 1.6));   // flash on the beat
     return v;
   }
   /** Scene mode: one fixed scene (1–10) or an automatic loop over the scenes whose time is not 0 */
@@ -243,22 +309,5 @@ export class Fixture {
     this.scn.t += dt;
     if (this.scn.t > sc[this.scn.i].time * 0.1) { this.scn.i = live[(live.indexOf(this.scn.i) + 1) % live.length]; this.scn.t = 0; }
     return sc[this.scn.i].v;
-  }
-
-  /* ── values read by the renderer ── */
-  get beamAngleDeg() { const SP = this.model.spec; return SP.zoomMin + (SP.zoomMax - SP.zoomMin) * this.o.zoom; }
-  get intensity() { return this.power && this.lampOn ? (this.identify ? 1 : this.o.dimmer * this.o.dimmer) * this.o.shutter : 0; }   // dimmer curve ≈ square law
-  /** The in-focus position shifts slightly with zoom. 0 = sharp */
-  get defocus() { const f = this.model.spec.focus; return Math.abs(this.o.focus - (f[0] + f[1] * this.o.zoom)); }
-  /** Colour filtering after the wheel: CMY flags (subtractive) and CTO */
-  get filter() {
-    const [c, m, y] = this.o.cmy, k = this.o.cto;
-    return [(1 - 0.96 * c) * (1 - 0.06 * m), (1 - 0.94 * m) * (1 - 0.12 * c) * (1 - 0.1 * y) * (1 - 0.3 * k), (1 - 0.95 * y) * (1 - 0.1 * m) * (1 - 0.62 * k)];
-  }
-  /** Representative colour of the current beam (for the lens glow) */
-  get tint() {
-    const C = this.model.colors, n = C.length, p = this.o.colorPos, i = Math.floor(p) % n, f = p - Math.floor(p);
-    const a = C[i].rgb, b = C[(i + 1) % n].rgb, w = this.model.spec.ledWhite, fl = this.filter;
-    return [0, 1, 2].map(k => (a[k] * (1 - f) + b[k] * f) * w[k] * fl[k]);
   }
 }

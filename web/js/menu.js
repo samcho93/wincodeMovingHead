@@ -31,10 +31,15 @@ export class Menu {
     const onoff = (label, key, a = 'Close', b = 'Open') => ({ label, type: 'enum', opts: [[false, a], [true, b]], get: () => S()[key], set: v => fx.set(key, v) });
     // the manual's Manual list (Pan … Reset) + the static gobo (FixGobo) missing from that table
     const M = fx.model, P = M.panel, CH = M.ch, manualKeys = P.manualKeys, calKeys = P.calKeys;
+    // a model may bring its own menu tree (panel.menu); it gets these item factories
+    const list = (label, key, vals) => ({ label, type: 'enum', opts: vals.map(v => [v, String(v)]), get: () => S()[key], set: v => fx.set(key, v) });
+    const info = (label, lines) => ({ label, type: 'info', lines });
+    const num = (label, get, set, o = {}) => Object.assign({ label, type: 'num', min: 0, max: 255, pad: 3, get, set }, o);
+    if (P.menu) return { label: 'Menu', items: P.menu({ fx, S, onoff, list, info, num, menu: this }) };
     return { label: 'Menu', items: [
       { label: 'Dmx Address', type: 'num', min: 1, max: 512, pad: 3, get: () => S().address, set: v => fx.set('address', v) },
       { label: 'Fixture', items: [
-        { label: 'Dmx Mode', type: 'enum', opts: Object.values(M.modes).map(m => [m.id, `${m.id} (${m.label})`]), get: () => S().mode, set: v => fx.set('mode', v) },
+        { label: 'Dmx Mode', type: 'enum', opts: Object.values(M.modes).map(m => [m.id, m.id === m.label ? m.label : `${m.id} (${m.label})`]), get: () => S().mode, set: v => fx.set('mode', v) },
         { label: 'Run Mode', type: 'enum', opts: [['DMX', 'DMX'], ['AUTO', 'Host'], ['SOUND', 'Sound']], get: () => S().runMode, set: v => fx.set('runMode', v) },
         onoff('Pan Invert', 'panInvert'), onoff('Tilt Invert', 'tiltInvert'),
       ] },
@@ -137,7 +142,7 @@ export class Menu {
       header(fx.model.lcdTitle, `${fx.tempC.toFixed(0)}℃`);
       g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = F(74); g.fillText('A' + String(S.address).padStart(3, '0'), W / 2, 100);
       g.font = F(17, false); g.fillStyle = '#9fc0ff';
-      g.fillText(`${m.label} ${m.id}  ·  ${this.t({ DMX: 'DMX', AUTO: 'Host', SOUND: 'Sound' }[S.runMode])}`, W / 2, 158);
+      g.fillText(`${m.label === m.id ? m.label : m.label + ' ' + m.id}  ·  ${this.t({ DMX: 'DMX', AUTO: 'Host', SOUND: 'Sound' }[S.runMode])}`, W / 2, 158);
       const ok = fx.dmxSignal;
       g.fillStyle = S.runMode !== 'DMX' ? '#ffd24a' : ok ? '#39d98a' : '#ff5b4d'; g.beginPath(); g.arc(98, 198, 7, 0, 7); g.fill();
       g.textAlign = 'left'; g.font = F(16); g.fillText(S.runMode !== 'DMX' ? (S.runMode === 'AUTO' ? 'MASTER  AUTO' : 'SOUND ACTIVE') : ok ? `DMX  ${fx.dmxFps.toFixed(0)}Hz` : `${this.t('No Signal')} (Manual)`, 114, 199);
