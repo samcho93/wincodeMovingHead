@@ -6,15 +6,18 @@
 //             encoder with push button.
 //  Optional detail (all in the model definition, none of it model-specific here):
 //    body.color            body paint (hex)
-//    base.handle 'bar'     a carrying bar on each end of the base (base.handles = ribbed grips instead)
+//    base.handle 'bar'     a carrying bar on each end of the base, 'wing' = a moulded grip (base.handles = ribbed grips)
 //    yoke { W, t, wb, h1, h2, yf, c, d, armW, top }   one-piece U yoke seen from the front: foot width wb flaring to the
 //                          full width W at h1, arms of thickness t from h2 up to `top` with a round end (armW deep),
 //                          inner floor at yf with corner chamfer c, lower part d deep. Replaces bridge + arm.
+//                          arch: true rounds the inner corners (radius c); armR = corner radius of the arm top
+//                          instead of a half-round end.
 //    rings [{ y, r, tube }]            trim rings round the head (stepped lens barrels)
 //    ribs { y0, y1, n, r }             vertical cooling ribs round a cylindrical head
 //    vents [{ side:'x'|'z', off, y, h, n, pitch }]   slotted vent panels on both sides of the head
 //    hood { y0, y1, r0, r1 }           open lens hood (may flare)
-//    logo { arm: 'text', head: 'text', headSize: [w, h], color }   lettering on both yoke arms (reads upwards) and on a
+//    logo { arm: 'text', armStyle: 'badge', head: 'text', headSize: [w, h], color }   lettering on both yoke arms (reads
+//                                      upwards, or a horizontal badge below the tilt axis) and on a
 //                                      badge on the front and back of the head (at plate.y / plate.z)
 //    sink { y0, y1, w, d, n }          finned heat sink at the rear end of the head
 //    shield { pts: [[x, y]…], z }      raised cover panel on the front and back of the head (outline in head x / y)
@@ -142,6 +145,11 @@ export function buildMachine(lcdCanvas, B) {
       for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(0.03, 0.02, 0.014), M.body, sx * (hw + 0.013), b.panelY, sz * b.depth * 0.3);
       const bar = add(base, new THREE.CylinderGeometry(0.008, 0.008, b.depth * 0.68, 16), M.rubber, sx * (hw + 0.026), b.panelY, 0); bar.rotation.x = Math.PI / 2;
     }
+    if (b.handle === 'wing') for (const sx of [-1, 1]) {          // moulded grip on each end, part of the base body
+      const hh = (b.shoulder - b.bot) * 0.36;
+      add(base, loft([{ y: b.panelY - hh, w: 0.05, d: b.depth * 0.7, c: 0.02 }, { y: b.panelY - hh + 0.014, w: 0.074, d: b.depth * 0.84, c: 0.028 }, { y: b.panelY + hh - 0.014, w: 0.074, d: b.depth * 0.84, c: 0.028 }, { y: b.panelY + hh, w: 0.05, d: b.depth * 0.7, c: 0.02 }]), M.body, sx * hw, 0, 0);
+      add(base, new THREE.BoxGeometry(0.004, 0.014, b.depth * 0.46), M.trim, sx * (hw + 0.0372), b.panelY, 0);
+    }
     const f = B.feet;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(f.r, f.r * 0.8, f.h, 20), M.rubber, sx * f.x, f.h / 2, sz * f.z);
     for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * b.depth / 2);
@@ -235,16 +243,27 @@ export function buildMachine(lcdCanvas, B) {
   const pan = new THREE.Group(); pan.position.y = B.panY; root.add(pan);
   if (B.yoke) {                                                 // one-piece U yoke
     const Y = B.yoke, W2 = Y.W / 2, xi = W2 - Y.t, r = Y.armW / 2, cy = Y.top - r, prof = [[-r, Y.h2 - 0.014], [r, Y.h2 - 0.014]];
-    add(pan, extrude([[-Y.wb / 2, 0], [Y.wb / 2, 0], [W2, Y.h1], [W2, Y.h2], [xi, Y.h2], [xi, Y.yf + Y.c], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + Y.c], [-xi, Y.h2], [-W2, Y.h2], [-W2, Y.h1]], Y.d, 0.01), M.body);
-    for (let i = 0; i <= 18; i++) { const a = (i / 18) * Math.PI; prof.push([Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    const inner = [];                                           // inner outline from the right arm down, across the floor, up the left arm
+    if (Y.arch) { for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI / 2; inner.push([xi - Y.c + Math.cos(a) * Y.c, Y.yf + Y.c - Math.sin(a) * Y.c]); }
+      for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI / 2; inner.push([-xi + Y.c - Math.sin(a) * Y.c, Y.yf + Y.c - Math.cos(a) * Y.c]); } }
+    else inner.push([xi, Y.yf + Y.c], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + Y.c]);
+    add(pan, extrude([[-Y.wb / 2, 0], [Y.wb / 2, 0], [W2, Y.h1], [W2, Y.h2], [xi, Y.h2], ...inner, [-xi, Y.h2], [-W2, Y.h2], [-W2, Y.h1]], Y.d, 0.01), M.body);
+    if (Y.armR) { const q = Math.min(Y.armR, r);              // flat top with rounded corners
+      for (let i = 0; i <= 8; i++) { const a = (i / 8) * Math.PI / 2; prof.push([r - q + Math.cos(a) * q, Y.top - q + Math.sin(a) * q]); }
+      for (let i = 0; i <= 8; i++) { const a = Math.PI / 2 + (i / 8) * Math.PI / 2; prof.push([-r + q + Math.cos(a) * q, Y.top - q + Math.sin(a) * q]); }
+    } else for (let i = 0; i <= 18; i++) { const a = (i / 18) * Math.PI; prof.push([Math.cos(a) * r, cy + Math.sin(a) * r]); }
     for (const sx of [-1, 1]) {
       const ax = sx * (W2 - Y.t / 2);
       add(pan, extrude(prof, Y.t, 0.011), M.body, ax, 0, 0).rotation.y = Math.PI / 2;
-      add(pan, extrude([[-r * 0.5, Y.h2 + 0.012], [r * 0.5, Y.h2 + 0.012], [r * 0.5, cy], [-r * 0.5, cy]], 0.003, 0.001), M.trim, ax + sx * (Y.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
+      if (Y.inlay !== false) add(pan, extrude([[-r * 0.5, Y.h2 + 0.012], [r * 0.5, Y.h2 + 0.012], [r * 0.5, cy], [-r * 0.5, cy]], 0.003, 0.001), M.trim, ax + sx * (Y.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
       const hub = add(pan, new THREE.CylinderGeometry(0.024, 0.024, 0.012, 24), M.trim, ax - sx * (Y.t / 2 + 0.003), B.tiltY, 0); hub.rotation.z = Math.PI / 2;
       const xo = ax + sx * (Y.t / 2 + 0.0026);
       for (const y of [Y.h2 + 0.024, cy + r * 0.2]) for (const sz of [-1, 1]) cylX(pan, 0.003, 0.003, M.metal, xo - sx * 0.001, y, sz * r * 0.74);   // screws
-      if (B.logo && B.logo.arm) { const len = (cy - Y.h2) * 0.72, lb = label(B.logo.arm, len, r * 0.62, B.logo.color); lb.position.set(xo, (Y.h2 + cy) / 2 + 0.006, 0); lb.rotation.y = sx * Math.PI / 2; lb.rotateZ(Math.PI / 2); pan.add(lb); }
+      if (B.logo && B.logo.arm && B.logo.armStyle === 'badge') {   // horizontal badge below the tilt axis
+        const bw = r * 1.2, bh = r * 0.5, by = B.tiltY - r * 0.75;
+        add(pan, new THREE.BoxGeometry(0.003, bh, bw), M.trim, xo - sx * 0.001, by, 0);
+        const lb = label(B.logo.arm, bw * 0.92, bh * 0.8, B.logo.color); lb.position.set(xo + sx * 0.0008, by, 0); lb.rotation.y = sx * Math.PI / 2; pan.add(lb);
+      } else if (B.logo && B.logo.arm) { const len = (cy - Y.h2) * 0.72, lb = label(B.logo.arm, len, r * 0.62, B.logo.color); lb.position.set(xo, (Y.h2 + cy) / 2 + 0.006, 0); lb.rotation.y = sx * Math.PI / 2; lb.rotateZ(Math.PI / 2); pan.add(lb); }
     }
   }
   if (!B.yoke) add(pan, loft(B.bridge), M.body);

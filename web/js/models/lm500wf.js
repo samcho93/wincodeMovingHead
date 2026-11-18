@@ -142,26 +142,32 @@ export default {
   // Panel: touch TFT + rotary encoder with push button (manual chapter 2, figures 3–6)
   panel: { type: 'touch', versions: { device: '500W LED FRAME', model: 'WOP-LM500WF', panel: 'A5.0.17', main: 'M2.1.08' } },
   rdm: { modelId: 0x0500, description: 'WOP-LM500WF 500W LED Frame', software: 'Panel A5.0.17' },
-  // Body: overall size 380 × 270 × 670 mm from the product page (the manual has no dimension drawing);
-  // the proportions of base, yoke and head are taken from the product photos.
+  // Body: measured from the product page photos (rear view with the head upright, side view with the head level),
+  // scaled by the overall size 380 × 270 × 670 mm: yoke 336 wide with arms 51 × 110 up to 498 mm, tilt axis at ≈ 440 mm,
+  // head 225 × 222 mm in section, 200 mm behind and 225 mm in front of the axis.
   body: {
-    H: 0.67, style: 'round',                                    // 380 × 270 × 670 mm (product page); shapes from the manual cover drawing and the product photos
-    base: { hw: 0.168, bot: 0.045, top: 0.13, shoulder: 0.112, chamfer: 0.03, depth: 0.258, frameW: 0.2, frameH: 0.06, panelY: 0.08, handle: 'bar', corner: 0.035 },
-    feet: { r: 0.02, h: 0.045, x: 0.12, z: 0.088 },
-    turntable: { r: 0.1, h: 0.02 }, panY: 0.15,
-    yoke: { W: 0.36, t: 0.046, wb: 0.22, h1: 0.06, h2: 0.1, yf: 0.03, c: 0.05, d: 0.16, armW: 0.1, top: 0.335 },
-    tiltY: 0.27,
-    // rounded rear housing → ribbed cylindrical barrel → flared lens hood
-    head: [{ y: -0.155, w: 0.12, d: 0.12, r: 0.04 }, { y: -0.145, w: 0.2, d: 0.2, r: 0.07 }, { y: -0.09, w: 0.228, d: 0.228, r: 0.085 }, { y: 0.03, w: 0.228, d: 0.228, r: 0.1 },
-      { y: 0.05, w: 0.214 }, { y: 0.15, w: 0.214 }, { y: 0.16, w: 0.226 }, { y: 0.166, w: 0.226 }],
-    ribs: { y0: 0.055, y1: 0.145, n: 36, r: 0.109 }, hood: { y0: 0.16, y1: 0.25, r0: 0.113, r1: 0.126 },
-    vents: [{ side: 'x', off: 0.115, y: -0.05, h: 0.05, n: 6, pitch: 0.011 }], plate: { y: -0.03, z: 0.115 },
-    logo: { arm: 'FRAME LIGHT', head: '500W LED FRAME', headSize: [0.11, 0.024] },
-    lensY: 0.215, lensR: 0.09, ringR: 0.105,                    // hood rim: 0.150 + 0.270 + 0.250 = 0.670
-    lcd: [0.064, 0.048], lcdX: -0.03, controls: 'encoder', ctrlX: 0.052,
+    H: 0.67, style: 'round',
+    base: { hw: 0.146, bot: 0.045, top: 0.138, shoulder: 0.12, chamfer: 0.02, depth: 0.263, frameW: 0.19, frameH: 0.06, panelY: 0.084, handle: 'wing', corner: 0.04 },
+    feet: { r: 0.022, h: 0.045, x: 0.115, z: 0.095 },
+    turntable: { r: 0.1, h: 0.012 }, panY: 0.15,
+    // tall U frame: arched opening, flat-topped arms
+    yoke: { W: 0.336, t: 0.051, wb: 0.225, h1: 0.08, h2: 0.15, yf: 0.076, c: 0.062, d: 0.15, armW: 0.11, top: 0.348, arch: true, armR: 0.034, inlay: false },
+    tiltY: 0.292,
+    // faceted body, widest at the badge band → shoulder → collar → short lens hood
+    head: [{ y: -0.2, w: 0.15, d: 0.12, c: 0.04 }, { y: -0.185, w: 0.19, d: 0.2, c: 0.05 }, { y: -0.165, w: 0.2, d: 0.218, c: 0.055 }, { y: -0.11, w: 0.2, d: 0.222, c: 0.055 },
+      { y: -0.005, w: 0.225, d: 0.222, c: 0.055 }, { y: 0.02, w: 0.225, d: 0.222, c: 0.055 }, { y: 0.1, w: 0.215, d: 0.215, c: 0.06 }, { y: 0.148, w: 0.198, d: 0.205, c: 0.07 },
+      { y: 0.15, w: 0.202 }, { y: 0.164, w: 0.202 }, { y: 0.164, w: 0.178 }, { y: 0.186, w: 0.176 }],
+    hood: { y0: 0.164, y1: 0.226, r0: 0.089, r1: 0.083 },
+    // ribbed panels on the front and back, fan grille below them, grilles on the arm sides
+    vents: [{ side: 'z', off: 0.109, y: 0.088, h: 0.1, n: 9, pitch: 0.0095 }, { side: 'z', off: 0.1115, y: -0.12, h: 0.085, n: 13, pitch: 0.0115 },
+      { side: 'x', off: 0.1085, y: 0.09, h: 0.06, n: 6, pitch: 0.011 }, { side: 'x', off: 0.1005, y: -0.15, h: 0.055, n: 4, pitch: 0.011 }],
+    plate: { y: 0.008, z: 0.112 },
+    logo: { arm: 'FRAME LIGHT', armStyle: 'badge', head: '500W LED FRAME', headSize: [0.085, 0.022] },
+    lensY: 0.19, lensR: 0.07, ringR: 0.078,                     // hood rim: 0.150 + 0.292 + 0.226 = 0.668
+    lcd: [0.058, 0.044], lcdX: -0.034, controls: 'encoder', ctrlX: 0.04,
   },
   assumptions: [
-    'Overall size 380 × 270 × 670 mm is from the product page; the proportions of base, yoke and head are estimated from the product photos (the manual has no drawing).',
+    'Overall size 380 × 270 × 670 mm is from the product page; the dimensions of base, yoke and head are measured off the product photos (the manual has no dimension drawing), so they are good to a centimetre or two at best.',
     'Colour wheel: 6 colours + white (product page). Order assumed: Red, Orange, Yellow, Green, Blue, Magenta; "Colour6+Colour7" in the channel table is taken as colour 6 + white.',
     'CH13 "Color2" is treated as a linear CTO filter.',
     'CUT1/2 = top blade (two ends), CUT3/4 = right, CUT5/6 = bottom, CUT7/8 = left; each end travels the full aperture.',
