@@ -17,6 +17,7 @@ import { DmxInput } from './dmx.js';
 import { RdmResponder } from './rdm.js';
 import { Panel } from './panel.js';
 import { demoValues } from './demo.js';
+import { installAgentEntry } from './agent-entry.js';
 
 const $ = s => document.querySelector(s);
 
@@ -222,12 +223,7 @@ function setPower(on) {
   menu.home(); menu.asleep = false; menu.lastKey = performance.now(); log(on ? 'Power ON' : 'Power OFF');
 }
 $('#btnPower').addEventListener('click', () => setPower(!fx.power));
-// Development only: Ctrl + double-click on the WINCODE logo opens the "Add model" agent in its own window.
-// The static web build has no agent page, and a server started in distribution mode reports agent: false.
-document.querySelector('.logo').addEventListener('dblclick', async e => {
-  if (!e.ctrlKey || window.WMH_STATIC) return;
-  try { const j = await (await fetch('api/agent/info', { cache: 'no-store' })).json(); if (j.enabled) window.open('agent.html', 'wmh-agent', 'width=1000,height=860'); } catch (err) {}
-});
+installAgentEntry();                                         // development only: Ctrl + double-click the logo / Ctrl + Alt + M
 let haze = 0.55;
 $('#rngHaze').addEventListener('input', e => { haze = e.target.value / 100; });
 $('#chkWork').addEventListener('change', e => { work.intensity = e.target.checked ? 1.6 : 0; hemi.intensity = e.target.checked ? 0.9 : 0.18; scene.environmentIntensity = e.target.checked ? 0.5 : 0.1; });

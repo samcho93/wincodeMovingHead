@@ -33,6 +33,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - Do not put per-frame scratch state on a `Beam` under `_v`, `_m`, `_w`, `_d` — those are its own vectors.
 
 ## Add-model agent (development only)
+- Entry (`web/js/agent-entry.js`, installed by all three pages): Ctrl + double-click the logo area or Ctrl + Alt + M. It asks `/api/agent/info` once at start so `window.open` runs inside the click (opening after an `await` gets pop-up blocked), and shows a toast when the agent is unavailable.
 - Ctrl + double-click the logo → `web/agent.html` + `web/js/agent.js` → `server/agent.js` spawns `claude -p --output-format stream-json` with `tools/agent-prompt.md`; `tools/check-model.mjs` validates; discard = undo only the files the job touched.
 - Must stay out of distribution: `tools/build-web.js` skips the agent files, `--dist` / `WMH_DIST=1` disables the API. Do not weaken the loopback / origin check.
 - When the model contract changes, update `models/index.js` (header), `tools/check-model.mjs` and `tools/agent-prompt.md` together.

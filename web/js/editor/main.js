@@ -5,6 +5,7 @@ import { store } from './store.js';
 import { Engine } from './engine.js';
 import { $ } from './ui.js';
 import { CABLE } from '../dmx.js';
+import { installAgentEntry } from '../agent-entry.js';
 import { mountFixtures } from './fixtures.js';
 import { mountFunctions } from './functions.js';
 import { mountShows } from './shows.js';
@@ -95,3 +96,4 @@ setInterval(() => {
 setInterval(() => { const v = app.views[app.tab]; if (v && v.fast) v.fast(); }, 66);
 
 syncBar(); refresh(); connect();
+installAgentEntry();                                         // development only: Ctrl + double-click the logo / Ctrl + Alt + M

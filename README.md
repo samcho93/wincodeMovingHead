@@ -180,7 +180,9 @@ method follows [QLC+](https://www.qlcplus.org/): the tabs run in the same order 
 
 ## Add-model agent (development only)
 
-**Ctrl + double-click the WINCODE logo** in the simulator opens the agent in its own window. Give it the product page
+**Ctrl + double-click the WINCODE logo** (anywhere on the logo area at the top left) or **Ctrl + Alt + M** opens the
+agent in its own window — from the simulator, the DMX editor or the stage editor. If it cannot open, a message says why
+(web version, distribution mode, or the browser blocked the pop-up; `agent.html` can also be opened directly). Give it the product page
 link, the user manual (PDF, text or scanned) and optionally a mechanical drawing (PDF / PNG / JPG / SVG / DXF). The
 Claude Code CLI installed on this computer reads them, writes `web/js/models/<id>.js`, registers it, and runs the
 validator; the page shows the log, the validator result, the agent's summary with its assumptions, a button to open the

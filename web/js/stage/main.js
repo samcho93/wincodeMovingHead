@@ -19,6 +19,7 @@ import { buildMachine } from '../machine.js';
 import { BeamImage } from '../gobos.js';
 import { Beam } from '../beam.js';
 import { CABLE } from '../dmx.js';
+import { installAgentEntry } from '../agent-entry.js';
 
 const $ = s => document.querySelector(s);
 const LS = 'wmh.stage.v1';
@@ -243,3 +244,4 @@ function frame() {
 let saved = null; try { saved = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
 try { load(saved && saved.app === 'wmh-stage' ? saved : EXAMPLES[0].build()); } catch (e) { load(EXAMPLES[0].build()); }
 frame();
+installAgentEntry();                                         // development only: Ctrl + double-click the logo / Ctrl + Alt + M
