@@ -187,7 +187,9 @@ agent in its own window — from the simulator, the DMX editor or the stage edit
 link, the user manual (PDF, text or scanned) and optionally a mechanical drawing (PDF / PNG / JPG / SVG / DXF). The
 Claude Code CLI installed on this computer reads them, writes `web/js/models/<id>.js`, registers it, and runs the
 validator; the page shows the log, the validator result, the agent's summary with its assumptions, a button to open the
-model in the simulator and one to discard the changes. Nothing is committed for you.
+model in the simulator and one to discard the changes. Nothing is
+committed until you press **Commit, push & deploy** (offered once the validator passes): it commits only the files
+the job touched and pushes the current branch, which starts the GitHub Pages deployment.
 
 - Needs `npm start` (local server) and a signed-in `claude` CLI. It uses your Claude account; a run takes several minutes.
 - Only this computer can use it (loopback + same-origin check). The CLI may edit files and run `python` / `node` only.

@@ -10,6 +10,8 @@
  *   GET  /api/agent/events?job=               server-sent events: log lines, then the result
  *   POST /api/agent/stop    { job }
  *   POST /api/agent/discard { job }           undo the files this job created or changed
+ *   POST /api/agent/publish { job }           commit the files this job touched and push them (the push starts the
+ *                                             GitHub Pages deployment). Only on request, only after the validator passed.
  *
  *  Only reachable from this computer (loopback + same-origin check), and switched off entirely in distribution mode
  *  (`node server/index.js --dist` or WMH_DIST=1). The static web build does not contain the agent page at all.
@@ -106,6 +108,26 @@ function discard(j) {
   j.changed = []; return undone;
 }
 
+/** Commit exactly `files` (nothing else that happens to be modified or staged) and push the current branch. */
+function publish(root, files, message) {
+  const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const out = { committed: false, pushed: false, commit: null, branch: null, remote: null, site: null, error: null };
+  try {
+    out.branch = git('rev-parse', '--abbrev-ref', 'HEAD');
+    git('add', '--', ...files);
+    git('commit', '-m', message, '--', ...files);
+    out.committed = true; out.commit = git('rev-parse', '--short', 'HEAD');
+  } catch (e) { out.error = 'Commit failed: ' + short(e.stderr || e.message, 400); return out; }
+  try {
+    out.remote = git('remote', 'get-url', 'origin');
+    git('push', 'origin', out.branch);
+    out.pushed = true;
+    const m = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/.exec(out.remote);
+    if (m) out.site = `https://${m[1].toLowerCase()}.github.io/${m[2]}/`;
+  } catch (e) { out.error = 'Committed, but the push failed: ' + short(e.stderr || e.message, 400); }
+  return out;
+}
+
 /** returns true when the request was an agent request (handled here) */
 async function handle(req, res, url, opts) {
   if (!url.pathname.startsWith('/api/agent/')) return false;
@@ -145,9 +167,22 @@ async function handle(req, res, url, opts) {
     }
     if (action === 'stop') { kill(j); return json(res, 200, { ok: true }), true; }
     if (action === 'discard') { if (j.state === 'running') return json(res, 409, { error: 'Still running.' }), true; return json(res, 200, { ok: true, undone: discard(j) }), true; }
+    if (action === 'publish') {
+      if (j.state !== 'done' || !j.result) return json(res, 409, { error: 'Nothing to publish yet.' }), true;
+      if (!j.result.ok) return json(res, 409, { error: 'The validator did not pass — fix or discard the model first.' }), true;
+      const now = gitStatus(), files = (j.changed || []).filter(f => now.has(f));
+      if (!files.length) return json(res, 409, { error: 'These changes are already committed or were discarded.' }), true;
+      const mine = j.result.check.find(c => c.id === j.result.modelId) || {};
+      const r = publish(ROOT, files, `Add ${mine.name || j.result.modelId} (${j.result.modelId})
+
+Written by the Add-model agent (Claude Code CLI) and checked by tools/check-model.mjs.`);
+      if (r.committed) j.changed = [];
+      if (r.site) r.site += `?model=${j.result.modelId}`;
+      return json(res, r.committed ? 200 : 500, r), true;
+    }
     json(res, 404, { error: 'unknown action' });
   } catch (e) { json(res, 500, { error: e.message }); }
   return true;
 }
 
-module.exports = { handle };
+module.exports = { handle, publish };

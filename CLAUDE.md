@@ -35,7 +35,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 
 ## Add-model agent (development only)
 - Entry (`web/js/agent-entry.js`, installed by all three pages): Ctrl + double-click the logo area or Ctrl + Alt + M. It asks `/api/agent/info` once at start so `window.open` runs inside the click (opening after an `await` gets pop-up blocked), and shows a toast when the agent is unavailable.
-- Ctrl + double-click the logo → `web/agent.html` + `web/js/agent.js` → `server/agent.js` spawns `claude -p --output-format stream-json` with `tools/agent-prompt.md`; `tools/check-model.mjs` validates; discard = undo only the files the job touched.
+- Ctrl + double-click the logo → `web/agent.html` + `web/js/agent.js` → `server/agent.js` spawns `claude -p --output-format stream-json` with `tools/agent-prompt.md`; `tools/check-model.mjs` validates; discard = undo only the files the job touched; publish (button, after the validator passed) = commit only those files and push the current branch, which starts the Pages deployment.
 - Must stay out of distribution: `tools/build-web.js` skips the agent files, `--dist` / `WMH_DIST=1` disables the API. Do not weaken the loopback / origin check.
 - When the model contract changes, update `models/index.js` (header), `tools/check-model.mjs` and `tools/agent-prompt.md` together.
 

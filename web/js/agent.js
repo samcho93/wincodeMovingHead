@@ -51,9 +51,24 @@ function done(r) {
     <h3>Agent summary</h3><pre>${esc(r.summary || '(none)')}</pre>
     <div class="bar">
       ${r.modelId ? `<a class="btn acc" href="index.html?model=${esc(r.modelId)}" target="wmh-sim">🔦 Open in the simulator</a>` : ''}
+      ${r.ok && r.changed.length ? '<button class="btn" id="publish">⬆ Commit, push &amp; deploy</button>' : ''}
       ${r.changed.length ? '<button class="btn" id="discard">↩ Discard these changes</button>' : ''}
-      <span class="note">Nothing is committed. Keep the files and commit them yourself, or discard them.</span>
-    </div>`;
+    </div>
+    <p class="note" id="pubNote">Nothing is committed yet. Check the model in the simulator, then publish it${r.ok ? '' : ' (possible once the validator passes)'} or discard it.</p>`;
+  const p = $('#publish');
+  if (p) p.addEventListener('click', async () => {
+    if (!confirm(`Commit the files of model "${r.modelId}" and push them to the remote repository?
+The push starts the public deployment.`)) return;
+    p.disabled = true; state('Publishing…', 'warn');
+    try {
+      const x = await post('publish', {});
+      if (d) d.disabled = true;
+      if (!x.pushed) { log('err', x.error); $('#pubNote').textContent = `${x.error} — the commit ${x.commit} is in the local repository; push it yourself (git push).`; return state('Committed, not pushed', 'warn'); }
+      log('info', `Committed ${x.commit} on ${x.branch} and pushed to ${x.remote}`);
+      $('#pubNote').innerHTML = `Committed <code>${esc(x.commit)}</code> and pushed.${x.site ? ` The deployment takes about a minute: <a href="${esc(x.site)}" target="_blank" rel="noopener">${esc(x.site)}</a>` : ''}`;
+      state('Published', 'on');
+    } catch (e) { log('err', e.message); $('#pubNote').textContent = e.message; state('Publish failed', 'off'); p.disabled = false; }
+  });
   const d = $('#discard');
   if (d) d.addEventListener('click', async () => { if (!confirm('Delete the new model file and restore the changed files?')) return; try { const x = await post('discard', {}); log('info', `Discarded: ${x.undone.join(', ') || 'nothing'}`); d.disabled = true; state('Changes discarded'); } catch (e) { log('err', e.message); } });
 }
