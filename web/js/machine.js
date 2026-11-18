@@ -2,7 +2,8 @@
 //  Coordinates: origin = floor centre, +Z = control panel (LCD) side, units = m. Head local +Y = beam direction.
 //  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins,
 //             'bar' = a long base carrying body.headCount small heads, each with a pixel ring.
-//  body.controls 'cross5' = five buttons in a cross, 'col4' = MENU / UP / DOWN / ENTER in a column, 'encoder' = one rotary
+//  body.controls 'cross5' = five buttons in a cross, 'col4' = MENU / UP / DOWN / ENTER in a column, 'split4' = MENU / ENTER
+//             left of the display and UP / DOWN right of it, 'encoder' = one rotary
 //             encoder with push button.
 //  Optional detail (all in the model definition, none of it model-specific here):
 //    body.color            body paint (hex)
@@ -26,6 +27,7 @@
 //    base.corner                       plan-view corner chamfer of the base (the base is bevelled on all four sides;
 //                                      base.bevel: false = plain block with shoulders on the two ends only)
 //  Bar bodies: base.endRise (end plates rising above the bar), base.loops (carrying loops between the heads),
+//    base.bosses [{ x, w, h, y }] (raised blocks on the front and rear faces),
 //    yoke.round (arm plates with a round top and an inlay)
 import * as THREE from 'three';
 
@@ -124,6 +126,7 @@ export function buildMachine(lcdCanvas, B) {
       for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(0.016, 0.013, b.bot, 16), M.rubber, sx * (hl - 0.09), b.bot / 2, sz * (hd - 0.035));   // feet
     }
     for (let i = 0; i < B.headCount; i++) for (let k = -6; k <= 6; k++) add(base, new THREE.BoxGeometry(0.005, 0.009, b.depth * 0.86), M.trim, (i - (B.headCount - 1) / 2) * B.headPitch + k * 0.011, b.top + 0.003, 0);   // heat-sink fins under each head
+    for (const k of b.bosses || []) for (const sz of [-1, 1]) for (const sx of [-1, 1]) add(base, loft([{ y: k.y - k.h / 2, w: k.w, d: 0.03, c: 0.008 }, { y: k.y + k.h / 2, w: k.w, d: 0.03, c: 0.008 }]), M.body, sx * k.x, 0, sz * (hd + 0.004));   // raised blocks, front and rear
     if (b.loops) for (let i = 0; i < B.headCount - 1; i++) {     // carrying loops between the heads (front)
       const x = (i + 0.5 - (B.headCount - 1) / 2) * B.headPitch, w = B.headPitch * 0.46;
       add(base, new THREE.BoxGeometry(w, 0.011, 0.011), M.body, x, b.top - 0.014, hd + 0.024);
@@ -172,6 +175,11 @@ export function buildMachine(lcdCanvas, B) {
     const bs = 0.0145;
     for (const [key, [dx, dy]] of Object.entries({ up: [0, bs], left: [-bs, 0], enter: [0, 0], right: [bs, 0], down: [0, -bs] })) {
       const m = cylZ(front, 0.0052, 0.004, M.btn.clone(), B.ctrlX + dx, dy, 0.002, 24);
+      m.userData.key = key; m.castShadow = false; buttons[key] = m; clickables.push(m);
+    }
+  } else if (B.controls === 'split4') {                         // MENU / ENTER left of the display, UP / DOWN right of it
+    for (const [key, sx, sy] of [['menu', -1, 1], ['enter', -1, -1], ['up', 1, 1], ['down', 1, -1]]) {
+      const m = cylZ(front, 0.0048, 0.004, M.btn.clone(), B.lcdX + sx * (B.lcd[0] / 2 + 0.013), sy * 0.0085, 0.002, 24);
       m.userData.key = key; m.castShadow = false; buttons[key] = m; clickables.push(m);
     }
   } else if (B.controls === 'col4') {                           // MENU / UP / DOWN / ENTER in a column

@@ -81,7 +81,7 @@ function check(M) {
     if (!['box', 'round', 'bar'].includes(B.style)) E("body.style must be 'box', 'round' or 'bar'");
     for (const k of ['H', 'panY', 'tiltY', 'lensY', 'lensR', 'ringR', 'lcdX', 'ctrlX']) if (!num(B[k])) E(`body.${k} must be a number (metres)`);
     if (!Array.isArray(B.lcd) || B.lcd.length !== 2) E('body.lcd must be [width, height]');
-    if (!['cross5', 'col4', 'encoder'].includes(B.controls)) E("body.controls must be 'cross5', 'col4' or 'encoder'");
+    if (!['cross5', 'col4', 'split4', 'encoder'].includes(B.controls)) E("body.controls must be 'cross5', 'col4', 'split4' or 'encoder'");
     if (!Array.isArray(B.head) || B.head.length < 2) E('body.head must list at least two loft sections');
     const b = B.base || {};
     for (const k of ['depth', 'bot', 'top', 'panelY', 'frameW', 'frameH']) if (!num(b[k])) E(`body.base.${k} must be a number`);

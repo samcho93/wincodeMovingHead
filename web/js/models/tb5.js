@@ -241,20 +241,23 @@ export default {
     ],
   },
   rdm: { modelId: 0x0b05, description: 'WOP-AVortex TB5 5x120W RGBL', software: 'Show V1.03' },
-  // Body: 1019 × 206.5 × 352.5 mm (manual chapter 9); proportions from the cover drawing
+  // Body: 1019 × 206.5 × 352.5 mm (manual chapter 9). Measured off the product page's front and rear photos, scaled by
+  // the 1019 mm length: heads 203 mm apart, yokes 200 mm wide with 20 mm arm plates, heads ≈ 160 mm square in section
+  // with a Ø 133 mm lens, bar ≈ 100 mm high with two raised blocks 287 mm either side of the display.
   body: {
     H: 0.3525, style: 'bar', viewScale: 1.9, headCount: 5,
-    // low bar with heat-sink fins, end plates rising above it and carrying loops between the heads (cover drawing)
-    base: { length: 1.019, depth: 0.1945, bot: 0.022, top: 0.125, panelY: 0.076, frameW: 0.13, frameH: 0.06, endRise: 0.06, loops: true },
-    headPitch: 0.195, panY: 0.125, tiltY: 0.133,
-    // wide cradle with large round-topped arm plates; drum head with a lens almost as wide as the head
-    yoke: { w: 0.184, d: 0.11, h: 0.026, armX: 0.084, armT: 0.012, armD: 0.112, armTop: 0.176, round: true },
-    head: [{ y: -0.06, w: 0.1 }, { y: -0.05, w: 0.15 }, { y: 0.058, w: 0.15 }, { y: 0.064, w: 0.156 }, { y: 0.072, w: 0.15 }],
-    lensY: 0.074, lensR: 0.062, ringR: 0.07,                    // lens dome adds 20.5 mm: 0.125 + 0.133 + 0.074 + 0.0205 = 0.3525
-    sink: { y0: -0.086, y1: -0.05, w: 0.11, d: 0.11, n: 9 },      // finned box at the rear end of each head (rear product photo)
-    lcd: [0.058, 0.0435], lcdX: -0.022, controls: 'cross5', ctrlX: 0.036,
+    base: { length: 1.019, depth: 0.1945, bot: 0.025, top: 0.125, panelY: 0.078, frameW: 0.11, frameH: 0.056, endRise: 0.035,
+      bosses: [{ x: 0.287, w: 0.155, h: 0.07, y: 0.075 }] },
+    headPitch: 0.2, panY: 0.125, tiltY: 0.133,
+    // cradle with tall round-topped arm plates; square-section head with a round bezel
+    yoke: { w: 0.19, d: 0.12, h: 0.026, armX: 0.0905, armT: 0.018, armD: 0.1, armTop: 0.172, round: true },
+    head: [{ y: -0.075, w: 0.125, d: 0.125, r: 0.03 }, { y: -0.066, w: 0.158, d: 0.16, r: 0.034 }, { y: 0.058, w: 0.158, d: 0.16, r: 0.034 }, { y: 0.067, w: 0.154, d: 0.154, r: 0.06 }, { y: 0.074, w: 0.148 }],
+    lensY: 0.075, lensR: 0.066, ringR: 0.073,                   // lens dome adds 22 mm: 0.125 + 0.133 + 0.075 + 0.022 = 0.355
+    sink: { y0: -0.088, y1: -0.07, w: 0.075, d: 0.12, n: 9 },     // finned grille on the rear end of each head (rear product photo)
+    lcd: [0.05, 0.036], lcdX: 0, controls: 'split4', ctrlX: 0.04,
   },
   assumptions: [
+    'Overall size 1019 × 206.5 × 352.5 mm is from the manual; the dimensions of bar, yokes and heads are measured off the product page photos, so they are good to a centimetre or two at best. The depth of the heads along the beam is not visible in those photos and is estimated.',
     'The manual has no picture of the control panel: a display with five buttons in a cross is assumed (top = UP, bottom = DOWN, left = MENU, centre/right = ENTER).',
     'Pan and tilt are centred at DMX 128 (pan ±29.5°, tilt ±110.5°; tilt 128 = heads pointing straight out of the bar).',
     'LED COLOR presets override LED CTO, which overrides the RGBL channels. The LEE colours and the CTO whites are approximations.',
