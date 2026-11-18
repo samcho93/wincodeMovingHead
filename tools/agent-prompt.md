@@ -28,6 +28,8 @@ everything the manual does not state goes into `assumptions`).
    CMY, framing blades, touch panel + encoder, scenes), `apexpointe420.js` (two prism wheels with
    prism shapes, CMY + colour wheel + virtual colour presets, continuous pan via `panSpin`), `tb5.js` (five heads on a bar, RGBL, pixel rings, generated
    channel modes, own menu tree). Copy the closest one and change it.
+   The `program` steps you write are also what the stage editor's showcase plays for this model (one look per step),
+   so make them show the fixture's main features: colours, gobos, prism, zoom, movement.
 5. **Write `web/js/models/<id>.js`** and register it in `web/js/models/index.js` (one import, one entry in `LIST`).
    - Every channel mode in the manual, in DMX order, with the manual's channel names.
    - `decode()` must follow the manual's value ranges exactly; `describe()` gives a short label for each value.

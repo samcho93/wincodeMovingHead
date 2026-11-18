@@ -223,7 +223,7 @@ function simulate(dt, now, time) {
     }
   }
 }
-window.WST.simulate = simulate;
+window.WST.simulate = simulate; window.WST.load = f => { load(f); play(0); };
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), now = performance.now(), time = clock.elapsedTime, live = engine.top.size > 0;

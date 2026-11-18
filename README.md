@@ -146,6 +146,8 @@ from one DMX patch.
 - **Examples**: pick one in the top bar and press *Load example* — it loads and plays.
   *All models — showcase* has two 250W BSW, the 500W Frame, the ApexPointe 420, the Mega480 and the AquaVortex TB5 in a 48-second programmed
   show (scenes, EFX, a chaser, on a timeline against a backing track); the other examples show one model each.
+  A model that is added later joins the showcase and gets its own example automatically: its looks are generated
+  from the model's built-in program.
   The backing track is synthesised in the browser, so no audio file is shipped.
 - **Transport**: Play / Pause, Stop, a position slider and Loop. The show keeps time from a worker clock and the audio,
   so it does not stall when the window is in the background.

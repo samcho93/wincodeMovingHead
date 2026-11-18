@@ -4,6 +4,7 @@
 //  `workspace` is an ordinary DMX editor workspace (scenes, EFX, chasers, one show) and can be opened in the editor.
 import { blankWorkspace } from '../editor/store.js';
 import { getDef } from '../editor/library.js';
+import { LIST } from '../models/index.js';
 
 export const BEAT_FILE = 'Example beat (generated).wav';
 export const BPM = 120, LENGTH = 48000;                      // every example show: 48 s at 120 BPM (24 bars)
@@ -89,6 +90,25 @@ function build(name, use) {
     track('Mega movement', [[eEight, B(2), B(16), '#2f8f5b'], [eEight, B(21), B(23), '#2f8f5b']]);
   }
 
+  /* ── every other registered model: looks generated from its built-in program ──
+     A model added later (for instance by the Add-model agent) appears here without any change to this file. */
+  const auto = LIST.filter(M => (use.auto || []).includes(M.id));
+  auto.forEach((M, k) => {
+    const mode = M.modes[M.defaultMode], chans = mode.channels, P = M.program, colors = ['#3b9aa8', '#a83b5c', '#8f8a2f', '#2f8f5b', '#8a4fb0', '#a8673b'];
+    const next = ws.fixtures.reduce((a, f) => Math.max(a, f.address + getDef(f.def).modes[f.mode].channels.length), 1);
+    const solo = ws.fixtures.length === 0 && auto.length === 1;
+    const F = fix(M.name, M.id, mode.id, next, solo ? 0 : (k - (auto.length - 1) / 2) * 1.9, solo ? 0 : -3.4);
+    // one look per program step, with every channel of the mode stated (same rule as Fixture.runProgram)
+    const looks = P.steps.map((st, i) => {
+      const s = { ...P.base, ...st }, o = {};
+      for (const key of chans) { const v = s[key] ?? (P.fill ? P.fill(key, s, i) : undefined) ?? 0; o[key] = typeof v === 'number' ? v : 0; }
+      if ('ptSpeed' in o) o.ptSpeed = 40;
+      return scene(`${M.name} · program step ${i + 1}`, [[F, o]]);
+    });
+    const bars = Array.from({ length: 12 }, (_, i) => i);      // a new look every two bars
+    track(`${M.name} looks`, bars.map(i => [looks[i % looks.length], B(i * 2), B(i * 2 + 2), colors[i % colors.length]]));
+  });
+
   /* ── AquaVortex TB5: five heads, RGBL, pixel rings (patched last: with every model on stage its fifth head is the one over the projection budget) ── */
   if (use.tb5) {
     const T = fix('TB5', 'tb5', '85CH', 101, 0, 1.6), H = [1, 2, 3, 4, 5];
@@ -110,11 +130,18 @@ function build(name, use) {
   return { app: 'wmh-stage', version: 1, name, fixtures: layout, workspace: ws };
 }
 
+// Models with a hand-written section above. Every other model in the registry gets a generated section and its own example.
+const WRITTEN = ['lm1012b', 'lm500wf', 'tb5', 'apexpointe420', 'mega480'];
+const OTHERS = LIST.filter(M => !WRITTEN.includes(M.id));
+/** stage with one model's generated section (also usable for a hand-written model, to try the generator) */
+export const buildAuto = id => { const M = LIST.find(m => m.id === id); return build(M.name, { auto: [id] }); };
+
 export const EXAMPLES = [
-  { id: 'all', name: 'All models — showcase', about: '2 × 250W BSW, 500W Frame, ApexPointe 420, Mega480 and AquaVortex TB5 on one stage, 48 s show with music', build: () => build('All models — showcase', { bsw: true, frame: true, tb5: true, apex: true, mega: true }) },
+  { id: 'all', name: 'All models — showcase', about: 'every registered model on one stage, 48 s show with music', build: () => build('All models — showcase', { bsw: true, frame: true, tb5: true, apex: true, mega: true, auto: OTHERS.map(M => M.id) }) },
   { id: 'bsw', name: '250W BSW pair — beams, gobos, prism', about: 'two WOP-LM1012B', build: () => build('250W BSW pair', { bsw: true }) },
   { id: 'frame', name: '500W Frame — CMY and framing blades', about: 'one WOP-LM500WF', build: () => build('500W Frame', { frame: true }) },
   { id: 'tb5', name: 'AquaVortex TB5 — five heads and pixel rings', about: 'one WOP-AVortex TB5 in 85CH mode', build: () => build('AquaVortex TB5', { tb5: true }) },
   { id: 'apex', name: 'ApexPointe 420 — prisms, reducers, continuous pan', about: 'one ApexPointe 420 in 39CH mode', build: () => build('ApexPointe 420', { apex: true }) },
   { id: 'mega', name: 'Mega480 BSW — CMY, gobos, prisms', about: 'one WOP-M480BSW in 39CH mode', build: () => build('Mega480 BSW', { mega: true }) },
+  ...OTHERS.map(M => ({ id: M.id, name: `${M.name} — built-in program`, about: `one ${M.code} in ${M.modes[M.defaultMode].label} mode, looks generated from its built-in program`, build: () => buildAuto(M.id) })),
 ];
