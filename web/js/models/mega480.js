@@ -354,17 +354,18 @@ export default {
   // Body: overall size 391 × 230 × 673 mm from the product page (the manual has no dimension drawing);
   // the proportions of base, yoke and head are taken from the manual's cover drawing and drawing 4.1.
   body: {
-    H: 0.673, style: 'round', handles: true,                    // 391 mm wide over the base handles
-    base: { hw: 0.16, bot: 0.045, top: 0.13, shoulder: 0.106, chamfer: 0.03, depth: 0.23, frameW: 0.2, frameH: 0.066, panelY: 0.088 },
-    feet: { r: 0.02, h: 0.045, x: 0.115, z: 0.08 },
-    turntable: { r: 0.1, h: 0.02 }, panY: 0.15,
-    bridge: [{ y: 0, w: 0.27, d: 0.14, r: 0.04 }, { y: 0.014, w: 0.356, d: 0.16, r: 0.04 }, { y: 0.045, w: 0.361, d: 0.155, r: 0.04 }, { y: 0.062, w: 0.346, d: 0.13, r: 0.04 }],
-    arm: { x: 0.154, t: 0.05, shape: [[-0.08, 0.027], [0.08, 0.027], [0.066, 0.222], [0.048, 0.275], [0.018, 0.297], [-0.018, 0.297], [-0.048, 0.275], [-0.066, 0.222]] },
+    H: 0.673, style: 'round',                                   // product page drawing: 391 (yoke) / 386 (base) × 230 × 673, arm 113 deep, arm top at 460
+    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.092, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.058, panelY: 0.074, handle: 'bar' },
+    feet: { r: 0.02, h: 0.04, x: 0.125, z: 0.08 },
+    turntable: { r: 0.095, h: 0.012 }, panY: 0.124,
+    yoke: { W: 0.391, t: 0.05, wb: 0.22, h1: 0.07, h2: 0.105, yf: 0.03, c: 0.035, d: 0.15, armW: 0.113, top: 0.34 },
     tiltY: 0.262,
-    head: [{ y: -0.152, w: 0.13 }, { y: -0.14, w: 0.19 }, { y: -0.087, w: 0.212 }, { y: 0.083, w: 0.212 }, { y: 0.112, w: 0.196 }, { y: 0.145, w: 0.228 }, { y: 0.218, w: 0.234 }, { y: 0.228, w: 0.224 }],
-    fins: { y0: -0.079, y1: 0.07, n: 9, r: 0.108 }, plate: { y: 0.0, z: 0.107 },
-    lensY: 0.232, lensR: 0.083, ringR: 0.102,                   // lens dome adds 29 mm: 0.150 + 0.262 + 0.232 + 0.029 = 0.673
-    lcd: [0.058, 0.0435], lcdX: -0.036, controls: 'cross5', ctrlX: 0.042,
+    // rear box → shoulder → three stepped lens rings (product photos)
+    head: [{ y: -0.2, w: 0.13, d: 0.11, r: 0.03 }, { y: -0.188, w: 0.215, d: 0.19, r: 0.04 }, { y: -0.12, w: 0.25, d: 0.215, r: 0.045 }, { y: 0.085, w: 0.25, d: 0.215, r: 0.045 }, { y: 0.115, w: 0.21, d: 0.2, r: 0.08 },
+      { y: 0.118, w: 0.236 }, { y: 0.15, w: 0.236 }, { y: 0.15, w: 0.214 }, { y: 0.162, w: 0.214 }, { y: 0.162, w: 0.228 }, { y: 0.192, w: 0.228 }, { y: 0.192, w: 0.208 }, { y: 0.204, w: 0.208 }, { y: 0.204, w: 0.222 }, { y: 0.25, w: 0.222 }, { y: 0.258, w: 0.2 }],
+    vents: [{ side: 'x', off: 0.126, y: 0.02, h: 0.05, n: 6, pitch: 0.012 }], plate: { y: -0.03, z: 0.109 },
+    lensY: 0.26, lensR: 0.082, ringR: 0.098,                    // lens dome adds 27 mm: 0.124 + 0.262 + 0.260 + 0.027 = 0.673
+    lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,
   },
   assumptions: [
     'Overall size 391 × 230 × 673 mm is from the product page (the manual only gives the package size); the proportions of base, yoke and head are estimated from the manual\'s cover drawing. 391 mm is taken as the width over the base handles.',

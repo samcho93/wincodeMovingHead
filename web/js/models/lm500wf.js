@@ -145,16 +145,18 @@ export default {
   // Body: overall size 380 × 270 × 670 mm from the product page (the manual has no dimension drawing);
   // the proportions of base, yoke and head are taken from the product photos.
   body: {
-    H: 0.67, style: 'round', handles: false,
-    base: { hw: 0.19, bot: 0.045, top: 0.13, shoulder: 0.106, chamfer: 0.035, depth: 0.258, frameW: 0.2, frameH: 0.066, panelY: 0.088 },
-    feet: { r: 0.02, h: 0.045, x: 0.125, z: 0.088 },
+    H: 0.67, style: 'round',                                    // 380 × 270 × 670 mm (product page); shapes from the manual cover drawing and the product photos
+    base: { hw: 0.168, bot: 0.045, top: 0.13, shoulder: 0.106, chamfer: 0.03, depth: 0.258, frameW: 0.2, frameH: 0.066, panelY: 0.088, handle: 'bar' },
+    feet: { r: 0.02, h: 0.045, x: 0.12, z: 0.088 },
     turntable: { r: 0.1, h: 0.02 }, panY: 0.15,
-    bridge: [{ y: 0, w: 0.28, d: 0.15, r: 0.04 }, { y: 0.014, w: 0.36, d: 0.172, r: 0.04 }, { y: 0.045, w: 0.365, d: 0.166, r: 0.04 }, { y: 0.062, w: 0.35, d: 0.14, r: 0.04 }],
-    arm: { x: 0.156, t: 0.05, shape: [[-0.085, 0.027], [0.085, 0.027], [0.07, 0.222], [0.05, 0.275], [0.018, 0.297], [-0.018, 0.297], [-0.05, 0.275], [-0.07, 0.222]] },
-    tiltY: 0.262,
-    head: [{ y: -0.149, w: 0.12 }, { y: -0.138, w: 0.19 }, { y: -0.087, w: 0.222 }, { y: 0.083, w: 0.222 }, { y: 0.109, w: 0.2 }, { y: 0.14, w: 0.236 }, { y: 0.214, w: 0.246 }, { y: 0.224, w: 0.236 }],
-    fins: { y0: -0.079, y1: 0.07, n: 9, r: 0.113 }, plate: { y: 0.0, z: 0.112 },
-    lensY: 0.229, lensR: 0.088, ringR: 0.105,                   // lens dome adds 29 mm: 0.150 + 0.262 + 0.229 + 0.029 = 0.670
+    yoke: { W: 0.36, t: 0.046, wb: 0.22, h1: 0.06, h2: 0.1, yf: 0.03, c: 0.05, d: 0.16, armW: 0.1, top: 0.335 },
+    tiltY: 0.27,
+    // rounded rear housing → ribbed cylindrical barrel → flared lens hood
+    head: [{ y: -0.155, w: 0.12, d: 0.12, r: 0.04 }, { y: -0.145, w: 0.2, d: 0.2, r: 0.07 }, { y: -0.09, w: 0.228, d: 0.228, r: 0.085 }, { y: 0.03, w: 0.228, d: 0.228, r: 0.1 },
+      { y: 0.05, w: 0.214 }, { y: 0.15, w: 0.214 }, { y: 0.16, w: 0.226 }, { y: 0.166, w: 0.226 }],
+    ribs: { y0: 0.055, y1: 0.145, n: 36, r: 0.109 }, hood: { y0: 0.16, y1: 0.25, r0: 0.113, r1: 0.126 },
+    vents: [{ side: 'x', off: 0.115, y: -0.05, h: 0.05, n: 6, pitch: 0.011 }], plate: { y: -0.03, z: 0.115 },
+    lensY: 0.215, lensR: 0.09, ringR: 0.105,                    // hood rim: 0.150 + 0.270 + 0.250 = 0.670
     lcd: [0.064, 0.048], lcdX: -0.03, controls: 'encoder', ctrlX: 0.052,
   },
   assumptions: [

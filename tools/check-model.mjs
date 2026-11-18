@@ -81,12 +81,12 @@ function check(M) {
     if (!['box', 'round', 'bar'].includes(B.style)) E("body.style must be 'box', 'round' or 'bar'");
     for (const k of ['H', 'panY', 'tiltY', 'lensY', 'lensR', 'ringR', 'lcdX', 'ctrlX']) if (!num(B[k])) E(`body.${k} must be a number (metres)`);
     if (!Array.isArray(B.lcd) || B.lcd.length !== 2) E('body.lcd must be [width, height]');
-    if (!['cross5', 'encoder'].includes(B.controls)) E("body.controls must be 'cross5' or 'encoder'");
+    if (!['cross5', 'col4', 'encoder'].includes(B.controls)) E("body.controls must be 'cross5', 'col4' or 'encoder'");
     if (!Array.isArray(B.head) || B.head.length < 2) E('body.head must list at least two loft sections');
     const b = B.base || {};
     for (const k of ['depth', 'bot', 'top', 'panelY', 'frameW', 'frameH']) if (!num(b[k])) E(`body.base.${k} must be a number`);
     if (B.style === 'bar') { if (!num(b.length) || !num(B.headPitch) || !num(B.headCount) || !B.yoke) E('bar bodies need base.length, headPitch, headCount and yoke'); if (B.headCount !== heads) E(`body.headCount (${B.headCount}) must equal heads (${heads})`); }
-    else { for (const k of ['hw', 'shoulder', 'chamfer']) if (!num(b[k])) E(`body.base.${k} must be a number`); if (!B.feet || !B.turntable || !Array.isArray(B.bridge) || !B.arm) E('box / round bodies need feet, turntable, bridge and arm'); }
+    else { for (const k of ['hw', 'shoulder', 'chamfer']) if (!num(b[k])) E(`body.base.${k} must be a number`); if (!B.feet || !B.turntable || !(B.yoke || (Array.isArray(B.bridge) && B.arm))) E('box / round bodies need feet, turntable and either yoke or bridge + arm'); }
     if (num(B.H) && (B.H < 0.1 || B.H > 2)) W(`body.H = ${B.H} m looks wrong (expected metres)`);
   }
   return { id: M.id, name: M.name, ok: !errors.length, errors, warnings, modes: Object.values(modes).map(m => `${m.id} (${m.channels ? m.channels.length : '?'})`) };

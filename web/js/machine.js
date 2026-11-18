@@ -2,7 +2,18 @@
 //  Coordinates: origin = floor centre, +Z = control panel (LCD) side, units = m. Head local +Y = beam direction.
 //  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins,
 //             'bar' = a long base carrying body.headCount small heads, each with a pixel ring.
-//  body.controls 'cross5' = five buttons in a cross, 'encoder' = one rotary encoder with push button.
+//  body.controls 'cross5' = five buttons in a cross, 'col4' = MENU / UP / DOWN / ENTER in a column, 'encoder' = one rotary
+//             encoder with push button.
+//  Optional detail (all in the model definition, none of it model-specific here):
+//    body.color            body paint (hex)
+//    base.handle 'bar'     a carrying bar on each end of the base (base.handles = ribbed grips instead)
+//    yoke { W, t, wb, h1, h2, yf, c, d, armW, top }   one-piece U yoke seen from the front: foot width wb flaring to the
+//                          full width W at h1, arms of thickness t from h2 up to `top` with a round end (armW deep),
+//                          inner floor at yf with corner chamfer c, lower part d deep. Replaces bridge + arm.
+//    rings [{ y, r, tube }]            trim rings round the head (stepped lens barrels)
+//    ribs { y0, y1, n, r }             vertical cooling ribs round a cylindrical head
+//    vents [{ side:'x'|'z', off, y, h, n, pitch }]   slotted vent panels on both sides of the head
+//    hood { y0, y1, r0, r1 }           open lens hood (may flare)
 import * as THREE from 'three';
 
 /** Body lofted from rounded-rectangle sections along Y (a section without d/r is a circle of diameter w) */
@@ -55,7 +66,7 @@ const extrude = (pts, depth, bevel = 0.003) => {
 
 export function buildMachine(lcdCanvas, B) {
   const M = {
-    body: new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.48, metalness: 0.12 }),
+    body: new THREE.MeshStandardMaterial({ color: B.color ?? 0x1b1d20, roughness: 0.55, metalness: 0.12 }),
     trim: new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.3, metalness: 0.3 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.9 }),
     metal: new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.3, metalness: 0.95 }),
@@ -80,7 +91,7 @@ export function buildMachine(lcdCanvas, B) {
       for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(0.016, 0.013, b.bot, 16), M.rubber, sx * (hl - 0.09), b.bot / 2, sz * (hd - 0.035));   // feet
     }
     for (let i = 0; i < B.headCount; i++) for (let k = -5; k <= 5; k++) add(base, new THREE.BoxGeometry(0.006, 0.004, b.depth * 0.5), M.trim, (i - (B.headCount - 1) / 2) * B.headPitch + k * 0.012, b.top + 0.001, 0);   // cooling ribs under each head
-    for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * (hd + 0.006));
+    for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * hd);
   } else {
     add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);
     if (B.handles) for (const sx of [-1, 1]) {                    // carrying handles (sides, ribbed)
@@ -89,9 +100,14 @@ export function buildMachine(lcdCanvas, B) {
       for (let i = -4; i <= 4; i++) add(base, new THREE.BoxGeometry(0.02, 0.044, 0.004), M.trim, sx * (hw + 0.014), b.panelY, i * 0.014).rotation.z = sx * -0.38;
       add(base, new THREE.BoxGeometry(0.01, 0.02, 0.05), M.trim, sx * (hw + 0.031), b.panelY, 0);
     }
+    if (b.handle === 'bar') for (const sx of [-1, 1]) {           // carrying bar on each end
+      add(base, new THREE.BoxGeometry(0.004, (b.top - b.bot) * 0.62, b.depth * 0.72), M.trim, sx * (hw + 0.001), b.panelY, 0);
+      for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(0.03, 0.02, 0.014), M.body, sx * (hw + 0.013), b.panelY, sz * b.depth * 0.3);
+      const bar = add(base, new THREE.CylinderGeometry(0.008, 0.008, b.depth * 0.68, 16), M.rubber, sx * (hw + 0.026), b.panelY, 0); bar.rotation.x = Math.PI / 2;
+    }
     const f = B.feet;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(f.r, f.r * 0.8, f.h, 20), M.rubber, sx * f.x, f.h / 2, sz * f.z);
-    for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * (b.depth / 2 + 0.006));
+    for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * b.depth / 2);
   }
 
   // front panel: LCD + controls
@@ -110,6 +126,11 @@ export function buildMachine(lcdCanvas, B) {
       const m = cylZ(front, 0.0052, 0.004, M.btn.clone(), B.ctrlX + dx, dy, 0.002, 24);
       m.userData.key = key; m.castShadow = false; buttons[key] = m; clickables.push(m);
     }
+  } else if (B.controls === 'col4') {                           // MENU / UP / DOWN / ENTER in a column
+    ['menu', 'up', 'down', 'enter'].forEach((key, i) => {
+      const m = cylZ(front, 0.0046, 0.004, M.btn.clone(), B.ctrlX, (1.5 - i) * 0.0118, 0.002, 24);
+      m.userData.key = key; m.castShadow = false; buttons[key] = m; clickables.push(m);
+    });
   } else {                                                      // rotary encoder with push button
     cylZ(front, 0.014, 0.003, M.rubber, B.ctrlX, 0, 0.0015, 32).castShadow = false;
     knob = cylZ(front, 0.011, 0.012, M.btn.clone(), B.ctrlX, 0, 0.007, 32);
@@ -169,9 +190,20 @@ export function buildMachine(lcdCanvas, B) {
 
   /* ── yoke (pan) ── */
   const pan = new THREE.Group(); pan.position.y = B.panY; root.add(pan);
-  add(pan, loft(B.bridge), M.body);
-  const A = B.arm, topY = Math.max(...A.shape.map(p => p[1]));
-  for (const sx of [-1, 1]) {
+  if (B.yoke) {                                                 // one-piece U yoke
+    const Y = B.yoke, W2 = Y.W / 2, xi = W2 - Y.t, r = Y.armW / 2, cy = Y.top - r, prof = [[-r, Y.h2 - 0.014], [r, Y.h2 - 0.014]];
+    add(pan, extrude([[-Y.wb / 2, 0], [Y.wb / 2, 0], [W2, Y.h1], [W2, Y.h2], [xi, Y.h2], [xi, Y.yf + Y.c], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + Y.c], [-xi, Y.h2], [-W2, Y.h2], [-W2, Y.h1]], Y.d, 0.006), M.body);
+    for (let i = 0; i <= 18; i++) { const a = (i / 18) * Math.PI; prof.push([Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    for (const sx of [-1, 1]) {
+      const ax = sx * (W2 - Y.t / 2);
+      add(pan, extrude(prof, Y.t, 0.007), M.body, ax, 0, 0).rotation.y = Math.PI / 2;
+      add(pan, extrude([[-r * 0.5, Y.h2 + 0.012], [r * 0.5, Y.h2 + 0.012], [r * 0.5, cy], [-r * 0.5, cy]], 0.003, 0.001), M.trim, ax + sx * (Y.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
+      const hub = add(pan, new THREE.CylinderGeometry(0.024, 0.024, 0.012, 24), M.trim, ax - sx * (Y.t / 2 + 0.003), B.tiltY, 0); hub.rotation.z = Math.PI / 2;
+    }
+  }
+  if (!B.yoke) add(pan, loft(B.bridge), M.body);
+  const A = B.arm || { shape: [[0, 0]] }, topY = Math.max(...A.shape.map(p => p[1]));
+  if (!B.yoke) for (const sx of [-1, 1]) {
     add(pan, extrude(A.shape, A.t, 0.006), M.body, sx * A.x, 0, 0).rotation.y = Math.PI / 2;
     const cap = add(pan, new THREE.CylinderGeometry(A.t * 0.85, A.t * 0.85, 0.004, 32), M.trim, sx * (A.x + A.t / 2 + 0.0015), B.tiltY, 0); cap.rotation.z = Math.PI / 2;
     add(pan, extrude([[-0.018, topY * 0.2], [0.018, topY * 0.2], [0.008, topY * 0.62], [-0.008, topY * 0.62]], 0.003, 0.001), M.trim, sx * (A.x + A.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side trim
@@ -186,6 +218,17 @@ export function buildMachine(lcdCanvas, B) {
     const y = B.fins.y0 + (B.fins.y1 - B.fins.y0) * i / (B.fins.n - 1);
     add(tilt, new THREE.TorusGeometry(B.fins.r, 0.0035, 8, 64), M.trim, 0, y, 0).rotation.x = Math.PI / 2;
   }
+  for (const g of B.rings || []) add(tilt, new THREE.TorusGeometry(g.r, g.tube ?? 0.004, 10, 64), M.trim, 0, g.y, 0).rotation.x = Math.PI / 2;
+  if (B.ribs) for (let i = 0; i < B.ribs.n; i++) {              // vertical cooling ribs
+    const a = (i / B.ribs.n) * Math.PI * 2;
+    add(tilt, new THREE.BoxGeometry(0.0035, B.ribs.y1 - B.ribs.y0, 0.007), M.trim, Math.cos(a) * B.ribs.r, (B.ribs.y0 + B.ribs.y1) / 2, Math.sin(a) * B.ribs.r).rotation.y = -a + Math.PI / 2;
+  }
+  for (const v of B.vents || []) for (const s of [-1, 1]) for (let i = 0; i < v.n; i++) {   // slotted vent panels
+    const u = (i - (v.n - 1) / 2) * v.pitch;
+    if (v.side === 'x') add(tilt, new THREE.BoxGeometry(0.004, v.h, v.pitch * 0.5), M.trim, s * v.off, v.y, u);
+    else add(tilt, new THREE.BoxGeometry(v.pitch * 0.5, v.h, 0.004), M.trim, u, v.y, s * v.off);
+  }
+  if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
   if (B.plate) for (const sz of [-1, 1]) add(tilt, new THREE.BoxGeometry(0.04, 0.02, 0.003), M.trim, 0, B.plate.y, sz * B.plate.z);   // name plate
   const headTop = B.head[B.head.length - 1].y;
   const ring = add(tilt, new THREE.CylinderGeometry(B.ringR, B.ringR + 0.002, 0.012, 56, 1, true), M.trim.clone(), 0, headTop + 0.004, 0); ring.material.side = THREE.DoubleSide;

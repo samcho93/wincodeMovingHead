@@ -30,6 +30,10 @@ everything the manual does not state goes into `assumptions`).
    channel modes, own menu tree). Copy the closest one and change it.
    The `program` steps you write are also what the stage editor's showcase plays for this model (one look per step),
    so make them show the fixture's main features: colours, gobos, prism, zoom, movement.
+   The 3D body is described by `body` (read the header of `web/js/machine.js`): `yoke` for the U-shaped yoke, `head` loft
+   sections (rounded boxes and circles; repeat a `y` to make a step), and the optional `rings`, `ribs`, `vents`, `hood`,
+   `base.handle` and `controls` ('cross5', 'col4' or 'encoder'). Shape it after the manual's drawing and the product
+   photos, not after another model.
 5. **Write `web/js/models/<id>.js`** and register it in `web/js/models/index.js` (one import, one entry in `LIST`).
    - Every channel mode in the manual, in DMX order, with the manual's channel names.
    - `decode()` must follow the manual's value ranges exactly; `describe()` gives a short label for each value.

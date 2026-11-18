@@ -136,6 +136,7 @@ function setView(name, instant) {
 }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 controls.addEventListener('start', () => { fly = null; });
+WMH.look = (pos, tgt) => { camera.position.set(...pos); controls.target.set(...tgt); fly = null; };   // debug: place the camera
 
 /* ───────── button input (3D body · LCD panel · keyboard) ───────── */
 const KEYMAP = { up: 'up', down: 'down', left: 'menu', menu: 'menu', enter: 'enter', right: 'enter' };
