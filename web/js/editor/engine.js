@@ -2,7 +2,7 @@
 //  Function types (after QLC+): Scene · Chaser · EFX · Collection · Audio · Show.
 //   scene      { values: { fixtureId: { channelIndex: value } }, fadeIn, fadeOut }                 (ms)
 //   chaser     { steps: [{ fn, fadeIn, hold, fadeOut }], order: loop|single|pingpong, direction: forward|backward }
-//   efx        { fixtures: [{ fx, head }], algo, width, height, xOffset, yOffset, rotation, duration, spread, direction }
+//   efx        { fixtures: [{ fx, head }], algo, width, height, xOffset, yOffset, rotation, duration, spread, direction, phase? (start phase in degrees) }
 //   collection { members: [functionId] }
 //   audio      { file, volume }
 //   show       { tracks: [{ name, mute, solo, items: [{ fn, start, duration, color, locked }] }] }
@@ -116,7 +116,7 @@ class EfxRunner extends Runner {
     const rot = (f.rotation || 0) * Math.PI / 180, cr = Math.cos(rot), sr = Math.sin(rot);
     f.fixtures.forEach((ref, i) => {
       const fx = store.fixture(ref.fx), mode = fx && modeOf(fx), h = mode && mode.heads[ref.head || 0]; if (!h) return;
-      const p = (((sgn * this.t / dur + (i / n) * ((f.spread ?? 0) / 360)) % 1) + 1) % 1;
+      const p = (((sgn * this.t / dur + (i / n) * ((f.spread ?? 0) / 360) + (f.phase ?? 0) / 360) % 1) + 1) % 1;
       const [x0, y0] = efxPoint(f.algo, p, f), x = x0 * cr - y0 * sr, y = x0 * sr + y0 * cr;
       const pan = clamp((f.xOffset ?? 127) + x * (f.width ?? 60), 0, 255), tilt = clamp((f.yOffset ?? 127) + y * (f.height ?? 60), 0, 255);
       const put = (ci, v) => { if (ci >= 0) { const a = fx.address - 1 + ci; if (a < 512) e.ltp[fx.universe][a] = v; } };

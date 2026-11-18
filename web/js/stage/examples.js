@@ -130,6 +130,70 @@ function build(name, use) {
   return { app: 'wmh-stage', version: 1, name, fixtures: layout, workspace: ws };
 }
 
+/* ── several units of one model ──
+   arrange() turns a single-model stage into `count` units. Each unit gets its own copy of every look, movement and
+   track (so the result stays editable per unit); `style` decides how the copies differ. */
+export const STYLES = [
+  { id: 'unison', name: 'Unison', about: 'every unit does exactly the same' },
+  { id: 'mirror', name: 'Mirror', about: 'the right half mirrors the left half (pan and movement direction)' },
+  { id: 'fan', name: 'Fan', about: 'pan spreads out from the centre' },
+  { id: 'wave', name: 'Wave', about: 'same looks, movements run with a phase offset from unit to unit' },
+  { id: 'canon', name: 'Canon', about: 'each unit follows the one before it, one beat later' },
+];
+const MAX_HEADS = 24;
+/** how many units of this stage's model can be asked for */
+export function maxUnits(file) { const f = file.workspace.fixtures[0], m = getDef(f.def).modes[f.mode]; return Math.max(1, Math.min(8, Math.floor(MAX_HEADS / Math.max(1, m.heads.length)))); }
+
+export function arrange(file, count, style = 'unison') {
+  const ws = file.workspace, tpl = ws.fixtures[0], mode = getDef(tpl.def).modes[tpl.mode], nch = mode.channels.length, heads = mode.heads;
+  count = Math.max(1, Math.min(maxUnits(file), Math.round(count) || 1));
+  // keep one unit as the template: drop the others the example was written with
+  const extra = new Set(ws.fixtures.slice(1).map(f => f.id));
+  ws.fixtures = [tpl]; const lay0 = file.fixtures.find(l => l.id === tpl.id); file.fixtures = [lay0];
+  for (const fn of ws.functions) {
+    if (fn.type === 'scene') for (const id of extra) delete fn.values[id];
+    if (fn.type === 'efx') { fn.fixtures = fn.fixtures.filter(r => !extra.has(r.fx)); if (heads.length === 1) fn.spread = 0; }
+  }
+  if (count === 1) { lay0.x = 0; return file; }
+  let id = ws.nextId; const nid = () => id++;
+  const show = ws.functions.find(f => f.type === 'show'), audio = new Set(ws.functions.filter(f => f.type === 'audio').map(f => f.id));
+  const own = ws.functions.filter(f => ['scene', 'efx', 'chaser'].includes(f.type)), pristine = JSON.parse(JSON.stringify(own));
+  const tracks = show.tracks.filter(t => !t.items.some(i => audio.has(i.fn))).map(t => JSON.parse(JSON.stringify(t)));
+  const perU = Math.max(1, Math.floor(512 / nch)), base = tpl.name.replace(/ (left|right)$/, ''), clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+  const perRow = count <= 5 ? count : Math.ceil(count / 2), gap = heads.length > 1 ? 1.9 : 1.3, z0 = lay0.z;
+  const panIdx = heads.map(h => h.pan).filter(i => i >= 0);
+  for (let k = 0; k < count; k++) {
+    const u = (k / (count - 1)) * 2 - 1, right = u > 0.001;                  // −1 (left) … +1 (right)
+    const row = Math.floor(k / perRow), n = Math.min(perRow, count - row * perRow), x = ((k % perRow) - (n - 1) / 2) * gap, z = z0 - row * 1.7;
+    const place = { universe: Math.floor(k / perU), address: 1 + (k % perU) * nch };
+    const pan = v => (style === 'mirror' && right ? 255 - v : style === 'fan' ? clamp(v + u * 30) : v);
+    const tune = fn => {                                                     // how this unit's copy differs from the template
+      if (fn.type === 'scene') for (const vals of Object.values(fn.values)) for (const i of panIdx) if (i in vals) vals[i] = pan(vals[i]);
+      if (fn.type === 'efx') {
+        fn.xOffset = pan(fn.xOffset ?? 127);
+        if (style === 'mirror' && right) fn.direction = fn.direction === 'backward' ? 'forward' : 'backward';
+        if (style === 'wave') fn.phase = (k / count) * 360;
+      }
+    };
+    if (k === 0) { Object.assign(tpl, place, { name: `${base} 1` }); Object.assign(lay0, { x, z }); own.forEach(tune); continue; }
+    const f = { ...tpl, ...place, id: nid(), name: `${base} ${k + 1}` };
+    ws.fixtures.push(f); file.fixtures.push({ ...lay0, id: f.id, x, z });
+    const map = new Map();
+    for (const src of pristine) map.set(src.id, nid());
+    for (const src of pristine) {
+      const fn = JSON.parse(JSON.stringify(src)); fn.id = map.get(src.id); fn.name = `${src.name} · unit ${k + 1}`;
+      if (fn.type === 'scene') fn.values = { [f.id]: fn.values[tpl.id] || {} };
+      if (fn.type === 'efx') fn.fixtures = fn.fixtures.map(r => ({ ...r, fx: f.id }));
+      if (fn.type === 'chaser') fn.steps = fn.steps.map(s => ({ ...s, fn: map.get(s.fn) ?? s.fn }));
+      tune(fn); ws.functions.push(fn);
+    }
+    const delay = style === 'canon' ? k * 60000 / BPM : 0;
+    for (const t of tracks) show.tracks.push({ ...t, name: `${t.name} · unit ${k + 1}`, items: t.items.map(i => ({ ...i, fn: map.get(i.fn) ?? i.fn, start: i.start + delay, duration: Math.min(i.duration, LENGTH - i.start - delay) })).filter(i => i.duration > 0) });
+  }
+  ws.nextId = id; ws.name = file.name = `${file.name} × ${count} (${STYLES.find(s => s.id === style)?.name || style})`;
+  return file;
+}
+
 // Models with a hand-written section above. Every other model in the registry gets a generated section and its own example.
 const WRITTEN = ['lm1012b', 'lm500wf', 'tb5', 'apexpointe420', 'mega480'];
 const OTHERS = LIST.filter(M => !WRITTEN.includes(M.id));
@@ -138,7 +202,7 @@ export const buildAuto = id => { const M = LIST.find(m => m.id === id); return b
 
 export const EXAMPLES = [
   { id: 'all', name: 'All models — showcase', about: 'every registered model on one stage, 48 s show with music', build: () => build('All models — showcase', { bsw: true, frame: true, tb5: true, apex: true, mega: true, auto: OTHERS.map(M => M.id) }) },
-  { id: 'bsw', name: '250W BSW pair — beams, gobos, prism', about: 'two WOP-LM1012B', build: () => build('250W BSW pair', { bsw: true }) },
+  { id: 'bsw', name: '250W BSW — beams, gobos, prism', about: 'WOP-LM1012B', units: 2, style: 'mirror', build: () => build('250W BSW', { bsw: true }) },
   { id: 'frame', name: '500W Frame — CMY and framing blades', about: 'one WOP-LM500WF', build: () => build('500W Frame', { frame: true }) },
   { id: 'tb5', name: 'AquaVortex TB5 — five heads and pixel rings', about: 'one WOP-AVortex TB5 in 85CH mode', build: () => build('AquaVortex TB5', { tb5: true }) },
   { id: 'apex', name: 'ApexPointe 420 — prisms, reducers, continuous pan', about: 'one ApexPointe 420 in 39CH mode', build: () => build('ApexPointe 420', { apex: true }) },

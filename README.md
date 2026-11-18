@@ -146,6 +146,10 @@ from one DMX patch.
 - **Examples**: pick one in the top bar and press *Load example* — it loads and plays.
   *All models — showcase* has two 250W BSW, the 500W Frame, the ApexPointe 420, the Mega480 and the AquaVortex TB5 in a 48-second programmed
   show (scenes, EFX, a chaser, on a timeline against a backing track); the other examples show one model each.
+  For a single-model example, **Units** sets how many of that fixture are put on the stage (up to 8, or 24 heads)
+  and the style next to it how they play together: *Unison* (identical), *Mirror* (right half mirrors the left),
+  *Fan* (pan spreads from the centre), *Wave* (movements phase-shifted from unit to unit) or *Canon* (each unit one
+  beat after the one before). Every unit gets its own looks and tracks, so the result can be edited per unit.
   A model that is added later joins the showcase and gets its own example automatically: its looks are generated
   from the model's built-in program.
   The backing track is synthesised in the browser, so no audio file is shipped.

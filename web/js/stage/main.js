@@ -4,7 +4,7 @@
 //  cable, so the DMX editor in another window can program the same stage live.
 import * as THREE from 'three';
 import { createStage, TRUSS_Y, ROOM } from './scene3d.js';
-import { EXAMPLES, BEAT_FILE, BPM, LENGTH } from './examples.js';
+import { EXAMPLES, STYLES, arrange, maxUnits, BEAT_FILE, BPM, LENGTH } from './examples.js';
 import { makeBeat } from './beat.js';
 import { store, blankWorkspace, audioFiles } from '../editor/store.js';
 import { Engine, durationOf } from '../editor/engine.js';
@@ -179,7 +179,13 @@ addEventListener('pointerup', () => { if (!drag) return; S.controls.enabled = tr
 
 /* ── top bar ── */
 fill($('#selExample'), EXAMPLES.map(x => h('option', { value: x.id, title: x.about }, x.name)));
-$('#btnLoadEx').addEventListener('click', () => { const x = EXAMPLES.find(e => e.id === $('#selExample').value); pausedAt = 0; load(x.build()); changed(); play(0); });
+fill($('#exStyle'), STYLES.map(s => h('option', { value: s.id, title: s.about }, s.name)));
+// Units / style apply to the single-model examples; the showcase has its own cast
+const exSync = () => { const x = EXAMPLES.find(e => e.id === $('#selExample').value), single = x.id !== 'all', c = $('#exCount'), s = $('#exStyle');
+  c.disabled = s.disabled = !single; c.max = single ? maxUnits(x.build()) : 1; c.value = single ? x.units || 1 : 1; s.value = (single && x.style) || 'unison'; };
+$('#selExample').addEventListener('change', exSync); exSync();
+$('#exCount').addEventListener('change', e => { e.target.value = Math.max(1, Math.min(+e.target.max, Math.round(+e.target.value) || 1)); });
+$('#btnLoadEx').addEventListener('click', () => { const x = EXAMPLES.find(e => e.id === $('#selExample').value); pausedAt = 0; load(x.id === 'all' ? x.build() : arrange(x.build(), +$('#exCount').value, $('#exStyle').value)); changed(); play(0); });
 $('#btnNew').addEventListener('click', () => { if (confirm('Start an empty stage? The current one is replaced.')) { pausedAt = 0; load(emptyStage()); changed(); } });
 $('#btnSave').addEventListener('click', download);
 $('#btnOpen').addEventListener('click', () => $('#fileOpen').click());
