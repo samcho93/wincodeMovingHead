@@ -31,6 +31,7 @@ Pick the model with the selector at the top left (the page reloads with that fix
 |---|---|---|---|---|
 | `lm1012b` | **WOP-LM1012B** 250W LED 3-in-1 Beam/Spot/Wash | 17CH (STD) / 20CH (EXT) | colour LCD + buttons | colour wheel, static + rotating gobo wheels, 3-facet prism, zoom 6–26°, frost |
 | `lm500wf` | **WOP-LM500WF** 500W LED Framing Moving Head Wash | 26CH | touch LCD + rotary encoder | colour wheel, linear CMY, CTO, 4 framing blades (8 channels) + rotation, zoom 6–48°, frost, 10 editable scenes, master/slave selection |
+| `apexpointe420` | **ApexPointe 420** 420W LED beam / spot / wash hybrid | 39CH | display + buttons (assumed) | zoom 3.2–42.6°, continuous pan rotation, 13-colour wheel + CMY + CTO, 66 virtual colour presets, 7 static gobos + 4 beam reducers, 9 rotating gobos, two prism wheels (18-facet circular, 6-facet linear, multicoloured linear, 8-facet circular), light / medium frost. **No Wincode manual exists**: the channel chart is that of the Robe LEDPointe, which the product page names as library-compatible — see the Guide tab for every assumption |
 | `tb5` | **WOP-AVortex TB5** AquaVortex TB5 IP65 multi-head, 5 × 120W RGBL | 21 / 41 / 71 / 75 / 85 / 170CH | display + buttons | five heads on a bar, each with pan 59° / tilt 221°, zoom 4–32°, RGBL colour mixing and an 8-block RGB pixel ring; LEE colour presets, CTO, ring macros, function channel |
 
 Channel charts, panel operation and the assumptions made for each model are shown in the **Guide** tab of the simulator.

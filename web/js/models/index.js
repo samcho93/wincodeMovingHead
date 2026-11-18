@@ -13,8 +13,10 @@
 //   gobos       { fix:[names], rot:[names], draw(ctx, 'fix'|'rot', index, R) }   (['Open'] + draw:null when there are none)
 //   ch          { key: 'Display name' }    every channel key used in modes
 //   modes       { id: { id, label, channels:[keys in DMX order] } }, defaultMode
-//   decode(v)   channel values → targets   { pan, tilt (0..1), ptSpeed, dimmer, strobe{mode,hz}, zoom, focus, frost,
-//                                            color{pos|null,spin}, gobo, rotGobo, goboRot, prism, prismRot,
+//   decode(v)   channel values → targets   { pan, tilt (0..1), panSpin (deg/s, continuous rotation), ptSpeed, dimmer, strobe{mode,hz}, zoom, focus, frost,
+//                                            color{pos|null,spin}, gobo, rotGobo, goboRot, prismRot,
+//                                            prismIndex (deg, instead of prismRot),
+//                                            prism: true (3-facet) | { id, rings:[[count,radius]], line:count, scale, colors },
 //                                            cmy[3], cto, blades[8], bladeRot, reset: false|true|'all'|'xy'|'effect',
 //                                            rgb[3] + level (colour-mixing LEDs), ring{blocks|color,macro,strobe},
 //                                            apply: {setting: value} (function channel) }
@@ -31,8 +33,9 @@
 import lm1012b from './lm1012b.js';
 import lm500wf from './lm500wf.js';
 import tb5 from './tb5.js';
+import apexpointe420 from './apexpointe420.js';
 
-export const LIST = [lm1012b, lm500wf, tb5];
+export const LIST = [lm1012b, lm500wf, tb5, apexpointe420];
 export const MODELS = Object.fromEntries(LIST.map(m => [m.id, m]));
 export const DEFAULT_MODEL = LIST[0].id;
 

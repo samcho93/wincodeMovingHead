@@ -11,6 +11,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 ## Models
 - One file per model in `web/js/models/` + one line in `models/index.js` (`LIST`). The contract is documented at the top of `index.js`.
 - Current: `lm1012b` (250W BSW, buttons panel, gobos/prism) · `lm500wf` (500W Frame, touch + encoder panel, CMY/CTO/framing blades, scenes, M/S).
+  · `apexpointe420` (420W hybrid, 39CH; no Wincode manual — channel chart taken from the library-compatible Robe LEDPointe, see its `assumptions`; two prism wheels, continuous pan).
   · `tb5` (AquaVortex TB5: 5 heads on a bar, RGBL + pixel rings, 6 channel modes, own menu tree via `panel.menu`).
 - Multi-head: `model.heads = N`; `decode()` returns `heads: [targets]` plus the shared top-level fields; channel keys carry the head number as a suffix (`tilt3`). `fx.heads[i]` (class `Head`) owns axes + optics and is what `BeamImage.render()` / `Beam.update()` take; `fx.pan/tilt/o/tint…` are shortcuts to head 1.
 - Scanned manuals have no text layer: render pages with PyMuPDF and read the images.
@@ -54,6 +55,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - `SpotLight.map` orientation follows the shadow camera's `up`; `beam.js` overrides `shadow.updateMatrices` so the image rotates with the head.
 - The volumetric pass reads a depth pre-pass; the lens glass has `depthWrite = false` so it does not cut the beam.
 - A program step field must not share a name with a channel key if it holds a function (`runProgram` takes `step[key]` as the channel value first).
+- Prisms: `decode()` returns `prism: true` (3-facet) or a shape `{ id, rings, line, scale, colors }`; only one prism is drawn at a time. `prismIndex` (deg) indexes it, `panSpin` (deg/s) is continuous pan.
 - Wheels a model does not have must stay at slot 0 (`fixture.js` forces this) — a leftover fractional position splits the beam.
 - Touch-menu hit areas are rebuilt on every draw; a tap right after a state change needs one draw first.
 - On one PC only one process receives unicast on UDP 6454 — `dmx-send.js` binds 127.0.0.2 for RDM/poll replies.

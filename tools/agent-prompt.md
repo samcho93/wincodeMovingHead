@@ -25,7 +25,8 @@ everything the manual does not state goes into `assumptions`).
    estimate the proportions from the product photos — and say so in `assumptions`.
 4. **Study the contract and the closest existing model.** The contract is at the top of `web/js/models/index.js`.
    Existing models: `lm1012b.js` (single head, colour and gobo wheels, prism, button menu), `lm500wf.js` (single head,
-   CMY, framing blades, touch panel + encoder, scenes), `tb5.js` (five heads on a bar, RGBL, pixel rings, generated
+   CMY, framing blades, touch panel + encoder, scenes), `apexpointe420.js` (two prism wheels with
+   prism shapes, CMY + colour wheel + virtual colour presets, continuous pan via `panSpin`), `tb5.js` (five heads on a bar, RGBL, pixel rings, generated
    channel modes, own menu tree). Copy the closest one and change it.
 5. **Write `web/js/models/<id>.js`** and register it in `web/js/models/index.js` (one import, one entry in `LIST`).
    - Every channel mode in the manual, in DMX order, with the manual's channel names.

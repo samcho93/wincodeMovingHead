@@ -5,6 +5,7 @@
 const G = 256;                       // resolution of one gobo
 const TAU = Math.PI * 2;
 function mk(size) { const c = document.createElement('canvas'); c.width = c.height = size; return c; }
+const PRISM3 = { id: 'c3', rings: [[3, 0.5]], scale: 0.5 };
 const css = rgb => `rgb(${rgb.map(v => Math.round(Math.min(1, Math.max(0, v)) * 255)).join(',')})`;
 
 export class BeamImage {
@@ -54,7 +55,7 @@ export class BeamImage {
   render(fx) {                                                  // fx: a Head (or the Fixture, which forwards to head 1)
     const o = fx.o, M = this.model, F = M.features, { S, R } = this;
     const blur = (fx.defocus * 46 + o.frost * 34 + (M.spec.soft || 0)) * (S / 512), fl = fx.filter;
-    const key = [o.colorPos.toFixed(3), (o.goboPos + o.goboOfs).toFixed(3), (o.rotPos + o.rotOfs).toFixed(3), o.goboAngle.toFixed(1), o.prism.toFixed(2), o.prismAngle.toFixed(1), blur.toFixed(1), F.rgbl ? o.rgb.map(v => v.toFixed(3)).join() : '',
+    const key = [o.colorPos.toFixed(3), (o.goboPos + o.goboOfs).toFixed(3), (o.rotPos + o.rotOfs).toFixed(3), o.goboAngle.toFixed(1), o.prism.toFixed(2), o.prismAngle.toFixed(1), o.prismShape ? o.prismShape.id : '', blur.toFixed(1), F.rgbl ? o.rgb.map(v => v.toFixed(3)).join() : '',
       fl.map(v => v.toFixed(3)).join(), F.blades ? o.blades.map(v => v.toFixed(3)).join() + o.bladeRot.toFixed(3) : ''].join('|');
     if (key === this.key) return false;
     this.key = key;
@@ -85,14 +86,23 @@ export class BeamImage {
     const p = o.prism;
     if (p < 0.02) og.drawImage(this.a, 0, 0);
     else {
+      // The prism multiplies the image. Shape: { rings: [[count, radius]], line: count, scale, colors } — default 3-facet circular.
+      const P = o.prismShape || PRISM3, rot = o.prismAngle * Math.PI / 180, pts = [];
+      for (const [n, rad] of P.rings || []) for (let i = 0; i < n; i++) { const a = rot + i * TAU / n; pts.push([Math.cos(a) * rad, Math.sin(a) * rad]); }
+      if (P.line) for (let i = 0; i < P.line; i++) { const d = (i - (P.line - 1) / 2) * P.scale * 2.1; pts.push([Math.cos(rot) * d, Math.sin(rot) * d]); }
+      const sc = 1 - (1 - P.scale) * p, alpha = Math.min(0.65, Math.max(0.3, 2 / pts.length));
       og.globalCompositeOperation = 'lighter';
-      const sc = 1 - 0.5 * p, off = R * 0.5 * p;
-      for (let i = 0; i < 3; i++) {
-        const a = (o.prismAngle + i * 120) * Math.PI / 180;
-        og.setTransform(sc, 0, 0, sc, S / 2 + Math.cos(a) * off - S / 2 * sc, S / 2 + Math.sin(a) * off - S / 2 * sc);
-        og.globalAlpha = 1 - 0.35 * p;
-        og.drawImage(this.a, 0, 0);
-      }
+      pts.forEach(([x, y], i) => {
+        let src = this.a;
+        if (P.colors) {                                               // multicoloured prism: each facet tints its copy
+          const tg = this.m2g; tg.setTransform(1, 0, 0, 1, 0, 0); tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, S, S); tg.drawImage(this.a, 0, 0);
+          tg.globalCompositeOperation = 'source-atop'; tg.fillStyle = `hsla(${Math.round(i * 360 / pts.length)},100%,50%,0.75)`; tg.fillRect(0, 0, S, S); tg.globalCompositeOperation = 'source-over';
+          src = this.m2;
+        }
+        og.setTransform(sc, 0, 0, sc, S / 2 + x * R * p - S / 2 * sc, S / 2 + y * R * p - S / 2 * sc);
+        og.globalAlpha = 1 - (1 - alpha) * p;
+        og.drawImage(src, 0, 0);
+      });
     }
     og.setTransform(1, 0, 0, 1, 0, 0); og.filter = 'none'; og.globalAlpha = 1; og.globalCompositeOperation = 'source-over';
     return true;

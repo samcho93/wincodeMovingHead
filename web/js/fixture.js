@@ -52,7 +52,7 @@ export class Head {
     this.pan = new Axis(215, 0.2); this.tilt = new Axis(185, 0.2);
     this.tilt.pos = -fx.model.spec.tiltRange / 2;                // an unpowered head hangs down
     this.o = { colorPos: 0, cmy: [0, 0, 0], cto: 0, goboPos: 0, goboOfs: 0, rotPos: 0, rotOfs: 0, goboAngle: 0, zoom: 0, focus: 0.4, frost: 0,
-      prism: 0, prismAngle: 0, blades: [0, 0, 0, 0, 0, 0, 0, 0], bladeRot: 0, dimmer: 0, shutter: 0,
+      prism: 0, prismAngle: 0, prismShape: null, blades: [0, 0, 0, 0, 0, 0, 0, 0], bladeRot: 0, dimmer: 0, shutter: 0,
       rgb: [1, 1, 1], level: 1,                                 // colour-mixing LED engines: hue (max component 1) and output level
       ring: Array.from({ length: 8 }, () => [0, 0, 0]) };       // pixel ring: 8 blocks, RGB 0..1 (after macro and strobe)
   }
@@ -231,7 +231,12 @@ export class Fixture {
       let tiltT = (th.tilt - 0.5) * SP.tiltRange * (S.tiltInvert ? -1 : 1) + offT;
       if (homeXY) { panT = -SP.panRange / 2; tiltT = -SP.tiltRange / 2; }
       const speed = this.resetting ? 0.8 : 1 - 0.965 * (th.ptSpeed ?? t.ptSpeed ?? 0);
-      h.pan.step(clamp(panT, -SP.panRange / 2, SP.panRange / 2), dt, speed);
+      if (th.panSpin && !this.resetting) {            // continuous pan rotation (deg/s): no end stops while it turns
+        h.pan.vel += (th.panSpin - h.pan.vel) * Math.min(1, dt * 2.5); h.pan.pos += h.pan.vel * dt; h.panFree = true; panT = h.pan.pos;
+      } else {
+        if (h.panFree) { h.panFree = false; h.pan.pos = wrap(h.pan.pos + 180, 360) - 180; }   // back inside the range, same heading
+        h.pan.step(clamp(panT, -SP.panRange / 2, SP.panRange / 2), dt, speed);
+      }
       h.tilt.step(clamp(tiltT, -SP.tiltRange / 2, SP.tiltRange / 2), dt, speed);
       if (Math.abs(h.pan.pos - panT) > 0.5 || Math.abs(h.tilt.pos - tiltT) > 0.5) arrived = false;
 
@@ -268,8 +273,10 @@ export class Fixture {
         o.zoom = approach(o.zoom, th.zoom, dt * 0.85);
         if (th.focus != null) o.focus = approach(o.focus, th.focus, dt * 1.6);
         o.frost = approach(o.frost, th.frost || 0, dt * 2.5);
+        if (th.prism && typeof th.prism === 'object') o.prismShape = th.prism;   // which prism (models with several); true = 3-facet
         o.prism = approach(o.prism, th.prism ? 1 : 0, dt * 3.5);
-        o.prismAngle = wrap(o.prismAngle + (th.prismRot || 0) * 360 * dt, 360);
+        if (th.prismIndex != null) o.prismAngle = approachWheel(o.prismAngle, th.prismIndex, dt * 300, 360);   // indexed prism
+        else o.prismAngle = wrap(o.prismAngle + (th.prismRot || 0) * 360 * dt, 360);
       }
       // colour-mixing LED engine (electronic → near instant)
       if (th.rgb) { const k = Math.min(1, dt * 30); for (let i = 0; i < 3; i++) o.rgb[i] += (th.rgb[i] - o.rgb[i]) * k; o.level += ((th.level ?? 1) - o.level) * k; }
