@@ -14,6 +14,8 @@
 //    ribs { y0, y1, n, r }             vertical cooling ribs round a cylindrical head
 //    vents [{ side:'x'|'z', off, y, h, n, pitch }]   slotted vent panels on both sides of the head
 //    hood { y0, y1, r0, r1 }           open lens hood (may flare)
+//  Bar bodies: base.endRise (end plates rising above the bar), base.loops (carrying loops between the heads),
+//    yoke.round (arm plates with a round top and an inlay)
 import * as THREE from 'three';
 
 /** Body lofted from rounded-rectangle sections along Y (a section without d/r is a circle of diameter w) */
@@ -86,11 +88,17 @@ export function buildMachine(lcdCanvas, B) {
     const hl = b.length / 2, hd = b.depth / 2;
     add(base, extrude([[-hd, b.bot], [hd, b.bot], [hd, b.top - 0.03], [hd - 0.03, b.top], [-hd + 0.03, b.top], [-hd, b.top - 0.03]], b.length - 0.05, 0.005), M.body).rotation.y = Math.PI / 2;
     for (const sx of [-1, 1]) {                                 // end caps with carrying handles
-      add(base, new THREE.BoxGeometry(0.025, b.top - b.bot - 0.004, b.depth - 0.004), M.trim, sx * (hl - 0.0125), (b.top + b.bot) / 2, 0);
+      if (b.endRise) add(base, extrude([[-hd - 0.006, b.bot], [hd + 0.006, b.bot], [hd + 0.006, b.top - 0.01], [hd * 0.5, b.top + b.endRise], [-hd * 0.5, b.top + b.endRise], [-hd - 0.006, b.top - 0.01]], 0.03, 0.005), M.body, sx * (hl - 0.015), 0, 0).rotation.y = Math.PI / 2;   // end plate rising above the bar
+      else add(base, new THREE.BoxGeometry(0.025, b.top - b.bot - 0.004, b.depth - 0.004), M.trim, sx * (hl - 0.0125), (b.top + b.bot) / 2, 0);
       add(base, new THREE.BoxGeometry(0.012, 0.03, 0.09), M.rubber, sx * (hl - 0.006), b.top - 0.035, 0);
       for (const sz of [-1, 1]) add(base, new THREE.CylinderGeometry(0.016, 0.013, b.bot, 16), M.rubber, sx * (hl - 0.09), b.bot / 2, sz * (hd - 0.035));   // feet
     }
-    for (let i = 0; i < B.headCount; i++) for (let k = -5; k <= 5; k++) add(base, new THREE.BoxGeometry(0.006, 0.004, b.depth * 0.5), M.trim, (i - (B.headCount - 1) / 2) * B.headPitch + k * 0.012, b.top + 0.001, 0);   // cooling ribs under each head
+    for (let i = 0; i < B.headCount; i++) for (let k = -6; k <= 6; k++) add(base, new THREE.BoxGeometry(0.005, 0.009, b.depth * 0.86), M.trim, (i - (B.headCount - 1) / 2) * B.headPitch + k * 0.011, b.top + 0.003, 0);   // heat-sink fins under each head
+    if (b.loops) for (let i = 0; i < B.headCount - 1; i++) {     // carrying loops between the heads (front)
+      const x = (i + 0.5 - (B.headCount - 1) / 2) * B.headPitch, w = B.headPitch * 0.46;
+      add(base, new THREE.BoxGeometry(w, 0.011, 0.011), M.body, x, b.top - 0.014, hd + 0.024);
+      for (const s of [-1, 1]) add(base, new THREE.BoxGeometry(0.011, 0.011, 0.03), M.body, x + s * (w / 2 - 0.0055), b.top - 0.014, hd + 0.012);
+    }
     for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * hd);
   } else {
     add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);
@@ -159,7 +167,9 @@ export function buildMachine(lcdCanvas, B) {
     /* ── heads: small yoke (pan) + round head (tilt) with a pixel ring around the lens ── */
     const Y = B.yoke, domeR = B.lensR * 1.67, sag = domeR - Math.sqrt(domeR * domeR - B.lensR * B.lensR), headTop = B.head[B.head.length - 1].y;
     const bridgeGeo = loft([{ y: 0, w: Y.w * 0.8, d: Y.d * 0.85, r: 0.02 }, { y: 0.008, w: Y.w, d: Y.d, r: 0.02 }, { y: Y.h, w: Y.w, d: Y.d * 0.9, r: 0.02 }]);
-    const armGeo = extrude([[-Y.armD / 2, Y.h - 0.01], [Y.armD / 2, Y.h - 0.01], [Y.armD * 0.36, Y.armTop - 0.012], [Y.armD * 0.2, Y.armTop], [-Y.armD * 0.2, Y.armTop], [-Y.armD * 0.36, Y.armTop - 0.012]], Y.armT, 0.003);
+    const ar = Y.armD / 2, armPts = Y.round ? [[-ar, Y.h - 0.01], [ar, Y.h - 0.01], ...Array.from({ length: 15 }, (_, i) => { const a = (i / 14) * Math.PI; return [Math.cos(a) * ar, Y.armTop - ar + Math.sin(a) * ar]; })]
+      : [[-ar, Y.h - 0.01], [ar, Y.h - 0.01], [Y.armD * 0.36, Y.armTop - 0.012], [Y.armD * 0.2, Y.armTop], [-Y.armD * 0.2, Y.armTop], [-Y.armD * 0.36, Y.armTop - 0.012]];
+    const armGeo = extrude(armPts, Y.armT, 0.003), inlayGeo = new THREE.CapsuleGeometry(ar * 0.22, ar * 0.9, 4, 12);
     const headGeo = loft(B.head, 48), lensGeo = new THREE.CircleGeometry(B.lensR, 40);
     const domeGeo = new THREE.SphereGeometry(domeR, 32, 10, 0, Math.PI * 2, 0, Math.asin(Math.min(1, B.lensR / domeR)));
     const blockGeo = new THREE.TorusGeometry(B.ringR, 0.0055, 8, 10, Math.PI / 4 - 0.06);   // one of 8 pixel-ring blocks
@@ -167,7 +177,10 @@ export function buildMachine(lcdCanvas, B) {
       const pan = new THREE.Group(); pan.position.set((i - (B.headCount - 1) / 2) * B.headPitch, B.panY, 0); root.add(pan);
       add(pan, new THREE.CylinderGeometry(Y.d * 0.42, Y.d * 0.46, 0.008, 32), M.trim, 0, -0.002, 0);
       add(pan, bridgeGeo, M.body);
-      for (const sx of [-1, 1]) add(pan, armGeo, M.body, sx * Y.armX, 0, 0).rotation.y = Math.PI / 2;
+      for (const sx of [-1, 1]) {
+        add(pan, armGeo, M.body, sx * Y.armX, 0, 0).rotation.y = Math.PI / 2;
+        if (Y.round) { const inl = add(pan, inlayGeo, M.trim, sx * (Y.armX + Y.armT / 2), B.tiltY - ar * 0.1, 0); inl.rotation.x = Math.PI / 2 - 0.5; inl.scale.x = 0.12; }   // oblong inlay on each arm plate
+      }
       const tilt = new THREE.Group(); tilt.position.y = B.tiltY; pan.add(tilt);
       add(tilt, headGeo, M.body);
       for (const sx of [-1, 1]) { const hub = add(tilt, new THREE.CylinderGeometry(0.016, 0.016, 0.006, 20), M.trim, sx * (Y.armX - Y.armT / 2 - 0.004), 0, 0); hub.rotation.z = Math.PI / 2; }

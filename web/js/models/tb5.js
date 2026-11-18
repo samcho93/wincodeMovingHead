@@ -244,12 +244,14 @@ export default {
   // Body: 1019 × 206.5 × 352.5 mm (manual chapter 9); proportions from the cover drawing
   body: {
     H: 0.3525, style: 'bar', viewScale: 1.9, headCount: 5,
-    base: { length: 1.019, depth: 0.1945, bot: 0.022, top: 0.158, panelY: 0.092, frameW: 0.17, frameH: 0.07 },
-    headPitch: 0.195, panY: 0.158, tiltY: 0.107,
-    yoke: { w: 0.172, d: 0.092, h: 0.03, armX: 0.078, armT: 0.014, armD: 0.07, armTop: 0.128 },
-    head: [{ y: -0.058, w: 0.07 }, { y: -0.048, w: 0.112 }, { y: -0.01, w: 0.134 }, { y: 0.05, w: 0.136 }, { y: 0.074, w: 0.142 }, { y: 0.082, w: 0.138 }],
-    lensY: 0.0845, lensR: 0.049, ringR: 0.06,
-    lcd: [0.058, 0.0435], lcdX: -0.036, controls: 'cross5', ctrlX: 0.042,
+    // low bar with heat-sink fins, end plates rising above it and carrying loops between the heads (cover drawing)
+    base: { length: 1.019, depth: 0.1945, bot: 0.022, top: 0.125, panelY: 0.076, frameW: 0.13, frameH: 0.06, endRise: 0.06, loops: true },
+    headPitch: 0.195, panY: 0.125, tiltY: 0.133,
+    // wide cradle with large round-topped arm plates; drum head with a lens almost as wide as the head
+    yoke: { w: 0.184, d: 0.11, h: 0.026, armX: 0.084, armT: 0.012, armD: 0.112, armTop: 0.176, round: true },
+    head: [{ y: -0.06, w: 0.1 }, { y: -0.05, w: 0.15 }, { y: 0.058, w: 0.15 }, { y: 0.064, w: 0.156 }, { y: 0.072, w: 0.15 }],
+    lensY: 0.074, lensR: 0.062, ringR: 0.07,                    // lens dome adds 20.5 mm: 0.125 + 0.133 + 0.074 + 0.0205 = 0.3525
+    lcd: [0.058, 0.0435], lcdX: -0.022, controls: 'cross5', ctrlX: 0.036,
   },
   assumptions: [
     'The manual has no picture of the control panel: a display with five buttons in a cross is assumed (top = UP, bottom = DOWN, left = MENU, centre/right = ENTER).',
