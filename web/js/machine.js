@@ -18,7 +18,8 @@
 //                                      badge on the front and back of the head (at plate.y / plate.z)
 //    sink { y0, y1, w, d, n }          finned heat sink at the rear end of the head
 //    shield { pts: [[x, y]…], z }      raised cover panel on the front and back of the head (outline in head x / y)
-//    base.corner                       plan-view corner chamfer of the base (the base is bevelled on all four sides)
+//    base.corner                       plan-view corner chamfer of the base (the base is bevelled on all four sides;
+//                                      base.bevel: false = plain block with shoulders on the two ends only)
 //  Bar bodies: base.endRise (end plates rising above the bar), base.loops (carrying loops between the heads),
 //    yoke.round (arm plates with a round top and an inlay)
 import * as THREE from 'three';
@@ -126,9 +127,10 @@ export function buildMachine(lcdCanvas, B) {
     for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * hd);
   } else {
     const bc = b.corner ?? 0.028;                               // bevelled on all four sides: skirt, wall, shoulder
-    add(base, loft([{ y: b.bot, w: hw * 2 - 0.024, d: b.depth - 0.024, c: bc }, { y: b.bot + 0.014, w: hw * 2, d: b.depth, c: bc }, { y: b.shoulder, w: hw * 2, d: b.depth, c: bc },
+    if (b.bevel === false) add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);   // plain block, shoulders on the two ends only
+    else add(base, loft([{ y: b.bot, w: hw * 2 - 0.024, d: b.depth - 0.024, c: bc }, { y: b.bot + 0.014, w: hw * 2, d: b.depth, c: bc }, { y: b.shoulder, w: hw * 2, d: b.depth, c: bc },
       { y: b.top, w: hw * 2 - b.chamfer * 2, d: b.depth - b.chamfer * 1.3, c: bc }]), M.body);
-    add(base, loft([{ y: b.top, w: hw * 1.25, d: b.depth * 0.72, c: bc }, { y: b.top + 0.006, w: hw * 1.2, d: b.depth * 0.68, c: bc }]), M.trim);   // top plate under the turntable
+    if (b.bevel !== false) add(base, loft([{ y: b.top, w: hw * 1.25, d: b.depth * 0.72, c: bc }, { y: b.top + 0.006, w: hw * 1.2, d: b.depth * 0.68, c: bc }]), M.trim);   // top plate under the turntable
     if (B.handles) for (const sx of [-1, 1]) {                    // carrying handles (sides, ribbed)
       const h = add(base, extrude([[0, b.bot + 0.006], [0.035, b.bot + 0.02], [0.035, b.top - 0.021], [0, b.top - 0.007]], b.depth * 0.75, 0.003), M.body, sx * hw);
       if (sx < 0) h.scale.x = -1;

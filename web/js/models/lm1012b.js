@@ -254,18 +254,17 @@ export default {
   rdm: { modelId: 0x1012, description: 'WOP-LM1012B 250W BSW', software: 'Panel V1.012' },
   // Body: dimension drawing on manual page 5 — 296 (W) × 224 (D) × 492 (H) mm
   body: {
-    H: 0.492, style: 'box', handles: true,                      // 296 (W) × 224 (D) × 492 (H) mm, manual chapter 2; shapes from the cover drawing
-    base: { hw: 0.113, bot: 0.03, top: 0.105, shoulder: 0.092, chamfer: 0.02, depth: 0.2, frameW: 0.166, frameH: 0.054, panelY: 0.063, corner: 0.022 },
+    H: 0.492, style: 'box', handles: true,
+    base: { bevel: false, hw: 0.113, bot: 0.03, top: 0.105, shoulder: 0.083, chamfer: 0.02, depth: 0.2, frameW: 0.166, frameH: 0.062, panelY: 0.067 },
     feet: { r: 0.014, h: 0.03, x: 0.075, z: 0.07 },
     turntable: { r: 0.078, h: 0.02 }, panY: 0.125,
-    yoke: { W: 0.292, t: 0.036, wb: 0.17, h1: 0.04, h2: 0.07, yf: 0.02, c: 0.028, d: 0.12, armW: 0.088, top: 0.245 },
+    bridge: [{ y: 0, w: 0.2, d: 0.115, r: 0.03 }, { y: 0.012, w: 0.268, d: 0.128, r: 0.03 }, { y: 0.04, w: 0.272, d: 0.126, r: 0.03 }, { y: 0.055, w: 0.262, d: 0.11, r: 0.03 }],
+    arm: { x: 0.118, t: 0.036, shape: [[-0.064, 0.02], [0.064, 0.02], [0.05, 0.19], [0.036, 0.228], [0.012, 0.244], [-0.012, 0.244], [-0.036, 0.228], [-0.05, 0.19]] },
     tiltY: 0.185,
-    // moulded box → shoulder → wide front lens ring
-    head: [{ y: -0.12, w: 0.1, d: 0.09, c: 0.025 }, { y: -0.108, w: 0.16, d: 0.14, c: 0.035 }, { y: -0.04, w: 0.19, d: 0.165, c: 0.038 }, { y: 0.055, w: 0.19, d: 0.165, c: 0.038 }, { y: 0.09, w: 0.16, d: 0.155, c: 0.06 },
-      { y: 0.098, w: 0.184 }, { y: 0.15, w: 0.184 }, { y: 0.158, w: 0.168 }],
-    slots: { y: -0.03, z: 0.083, n: 6, pitch: 0.0072 }, plate: { y: 0.03, z: 0.0835 },
-    logo: { arm: 'Wincode', head: 'LED', headSize: [0.05, 0.022] },
-    lensY: 0.16, lensR: 0.062, ringR: 0.078,                    // lens dome adds 21 mm: 0.125 + 0.185 + 0.160 + 0.021 = 0.491
+    head: [{ y: -0.118, w: 0.105, d: 0.09, r: 0.03 }, { y: -0.108, w: 0.15, d: 0.128, r: 0.04 }, { y: -0.04, w: 0.182, d: 0.158, r: 0.045 },
+      { y: 0.04, w: 0.18, d: 0.156, r: 0.046 }, { y: 0.12, w: 0.152, d: 0.14, r: 0.05 }, { y: 0.16, w: 0.142, d: 0.136, r: 0.06 }, { y: 0.174, w: 0.134, d: 0.13, r: 0.062 }],
+    slots: { y: -0.07, z: 0.0735, n: 6, pitch: 0.0072 }, plate: { y: 0.03, z: 0.0775 },
+    lensY: 0.1825, lensR: 0.054, ringR: 0.062,
     lcd: [0.058, 0.0435], lcdX: -0.036, controls: 'cross5', ctrlX: 0.042,
   },
   assumptions: [
