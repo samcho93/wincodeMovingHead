@@ -15,13 +15,18 @@ export function blankWorkspace() {
 
 export const store = {
   ws: blankWorkspace(), listeners: new Set(), dirty: false,
+  persist: true,       // false: never write the editor's autosave slot (the stage page plays workspaces without touching it)
   on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); },
   /** what: 'fixtures' | 'functions' | 'function:<id>' | 'universes' | 'vc' | 'workspace' */
   emit(what) { this.dirty = true; this.listeners.forEach(f => f(what)); clearTimeout(this._t); this._t = setTimeout(() => this.autosave(), 600); },
   id() { return this.ws.nextId++; },
   fixture(id) { return this.ws.fixtures.find(f => f.id === id); },
   fn(id) { return this.ws.functions.find(f => f.id === id); },
-  autosave() { try { localStorage.setItem(LS, JSON.stringify(this.ws)); } catch (e) {} },
+  autosave() { if (this.persist) try { localStorage.setItem(LS, JSON.stringify(this.ws)); } catch (e) {} },
+  /** the workspace the DMX editor last autosaved (null if none) — read by the stage page */
+  peekSaved() { try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); return j && j.app === 'wmh-dmx-editor' ? j : null; } catch (e) { return null; } },
+  /** hand a workspace to the DMX editor: it opens it on its next start */
+  handOver(ws) { localStorage.setItem(LS, JSON.stringify(ws)); },
   restore() { try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j && j.app === 'wmh-dmx-editor') { this.ws = Object.assign(blankWorkspace(), j); return true; } } catch (e) {} return false; },
   load(json) { if (!json || json.app !== 'wmh-dmx-editor') throw new Error('Not a DMX editor workspace file'); this.ws = Object.assign(blankWorkspace(), json); this.emit('workspace'); },
   reset() { this.ws = blankWorkspace(); this.emit('workspace'); },

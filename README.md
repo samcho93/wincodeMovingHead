@@ -20,6 +20,7 @@ npm start        # http://127.0.0.1:7740
 |---|---|
 | `http://127.0.0.1:7740/` | 3D simulator (`?model=<id>` opens a specific model) |
 | `http://127.0.0.1:7740/console.html` | slider-type DMX512 test transmitter |
+| `http://127.0.0.1:7740/stage.html` | stage editor: several fixtures of any model on one 3D stage, example shows |
 | `http://127.0.0.1:7740/editor.html` | DMX editor: patch, scenes, chasers, EFX, timeline shows with music, virtual console |
 
 ## Models
@@ -134,6 +135,29 @@ Panel operation per model:
 | 75CH | as 71CH + LED strobe | dimmer/fine, ring strobe, P/T speed, function |
 | 85CH | as 75CH + LED dimmer/fine | dimmer/fine, ring strobe, P/T speed, function |
 | 170CH | pan/fine, tilt/fine, RGBL, zoom, 8 ring blocks × RGB | dimmer/fine, LED strobe, P/T speed, function |
+
+## Stage Editor
+
+`stage.html` (button **🎭 Stage**) puts any number of fixtures, of any mix of models, on one 3D stage and runs them
+from one DMX patch.
+
+- **Examples**: pick one in the top bar and press *Load example* — it loads and plays.
+  *All three models — showcase* has two 250W BSW, the 500W Frame and the AquaVortex TB5 in a 48-second programmed
+  show (scenes, EFX, a chaser, on a timeline against a backing track); the other three examples show one model each.
+  The backing track is synthesised in the browser, so no audio file is shipped.
+- **Transport**: Play / Pause, Stop, a position slider and Loop. The show keeps time from a worker clock and the audio,
+  so it does not stall when the window is in the background.
+- **Editing the stage**: add fixtures (model list at the right), click one to select it, drag it across the floor,
+  or type its position, rotation, DMX address and channel mode; mount it on the floor or inverted on the truss; remove it.
+- **Files**: *Save* writes a `.stage.json` with the layout, the patch and the show; *Open* loads one; the last stage is
+  kept in the browser.
+- **Programming the show**: *Edit show* opens the stage's patch and show in the DMX editor. While the stage is not
+  playing its own show it follows the virtual DMX cable, so the editor drives the stage live from the other window.
+  *From editor* brings the edited patch and show back into the stage (fixtures keep their positions).
+- A stage file's show is an ordinary DMX editor workspace; the examples are generated in code
+  (`web/js/stage/examples.js`) from the model definitions, so they follow any change in a channel layout.
+- Limits: the first 9 heads light the floor and walls (the rest still show their beam in the air); only single-head
+  fixtures cast shadows. Generic fixtures in the patch have no 3D model and are not shown.
 
 ## DMX Editor
 

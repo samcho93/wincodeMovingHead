@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wincode Stage Editor</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/editor.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body class="stg">
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="logo">WINCODE</span><span class="sub" style="display:inline">Stage Editor</span></div>
+    <div class="tb-group">
+      <select id="selExample" title="Ready-made stages with a programmed show"></select>
+      <button class="tb" id="btnLoadEx" title="Load the selected example (replaces the current stage)">Load example</button>
+    </div>
+    <div class="tb-group">
+      <button class="tb" id="btnPlay" title="Play the show of this stage">▶ Play</button>
+      <button class="tb" id="btnStop" title="Stop">■</button>
+      <span id="time" class="pill">00:00.00</span>
+      <input type="range" id="seek" min="0" max="1000" value="0" title="Position in the show" style="width:160px">
+      <label class="chk" title="Play the show again when it ends"><input type="checkbox" id="chkLoop" checked> Loop</label>
+    </div>
+    <div class="tb-group">
+      <label class="chk" title="How visible the beams are in the air">Haze <input type="range" id="rngHaze" min="0" max="100" value="55"></label>
+      <label class="chk"><input type="checkbox" id="chkWork"> Work light</label>
+    </div>
+    <div class="tb-group right">
+      <button class="tb" id="btnNew" title="Empty stage">New</button>
+      <button class="tb" id="btnOpen" title="Open a stage file">Open</button>
+      <button class="tb" id="btnSave" title="Save this stage (layout, patch and show) to a file">Save</button>
+      <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+      <button class="tb" id="btnPull" title="Bring the patch and show back from the DMX editor (what it has open now)">⟲ From editor</button>
+      <button class="tb" id="btnEdit" title="Open this stage's patch and show in the DMX editor to program it">🎛 Edit show</button>
+      <a class="tb" href="index.html" title="Single-fixture simulator">🔦 Simulator</a>
+      <span id="src" class="pill off">No DMX</span>
+    </div>
+  </header>
+  <main id="stage">
+    <div id="viewport"></div>
+    <div id="hint">Drag: orbit · Wheel: zoom · Right-drag: pan · Click a fixture to select it, drag it to move it on the floor</div>
+  </main>
+  <aside id="side">
+    <div class="tabpane active" id="stagePanel"></div>
+  </aside>
+</div>
+<script type="module" src="js/stage/main.js"></script>
+</body>
+</html>

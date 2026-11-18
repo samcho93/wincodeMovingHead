@@ -25,6 +25,13 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - Views render with `fill(el, …)` (skips null children). Debug: `WMX.engine`, `WMX.store`, `WMX.views`.
 - Output: virtual cable message `{ t:'dmx', u, data }` (the simulator filters on its cable universe) or ws binary type 3 (per-universe host) → Art-Net / sACN.
 
+## Stage editor (`web/stage.html`, `web/js/stage/`)
+- Several fixtures on one stage: each is a `Fixture` created with `{ persist: false, settings }` (no localStorage), its own machine and one `Beam` per head. Stage file = `{ app: 'wmh-stage', fixtures: [layout], workspace }`; layout ids = workspace fixture ids.
+- Plays the workspace's first show with the editor's `Engine` inside the page (`store.persist = false` so the editor's autosave slot is never touched; hand-over is explicit via `store.handOver` / `store.peekSaved`). Engine clock = worker timer; fixtures and rendering = rAF. When nothing plays, fixtures follow the virtual cable.
+- Examples are code (`stage/examples.js`), keyed by channel names — never store channel indexes by hand. Music: `stage/beat.js`.
+- Budget: `MAX_PROJECTED` spot lights (texture units), `MAX_SHADOWS`. Debug: `WST.items`, `WST.engine`, `WST.simulate(dt, now, time)`.
+- Do not put per-frame scratch state on a `Beam` under `_v`, `_m`, `_w`, `_d` — those are its own vectors.
+
 ## Add-model agent (development only)
 - Ctrl + double-click the logo → `web/agent.html` + `web/js/agent.js` → `server/agent.js` spawns `claude -p --output-format stream-json` with `tools/agent-prompt.md`; `tools/check-model.mjs` validates; discard = undo only the files the job touched.
 - Must stay out of distribution: `tools/build-web.js` skips the agent files, `--dist` / `WMH_DIST=1` disables the API. Do not weaken the loopback / origin check.

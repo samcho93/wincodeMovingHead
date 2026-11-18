@@ -33,7 +33,7 @@ if (!stamp) { try { stamp = require('child_process').execFileSync('git', ['rev-p
 const A = `a/${stamp}`;
 cpDir(path.join(ROOT, 'web', 'js'), path.join(OUT, A, 'js'), f => !DEV_ONLY.test(f) && !f.endsWith('package.json'));
 cpDir(path.join(ROOT, 'web', 'css'), path.join(OUT, A, 'css'));
-for (const page of ['index.html', 'console.html', 'editor.html']) {
+for (const page of ['index.html', 'console.html', 'editor.html', 'stage.html']) {
   const f = path.join(OUT, page);
   const html = fs.readFileSync(f, 'utf8')
     .replace('<link rel="stylesheet" href="css/', `<script>window.WMH_STATIC = 1; window.WMH_BUILD = '${stamp}';</script>\n<link rel="stylesheet" href="${A}/css/`)

@@ -83,12 +83,15 @@ export class Head {
 const COMMON_SETTINGS = { address: 1, runMode: 'DMX', panInvert: false, tiltInvert: false, lang: 'EN', totalHours: 0, powerCount: 0 };
 
 export class Fixture {
-  constructor(model) {
-    this.model = model; this.lsKey = `wmh.settings.${model.id}.v1`;
+  /** opts.persist === false: settings are not loaded from / saved to the browser (several fixtures of one model on a stage);
+   *  opts.settings: initial settings (address, mode, …) */
+  constructor(model, opts = {}) {
+    this.model = model; this.lsKey = opts.persist === false ? null : `wmh.settings.${model.id}.v1`;
     this.KEYS = model.modes[model.defaultMode].channels.slice();
     for (const m of Object.values(model.modes)) for (const k of m.channels) if (!this.KEYS.includes(k)) this.KEYS.push(k);
     this.settings = this.defaults();
-    try { const s = JSON.parse(localStorage.getItem(this.lsKey) || 'null'); if (s) this.settings = this.merge(this.defaults(), s); } catch (e) {}
+    if (this.lsKey) try { const s = JSON.parse(localStorage.getItem(this.lsKey) || 'null'); if (s) this.settings = this.merge(this.defaults(), s); } catch (e) {}
+    if (opts.settings) Object.assign(this.settings, opts.settings);
     if (!model.modes[this.settings.mode]) this.settings.mode = model.defaultMode;
     this.manual = this.blank(model.manualDefaults);              // Manual-menu values (models with noSignal = 'manual')
     this.home = this.blank(model.homeValues);                    // state right after reset
@@ -125,7 +128,9 @@ export class Fixture {
   blank(vals) { const o = {}, f = typeof vals === 'function' ? vals : k => vals && vals[k]; (this.KEYS || []).forEach(k => { o[k] = f(k) ?? 0; }); return o; }
   on(fn) { this.listeners.add(fn); }
   emit(ev) { this.listeners.forEach(f => f(ev)); }
-  save() { try { localStorage.setItem(this.lsKey, JSON.stringify(this.settings)); } catch (e) {} this.emit('settings'); }
+  save() { if (this.lsKey) try { localStorage.setItem(this.lsKey, JSON.stringify(this.settings)); } catch (e) {} this.emit('settings'); }
+  /** Skip the power-up homing sequence (stage view: fixtures are ready at once) */
+  skipReset() { this.resetT = -1; for (const h of this.heads) { h.pan.pos = 0; h.pan.vel = 0; h.tilt.pos = 0; h.tilt.vel = 0; } }
   set(key, val) { this.settings[key] = val; this.save(); }
   get mode() { return this.model.modes[this.settings.mode] || this.model.modes[this.model.defaultMode]; }
   get footprint() { return this.mode.channels.length; }

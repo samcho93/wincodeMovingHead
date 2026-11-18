@@ -78,7 +78,10 @@ void main() {
 
 export class Beam {
   /** tilt: head group, canvas: BeamImage.out, DIM: { lensY, lensR } of the model body */
-  constructor(tilt, canvas, DIM, opts = {}) {                    // opts: { steps, shadow } — lighter settings for multi-head fixtures
+  // opts: { steps, shadow, project } — lighter settings for multi-head fixtures and crowded stages.
+  //   shadow: shadow-map size (0 = this light casts no shadows) · project: false = no projected spot at all, only the
+  //   beam in the air (every projected light costs texture units in every lit material, so their number is limited)
+  constructor(tilt, canvas, DIM, opts = {}) {
     this.tilt = tilt;
     this.tex = new THREE.CanvasTexture(canvas);
     this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.minFilter = THREE.LinearFilter; this.tex.generateMipmaps = false;
@@ -87,10 +90,10 @@ export class Beam {
 
     // ① projected light
     const L = this.light = new THREE.SpotLight(0xffffff, 0, 60, 0.1, 0, 2);
-    L.position.set(0, y, 0); L.map = this.tex; L.castShadow = true;
+    L.position.set(0, y, 0); L.map = this.tex; L.castShadow = opts.shadow !== 0; this.project = opts.project !== false;
     L.shadow.mapSize.set(opts.shadow || 1024, opts.shadow || 1024); L.shadow.camera.near = 0.08; L.shadow.camera.far = 40; L.shadow.bias = -0.0004;
     L.target.position.set(0, y + 1, 0);
-    tilt.add(L, L.target);
+    if (this.project) tilt.add(L, L.target);
     // make the projected image turn with the head: shadow camera up = head local +Z
     const up = this.up = new THREE.Vector3(), q = new THREE.Quaternion();
     const orig = L.shadow.updateMatrices.bind(L.shadow);
@@ -130,7 +133,7 @@ export class Beam {
     //  (the real exponent is 1.744 — relaxed to 1.25 so wide zoom is not lost in the screen's narrow dynamic range)
     const cd = SPEC.cd * Math.pow(SPEC.zoomMin / full, 1.25) / (spread * spread) * (1 + 1.6 * p);
     const L = this.light;
-    L.intensity = cd * I; L.angle = Math.min(1.2, Math.atan(tan)); L.visible = I > 0.0005;
+    L.intensity = cd * I; L.angle = Math.min(1.2, Math.atan(tan)); L.visible = this.project && I > 0.0005;
     this.uni.uTan.value = tan; this.uni.uHaze.value = haze; this.uni.uTime.value = time;
     const k = 13 * (SPEC.cd / 1100) * (0.054 / this.R0 * 0.92) * I * Math.pow(SPEC.zoomMin / full, 0.2) * (1 + 0.8 * p);
     this.uni.uGain.value.set(k, k, k);
