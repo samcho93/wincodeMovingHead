@@ -21,7 +21,11 @@ const { WebSocketServer } = require('ws');
 const { DmxNet, ARTNET_PORT, SACN_PORT, localIPv4 } = require('./dmxnet');
 const { DmxSerial } = require('./dmxserial');
 
+const agent = require('./agent');
+
 const HTTP_PORT = +(process.env.WMH_PORT || 7740);
+// Distribution mode (`--dist` or WMH_DIST=1): the development-only "Add model" agent is switched off
+const DIST = process.argv.includes('--dist') || process.env.WMH_DIST === '1';
 const ROOT = path.join(__dirname, '..');
 const WEB = path.join(ROOT, 'web');
 const THREE_DIR = path.join(ROOT, 'node_modules', 'three');
@@ -90,7 +94,7 @@ function status() {
   src.artnet.universe = cfg.artnet.universe; src.artnet.port = ARTNET_PORT; src.artnet.error = net.art ? '' : (net.artErr || 'starting');
   src.sacn.universe = cfg.sacn.universe; src.sacn.port = SACN_PORT; src.sacn.error = net.sacn ? '' : (net.sacnErr || 'starting');
   src.serial.open = serial.open; src.serial.path = serial.path || cfg.serial.path; src.serial.proto = serial.proto; src.serial.error = serial.err;
-  return { type: 'status', app: 'wincode-movinghead-sim', sources: src, ip: localIPv4().map(i => i.address), clients: clients.size };
+  return { type: 'status', app: 'wincode-movinghead-sim', sources: src, ip: localIPv4().map(i => i.address), clients: clients.size, agent: !DIST };
 }
 setInterval(() => { for (const s of Object.values(stat)) { s.fps = s.n; s.n = 0; } broadcast(status()); }, 1000);
 
@@ -108,6 +112,8 @@ function sendFile(res, base, rel) {
 }
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname);
+  if (await agent.handle(req, res, url, { enabled: !DIST })) return;
+  if (DIST && /^\/(agent\.html|js\/agent\.js)$/.test(p)) { res.writeHead(404); return res.end('404'); }
   if (p === '/api/status') { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(status())); }
   if (p === '/api/ports') { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); return res.end(JSON.stringify(await DmxSerial.list())); }
   if (p.startsWith('/vendor/three/')) return sendFile(res, THREE_DIR, p.slice('/vendor/three/'.length));
@@ -126,6 +132,9 @@ wss.on('connection', ws => {
       if (raw.length >= 516 && raw[0] === 2) {
         const universe = raw[2] | (raw[3] << 8), data = raw.subarray(4, 516);
         raw[1] === 1 ? net.sendSacn(universe, data, ws.txHost) : net.sendArtDmx(universe, data, ws.txHost);
+      } else if (raw.length >= 517 && raw[0] === 3) {   // DMX editor: [3, proto, universe lo, hi, host length, host…, 512 slots] — one target per universe
+        const hl = raw[4], host = raw.subarray(5, 5 + hl).toString('latin1'), data = raw.subarray(5 + hl, 5 + hl + 512), universe = raw[2] | (raw[3] << 8);
+        if (data.length === 512 && /^[\w.:-]{1,64}$/.test(host)) raw[1] === 1 ? net.sendSacn(universe, data, host) : net.sendArtDmx(universe, data, host);
       }
       return;
     }
@@ -156,5 +165,7 @@ wss.on('connection', ws => {
 server.listen(HTTP_PORT, () => {
   console.log(`\n  Wincode MovingHead Sim  →  http://127.0.0.1:${HTTP_PORT}`);
   console.log(`  DMX transmitter (sliders) →  http://127.0.0.1:${HTTP_PORT}/console.html`);
+  console.log(`  DMX editor                →  http://127.0.0.1:${HTTP_PORT}/editor.html`);
+  console.log(DIST ? '  Distribution mode: the Add-model agent is disabled' : '  Add-model agent: Ctrl + double-click the WINCODE logo (development only)');
   console.log(`  Art-Net UDP ${ARTNET_PORT} (universe ${cfg.artnet.universe}) · sACN UDP ${SACN_PORT} (universe ${cfg.sacn.universe})\n`);
 });

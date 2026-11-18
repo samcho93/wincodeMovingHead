@@ -22,7 +22,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .chk input[type=range] { width: 80px; }
 select, input[type=number], input[type=text] { background: #0d1014; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; font: inherit; }
 button.tb, .btn { background: #1d232a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit; text-decoration: none; }
-button.tb:hover, .btn:hover { border-color: var(--acc); }
+button.tb:hover, a.tb:hover, .btn:hover { border-color: var(--acc); }
+a.tb { background: #1d232a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; text-decoration: none; }
 button.tb.on { border-color: #2c6b43; color: #8fe0ad; }
 button.tb.active { border-color: var(--acc); color: var(--acc); }
 .btn.sm { padding: 2px 7px; font-size: 12px; }

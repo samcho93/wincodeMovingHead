@@ -17,11 +17,12 @@ export class DmxInput {
   constructor(fx, rdm, log) {
     this.fx = fx; this.rdm = rdm; this.log = log;
     this.source = 'cable'; try { this.source = localStorage.getItem('wmh.source') || 'cable'; } catch (e) {}
+    this.cableU = 0; try { this.cableU = +(localStorage.getItem('wmh.cableU') || 0) | 0; } catch (e) {}   // which universe of the virtual cable this fixture listens to
     if (!SOURCES[this.source] || this.source === 'webserial') this.source = 'cable';
     this.hasServer = false; this.ws = null; this.status = null; this.onStatus = () => {}; this.tabId = Math.random().toString(36).slice(2);
     this.serial = { port: null, reading: false, frames: 0, error: '' };
     this.bc = new BroadcastChannel(CABLE);
-    this.bc.onmessage = e => { const m = e.data; if (m && m.t === 'dmx' && m.from !== this.tabId && this.source === 'cable') this.frame(m.data); };
+    this.bc.onmessage = e => { const m = e.data; if (m && m.t === 'dmx' && m.from !== this.tabId && this.source === 'cable' && (m.u ?? 0) === this.cableU) this.frame(m.data); };
   }
   frame(data) { this.fx.feedDmx(data instanceof Uint8Array ? data : new Uint8Array(data)); }
   setSource(id) {
@@ -29,8 +30,9 @@ export class DmxInput {
     this.source = id; try { localStorage.setItem('wmh.source', id); } catch (e) {}
     this.fx.lastDmx = -1e9; this.log(`DMX IN → ${SOURCES[id].name}`); this.onStatus();
   }
+  setCableUniverse(u) { this.cableU = Math.max(0, u | 0); try { localStorage.setItem('wmh.cableU', String(this.cableU)); } catch (e) {} this.fx.lastDmx = -1e9; this.onStatus(); }
   /** Host (master) mode: send DMX OUT over the virtual cable → other tabs (slaves) receive it */
-  sendOut(data) { this.bc.postMessage({ t: 'dmx', from: this.tabId, data }); }
+  sendOut(data) { this.bc.postMessage({ t: 'dmx', from: this.tabId, u: this.cableU, data }); }
 
   /* ── server (WebSocket) ── */
   async connect() {

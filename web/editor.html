@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wincode DMX Editor</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/editor.css">
+</head>
+<body class="ed">
+<header id="edbar">
+  <div class="brand"><span class="logo">WINCODE</span><span class="sub" style="display:inline">DMX Editor</span></div>
+  <div class="tb-group">
+    <input type="text" id="wsName" title="Workspace name">
+    <button class="tb" id="btnNew" title="New workspace">New</button>
+    <button class="tb" id="btnOpen" title="Open a workspace file">Open</button>
+    <button class="tb" id="btnSave" title="Save the workspace to a file">Save</button>
+    <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+  </div>
+  <div class="tb-group">
+    <button class="tb" id="btnMode" title="Design: edit · Operate: run the show (virtual console becomes live)">✎ Design</button>
+    <button class="tb" id="btnBlackout" title="Set all intensity (HTP) channels to zero">⬛ Blackout</button>
+    <button class="tb" id="btnStopAll" title="Stop all running functions">■ Stop all</button>
+    <button class="tb" id="btnReset" title="Stop everything and send every channel back to 0">↺ Reset</button>
+    <label class="chk" title="Grand master: scales all intensity (HTP) channels">GM <input type="range" id="gm" min="0" max="100" value="100"><span id="gmVal">100%</span></label>
+  </div>
+  <div class="tb-group right">
+    <a class="tb" href="index.html" target="wmh-sim" title="Open the 3D simulator in another window">🔦 Simulator</a>
+    <span id="runPill" class="pill">0 running</span>
+    <span id="outPill" class="pill off">No output</span>
+  </div>
+</header>
+<nav id="edtabs">
+  <button class="etab active" data-tab="fixtures">Fixtures</button>
+  <button class="etab" data-tab="functions">Functions</button>
+  <button class="etab" data-tab="shows">Shows</button>
+  <button class="etab" data-tab="vc">Virtual Console</button>
+  <button class="etab" data-tab="desk">Simple Desk</button>
+  <button class="etab" data-tab="io">Inputs / Outputs</button>
+</nav>
+<main id="edmain">
+  <section id="tab-fixtures" class="epane active"></section>
+  <section id="tab-functions" class="epane"></section>
+  <section id="tab-shows" class="epane"></section>
+  <section id="tab-vc" class="epane"></section>
+  <section id="tab-desk" class="epane"></section>
+  <section id="tab-io" class="epane"></section>
+</main>
+<script type="module" src="js/editor/main.js"></script>
+</body>
+</html>

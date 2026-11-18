@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add model — Wincode simulator agent</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { overflow: auto; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 18px 20px 40px; }
+  h1 { font-size: 18px; margin: 0 0 4px; } h1 span { color: var(--acc); letter-spacing: 3px; }
+  .lead { color: var(--dim); margin: 0 0 16px; }
+  .form { display: grid; grid-template-columns: 170px 1fr; gap: 10px 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .form input[type=text], .form textarea { width: 100%; } .form textarea { height: 64px; background: #0d1014; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 6px; font: inherit; resize: vertical; }
+  .form small { color: var(--dim); display: block; margin-top: 2px; }
+  .bar { display: flex; gap: 10px; align-items: center; margin: 14px 0; }
+  #log { height: 320px; white-space: pre-wrap; }
+  #log .tool { color: #9fd7ff; } #log .err { color: #f0a0a0; } #log .info { color: var(--yellow); } #log .text { color: var(--text); }
+  #result { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; }
+  #result.ok { border-color: #2c6b43; } #result.bad { border-color: #7a2a1c; }
+  #result h3 { margin: 0 0 8px; } #result pre { white-space: pre-wrap; background: #0a0c0f; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: 12px/1.5 Consolas, monospace; max-height: 260px; overflow: auto; }
+  #result li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span>WINCODE</span> · Add model</h1>
+  <p class="lead">Development tool. Give the product page, the user manual and — if you have one — a mechanical drawing.
+    The Claude Code CLI on this computer reads them, writes a new model definition and registers it in the simulator.
+    Review the result before you keep it.</p>
+  <div class="form">
+    <label for="url">Product page link</label>
+    <div><input type="text" id="url" placeholder="https://www.wincodeoptronics.com/…"></div>
+    <label for="manual">User manual (PDF)</label>
+    <div><input type="file" id="manual" accept=".pdf,application/pdf"><small>Text or scanned PDF. The channel tables and the menu chapter are read from it.</small></div>
+    <label for="drawing">Mechanical drawing <span class="note">(optional)</span></label>
+    <div><input type="file" id="drawing" accept=".pdf,.png,.jpg,.jpeg,.webp,.svg,.dxf"><small>PDF, PNG, JPG, SVG or DXF with dimensions. Without it the body is estimated from the manual and the product photos.</small></div>
+    <label for="mid">Model id <span class="note">(optional)</span></label>
+    <div><input type="text" id="mid" placeholder="e.g. lm700bsw — lower-case letters and digits" style="max-width:320px"></div>
+    <label for="notes">Notes <span class="note">(optional)</span></label>
+    <div><textarea id="notes" placeholder="Anything the agent should know: which channel mode is the default, known colours of the colour wheel, …"></textarea></div>
+  </div>
+  <div class="bar">
+    <button class="btn acc" id="start">▶ Start</button>
+    <button class="btn" id="stop" disabled>■ Stop</button>
+    <span id="state" class="pill">Checking…</span>
+    <span class="note">Typically takes several minutes. Only this computer can use this page.</span>
+  </div>
+  <div id="log"></div>
+  <div id="result" hidden></div>
+</div>
+<script type="module" src="js/agent.js"></script>
+</body>
+</html>

@@ -20,6 +20,7 @@ npm start        # http://127.0.0.1:7740
 |---|---|
 | `http://127.0.0.1:7740/` | 3D simulator (`?model=<id>` opens a specific model) |
 | `http://127.0.0.1:7740/console.html` | slider-type DMX512 test transmitter |
+| `http://127.0.0.1:7740/editor.html` | DMX editor: patch, scenes, chasers, EFX, timeline shows with music, virtual console |
 
 ## Models
 
@@ -133,6 +134,42 @@ Panel operation per model:
 | 75CH | as 71CH + LED strobe | dimmer/fine, ring strobe, P/T speed, function |
 | 85CH | as 75CH + LED dimmer/fine | dimmer/fine, ring strobe, P/T speed, function |
 | 170CH | pan/fine, tilt/fine, RGBL, zoom, 8 ring blocks × RGB | dimmer/fine, LED strobe, P/T speed, function |
+
+## DMX Editor
+
+`editor.html` (button **🎛 DMX Editor** in the simulator) is a lighting-control program in its own window. Its working
+method follows [QLC+](https://www.qlcplus.org/): the tabs run in the same order and mean the same things.
+
+| Tab | What you do there |
+|---|---|
+| **Fixtures** | Patch fixtures to a universe and address. Every simulator model is in the library (so a newly added model appears here too), plus generic dimmers, RGB/RGBW, moving heads and plain channel blocks. Overlaps are flagged. |
+| **Functions** | **Scene** (values per fixture channel, tick the channels it controls, fade in / out, live edit) · **Chaser** (steps of functions with fade in / hold / fade out, loop / single / ping-pong) · **EFX** (pan / tilt patterns for any number of heads, with spread) · **Collection** (several functions at once) · **Audio**. |
+| **Shows** | Multitrack timeline. Add tracks, drop functions and audio at the cursor, drag and resize them (snap to time or BPM grid), lock / colour / mute / solo, play from the cursor. A playing audio item is the clock, so lights stay on the music; its waveform is drawn on the track. |
+| **Virtual Console** | Design mode: place buttons, sliders (playback level or grand master), cue lists and labels. Operate mode: run them. |
+| **Simple Desk** | One fader per DMX channel; a moved fader overrides the functions until it is released. |
+| **Inputs / Outputs** | Up to 32 universes (16,384 channels). Each universe goes to the virtual DMX cable, Art-Net or sACN, with its own output universe and target IP. DMX monitor. |
+
+- **Merge rules**: intensity and colour-mixing channels are HTP (highest value wins, scaled by the grand master, zeroed by Blackout); everything else is LTP (latest value, fades from where the channel was).
+- **Linking to the simulator**: set a universe's output to *Virtual DMX cable* and note its output universe. In the simulator's **DMX Input** tab choose the virtual cable and the same *cable universe*, and give the fixture the address it has in the patch. Open one simulator window per fixture you want to see. Pages must come from the same site and run in the same browser; for other computers or real fixtures use Art-Net / sACN (local server).
+- **Files**: the workspace is saved as JSON (Save / Open) and autosaved in the browser. Audio files are kept in the browser's storage, not in the workspace file — choose them again after moving to another computer.
+- The clock runs in a worker, so the editor keeps sending 40 Hz while its window is in the background.
+
+## Add-model agent (development only)
+
+**Ctrl + double-click the WINCODE logo** in the simulator opens the agent in its own window. Give it the product page
+link, the user manual (PDF, text or scanned) and optionally a mechanical drawing (PDF / PNG / JPG / SVG / DXF). The
+Claude Code CLI installed on this computer reads them, writes `web/js/models/<id>.js`, registers it, and runs the
+validator; the page shows the log, the validator result, the agent's summary with its assumptions, a button to open the
+model in the simulator and one to discard the changes. Nothing is committed for you.
+
+- Needs `npm start` (local server) and a signed-in `claude` CLI. It uses your Claude account; a run takes several minutes.
+- Only this computer can use it (loopback + same-origin check). The CLI may edit files and run `python` / `node` only.
+- A drawing makes the 3D body match the real fixture more closely; without one the body is estimated from the manual
+  and photos. The body is still built from the three parametric styles (box head, round head, bar) — the agent reports
+  fixtures those cannot represent instead of changing the simulator core.
+- **Distribution mode** removes it: the static web build (`npm run build-web`) does not contain the agent page, and
+  `npm run start:dist` (or `WMH_DIST=1`) starts the local server with the agent API switched off.
+- `node tools/check-model.mjs [id]` validates model definitions by hand; `python tools/pdf-pages.py <pdf> <dir>` renders a manual to text + page images.
 
 ## Communication
 

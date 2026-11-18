@@ -109,6 +109,7 @@ export class Panel {
       if (t.name === 'src') this.dmx.setSource(t.value);
       else if (t.id === 'uniArt') this.dmx.send({ type: 'cfg', artnet: { universe: +t.value | 0 } });
       else if (t.id === 'uniSacn') this.dmx.send({ type: 'cfg', sacn: { universe: +t.value | 0 } });
+      else if (t.id === 'uniCable') this.dmx.setCableUniverse(+t.value);
     });
     list.addEventListener('click', async e => {
       const id = e.target.id;
@@ -122,12 +123,12 @@ export class Panel {
   }
   refreshDmx() {
     const d = this.dmx, st = d.status && d.status.sources, srv = d.hasServer && d.online && !!st, W = d.serial;
-    const sig = JSON.stringify([d.source, srv, st && [st.artnet.universe, st.artnet.error, st.artnet.seen, st.sacn.universe, st.sacn.error, st.sacn.seen, st.serial.open, st.serial.error, st.serial.path], this.ports, !!W.port, W.error]);
+    const sig = JSON.stringify([d.source, d.cableU, srv, st && [st.artnet.universe, st.artnet.error, st.artnet.seen, st.sacn.universe, st.sacn.error, st.sacn.seen, st.serial.open, st.serial.error, st.serial.path], this.ports, !!W.port, W.error]);
     const live = id => (id === d.source && this.fx.dmxSignal) || (st && st[id] && st[id].active);
     if (sig !== this._srcSig) {
       this._srcSig = sig;
       const more = {
-        cable: 'Links to other tabs/windows of the same browser. Use [🎚 Add DMX Transmitter] in the top bar to try it right away.',
+        cable: `Cable universe <input type="number" id="uniCable" min="0" max="32767" value="${d.cableU}"> Links to other tabs/windows of the same browser: the slider transmitter (universe 0) and the DMX Editor (the output universe set in its Inputs / Outputs tab).`,
         artnet: st ? `Universe <input type="number" id="uniArt" min="0" max="32767" value="${st.artnet.universe}"> ${st.artnet.error ? err('Port error: ' + st.artnet.error) : 'Answers ArtPoll · RDM (ArtRdm) supported'}` : '',
         sacn: st ? `Universe <input type="number" id="uniSacn" min="1" max="63999" value="${st.sacn.universe}"> ${st.sacn.error ? err('Port error: ' + st.sacn.error) : 'Multicast 239.255.x.x · unicast'}` : '',
         serial: st ? `<select id="serPort">${[...new Set([st.serial.path, ...this.ports.map(p => p.path)].filter(Boolean))].map(p => `<option ${p === st.serial.path ? 'selected' : ''}>${esc(p)}</option>`).join('') || '<option value="">(no ports)</option>'}</select>

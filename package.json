@@ -6,6 +6,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
+    "start:dist": "node server/index.js --dist",
+    "check-models": "node tools/check-model.mjs",
     "build-web": "node tools/build-web.js",
     "serve-dist": "node tools/serve-dist.js dist",
     "dmx-send": "node tools/dmx-send.js"

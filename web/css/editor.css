@@ -1,0 +1,96 @@
+/* DMX editor (editor.html) — builds on style.css (colour variables, .tb, .btn, .pill, .chk) */
+body.ed { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+#edbar { display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 46px; flex: none; overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+  background: linear-gradient(#14171b, #0d0f12); border-bottom: 1px solid var(--line); }
+#edbar a.tb { text-decoration: none; }
+#wsName { width: 170px; }
+#edtabs { display: flex; flex: none; background: #0d0f12; border-bottom: 1px solid var(--line); }
+.etab { padding: 9px 18px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); cursor: pointer; font: inherit; }
+.etab.active { color: var(--text); border-bottom-color: var(--acc); background: #14171b; }
+#edmain { flex: 1; min-height: 0; position: relative; }
+.epane { display: none; position: absolute; inset: 0; overflow: auto; padding: 12px 14px; }
+.epane.active { display: block; }
+.epane.split { padding: 0; }
+.epane.split.active { display: flex; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.row label { display: flex; align-items: center; gap: 5px; color: var(--dim); }
+.row input[type=number] { width: 74px; } .row input[type=text] { width: 180px; }
+.grow { flex: 1; } .muted { color: var(--dim); font-size: 12px; }
+button.tb.danger, .btn.danger { border-color: #7a2a1c; }
+button.tb.on { border-color: var(--acc); color: var(--acc); }
+
+table.grid { width: 100%; border-collapse: collapse; }
+table.grid th { text-align: left; font-weight: 600; color: var(--dim); font-size: 12px; padding: 5px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); }
+table.grid td { padding: 4px 8px; border-bottom: 1px solid #1c2127; white-space: nowrap; }
+table.grid tr.sel td { background: #1a2532; }
+table.grid tr.bad td { color: #f0a0a0; }
+table.grid input[type=text] { width: 100%; min-width: 120px; } table.grid input[type=number] { width: 70px; }
+
+.usage { display: flex; height: 14px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #0a0c0f; flex: 1; min-width: 200px; position: relative; }
+.usage i { position: absolute; top: 0; bottom: 0; background: var(--acc); opacity: .75; border-right: 1px solid #0a0c0f; }
+.usage i.bad { background: var(--red); }
+
+/* dialogs */
+.dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.dlg { background: var(--panel); border: 1px solid #3a4048; border-radius: 10px; padding: 16px; min-width: 420px; max-width: 90vw; max-height: 86vh; overflow: auto; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.dlg h3 { margin: 0 0 12px; font-size: 14px; }
+.dlg .form { display: grid; grid-template-columns: 130px 1fr; gap: 8px 10px; align-items: center; }
+.dlg .form select, .dlg .form input { width: 100%; }
+.dlg .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+/* function manager */
+.side { width: 290px; flex: none; border-right: 1px solid var(--line); overflow: auto; background: var(--panel); }
+.side h4 { margin: 0; padding: 7px 10px; font-size: 12px; color: var(--acc); display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); background: #0f1216; position: sticky; top: 0; }
+.side h4 button { margin-left: auto; }
+.fnrow { display: flex; align-items: center; gap: 6px; padding: 5px 10px; cursor: pointer; border-bottom: 1px solid #171b20; }
+.fnrow:hover { background: #161b21; } .fnrow.sel { background: #1a2532; }
+.fnrow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fnrow .run { width: 22px; height: 20px; border-radius: 4px; border: 1px solid var(--line); background: #1d232a; color: var(--text); cursor: pointer; font-size: 10px; padding: 0; }
+.fnrow .run.on { background: #1c5a36; border-color: #2c8b55; }
+.work { flex: 1; min-width: 0; overflow: auto; padding: 12px 14px; }
+.fxblock { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; background: var(--panel2); }
+.fxblock > .hd { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.fxblock > .hd b { margin-right: auto; }
+.strips { display: flex; gap: 3px; padding: 8px; overflow-x: auto; }
+.strip { flex: 0 0 58px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 1px; background: #14181d; border: 1px solid var(--line); border-radius: 6px; }
+.strip.off { opacity: .42; }
+.strip .nm { font-size: 10px; height: 24px; line-height: 1.15; text-align: center; overflow: hidden; }
+.strip input[type=range] { writing-mode: vertical-lr; direction: rtl; width: 20px; height: 110px; accent-color: var(--acc); }
+.strip input[type=number] { width: 48px; text-align: center; padding: 1px; }
+.strip .ds { font-size: 9px; color: #9fd7ff; height: 22px; line-height: 1.15; text-align: center; overflow: hidden; }
+.strip.htp { border-color: #4a3a1c; }
+
+/* show manager */
+#showWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#tl { flex: 1; min-height: 0; display: block; width: 100%; background: #0a0c0f; cursor: default; }
+.showbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #101317; }
+.showbar .time { font: 600 16px Consolas, monospace; color: var(--yellow); min-width: 92px; text-align: center; }
+
+/* virtual console */
+#vcWrap { position: absolute; inset: 0; display: flex; }
+#vcArea { flex: 1; position: relative; overflow: auto; background: #0b0d10 radial-gradient(#1a1f25 1px, transparent 1px) 0 0 / 20px 20px; }
+#vcProps { width: 250px; flex: none; border-left: 1px solid var(--line); background: var(--panel); padding: 10px; overflow: auto; }
+.vcw { position: absolute; border: 1px solid #3a4048; border-radius: 8px; background: #1b2128; color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; overflow: hidden; font: inherit; padding: 4px; text-align: center; }
+.vcw.sel { outline: 2px solid var(--acc); }
+.vcw.button { cursor: pointer; font-weight: 600; } .vcw.button.on { background: #1c5a36; border-color: #2c8b55; }
+.vcw.label { background: none; border-color: transparent; font-size: 15px; color: var(--dim); }
+.vcw.slider input[type=range] { writing-mode: vertical-lr; direction: rtl; flex: 1; min-height: 40px; width: 24px; accent-color: var(--acc); }
+.vcw.cuelist { align-items: stretch; justify-content: flex-start; }
+.vcw.cuelist .cues { flex: 1; overflow: auto; text-align: left; font-size: 12px; }
+.vcw.cuelist .cue { padding: 2px 6px; border-bottom: 1px solid #262c33; } .vcw.cuelist .cue.cur { background: #1c5a36; }
+.vcw .cap { font-size: 12px; } .vcw .val { font-size: 11px; color: #9fd7ff; }
+.vcw .grip { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; cursor: nwse-resize; background: linear-gradient(135deg, transparent 50%, var(--acc) 50%); }
+body.operate .vcw .grip { display: none; }
+body.operate #vcProps { display: none; }
+
+/* simple desk / monitor */
+.deskfaders { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 6px; }
+.dk { flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 1px; background: #14181d; border: 1px solid var(--line); border-radius: 6px; }
+.dk.ovr { border-color: var(--acc); } .dk.used { background: #171d24; }
+.dk input[type=range] { writing-mode: vertical-lr; direction: rtl; width: 20px; height: 170px; accent-color: var(--acc); }
+.dk .no { font-size: 10px; color: var(--dim); } .dk .v { font: 12px Consolas, monospace; color: #9fd7ff; }
+.dk .nm { font-size: 9px; height: 32px; line-height: 1.15; text-align: center; overflow: hidden; color: var(--dim); }
+.mon { display: grid; grid-template-columns: repeat(32, 1fr); gap: 1px; font: 10px Consolas, monospace; }
+.mon div { background: #14181d; text-align: center; padding: 2px 0; color: #5f6b7f; position: relative; overflow: hidden; }
+.mon div b { position: relative; font-weight: 400; color: #e8ecf0; } .mon div i { position: absolute; left: 0; bottom: 0; right: 0; background: rgba(240,146,58,.35); }
+.mon div.pat { background: #19202a; }

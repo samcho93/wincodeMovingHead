@@ -19,6 +19,17 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - A new kind of front panel = a new menu class with the same interface as `menu.js` / `menu-touch.js`
   (`canvas`, `key()`, `touch()`, `draw()`, `home()`, `asleep`, `lastKey`, `dirty`, `keyLabels`), selected by `panel.type` in `main.js`.
 
+## DMX editor (`web/editor.html`, `web/js/editor/`)
+- Follows QLC+: Fixtures → Functions (scene, chaser, efx, collection, audio) → Shows (timeline) → Virtual Console → Simple Desk → Inputs/Outputs. Keep that vocabulary and order.
+- `store.js` workspace (JSON, autosave, audio blobs in IndexedDB) · `engine.js` runners + HTP/LTP merge, ticked by a worker timer at 40 Hz · `library.js` fixture definitions built from `models/*.js` + generics · one view module per tab.
+- Views render with `fill(el, …)` (skips null children). Debug: `WMX.engine`, `WMX.store`, `WMX.views`.
+- Output: virtual cable message `{ t:'dmx', u, data }` (the simulator filters on its cable universe) or ws binary type 3 (per-universe host) → Art-Net / sACN.
+
+## Add-model agent (development only)
+- Ctrl + double-click the logo → `web/agent.html` + `web/js/agent.js` → `server/agent.js` spawns `claude -p --output-format stream-json` with `tools/agent-prompt.md`; `tools/check-model.mjs` validates; discard = undo only the files the job touched.
+- Must stay out of distribution: `tools/build-web.js` skips the agent files, `--dist` / `WMH_DIST=1` disables the API. Do not weaken the loopback / origin check.
+- When the model contract changes, update `models/index.js` (header), `tools/check-model.mjs` and `tools/agent-prompt.md` together.
+
 ## Rules
 - All user-visible text and all code comments are English.
 - Fixture logic stays in the browser (`fixture.js`) so the static build works; the server only bridges UDP / serial.
