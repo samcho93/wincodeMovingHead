@@ -12,6 +12,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - One file per model in `web/js/models/` + one line in `models/index.js` (`LIST`). The contract is documented at the top of `index.js`.
 - Current: `lm1012b` (250W BSW, buttons panel, gobos/prism) · `lm500wf` (500W Frame, touch + encoder panel, CMY/CTO/framing blades, scenes, M/S).
   · `apexpointe420` (420W hybrid, 39CH; no Wincode manual — channel chart taken from the library-compatible Robe LEDPointe, see its `assumptions`; two prism wheels, continuous pan).
+  · `mega480` (480W BSW, 34/39CH, touch panel; written by the Add-model agent from its manual).
   · `tb5` (AquaVortex TB5: 5 heads on a bar, RGBL + pixel rings, 6 channel modes, own menu tree via `panel.menu`).
 - Multi-head: `model.heads = N`; `decode()` returns `heads: [targets]` plus the shared top-level fields; channel keys carry the head number as a suffix (`tilt3`). `fx.heads[i]` (class `Head`) owns axes + optics and is what `BeamImage.render()` / `Beam.update()` take; `fx.pan/tilt/o/tint…` are shortcuts to head 1.
 - Scanned manuals have no text layer: render pages with PyMuPDF and read the images.

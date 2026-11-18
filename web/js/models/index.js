@@ -34,8 +34,9 @@ import lm1012b from './lm1012b.js';
 import lm500wf from './lm500wf.js';
 import tb5 from './tb5.js';
 import apexpointe420 from './apexpointe420.js';
+import mega480 from './mega480.js';
 
-export const LIST = [lm1012b, lm500wf, tb5, apexpointe420];
+export const LIST = [lm1012b, lm500wf, tb5, apexpointe420, mega480];
 export const MODELS = Object.fromEntries(LIST.map(m => [m.id, m]));
 export const DEFAULT_MODEL = LIST[0].id;
 
