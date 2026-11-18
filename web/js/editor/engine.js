@@ -147,7 +147,10 @@ class ShowRunner extends Runner {
   tick(dt) {
     let clock = null;                                           // follow the audio clock when an audio item is playing
     for (const [it, r] of this.active) if (r instanceof AudioRunner && r.time != null) { clock = it.start + r.time; break; }
-    this.t = clock != null && Math.abs(clock - this.t) < 400 ? clock : this.t + dt;
+    // …but only while that clock really advances: an audio element that was told to play and is not producing sound yet
+    // (autoplay not allowed, still loading, page in the background) must not hold the whole show at its start.
+    this.stall = clock != null && clock !== this.lastClock ? 0 : (this.stall || 0) + dt; this.lastClock = clock;
+    this.t = clock != null && this.stall < 250 && Math.abs(clock - this.t) < 400 ? clock : this.t + dt;
     const solo = this.fn.tracks.some(t => t.solo);
     for (const tr of this.fn.tracks) {
       const on = !tr.mute && (!solo || tr.solo);

@@ -77,6 +77,7 @@ S.onResize = () => { for (const it of items) for (const b of it.beams) b.beam.se
 const emptyStage = () => ({ app: 'wmh-stage', version: 1, name: 'New stage', fixtures: [], workspace: Object.assign(blankWorkspace(), { name: 'New stage' }) });
 function load(f) {
   if (!f || f.app !== 'wmh-stage' || !f.workspace) throw new Error('Not a stage file');
+  wantPlay = false; playSeq++;                                // the old show is gone: its "ended" must not restart anything
   engine.reset(); [...items].forEach(removeItem); sel = null; marker.visible = false;
   file = f; store.load(f.workspace); file.workspace = store.ws;   // the engine re-reads universes and the patch; keep one workspace object
   for (const lay of f.fixtures) addItem(lay);
@@ -94,10 +95,14 @@ function download() {
 const showFn = () => store.ws.functions.find(f => f.type === 'show');
 const playing = () => { const s = showFn(); return !!s && engine.isRunning(s.id); };
 async function play(offset = 0) {
-  const s = showFn(); if (!s) return alert('This stage has no show yet. Use "Edit show" to program one in the DMX editor.');
+  const my = ++playSeq, s = showFn(); if (!s) return alert('This stage has no show yet. Use "Edit show" to program one in the DMX editor.');
   if (store.ws.functions.some(f => f.type === 'audio' && f.file === BEAT_FILE) && !(await audioFiles.get(BEAT_FILE))) await audioFiles.put(BEAT_FILE, makeBeat(LENGTH / 1000, BPM));   // the examples' backing track is synthesised on first use
-  wantPlay = true; engine.start(s.id, { offset }); syncTransport();
+  if (my !== playSeq || s !== showFn()) return;               // a newer play / load came in while the track was being prepared
+  // Restarting a running show stops the old runner first. That must not look like "the show ended" to the loop handler
+  // below, or every restart would trigger another one.
+  wantPlay = false; engine.start(s.id, { offset }); wantPlay = true; syncTransport();
 }
+let playSeq = 0;
 let wantPlay = false;                                        // true while the show is meant to run (tells "ended" from "stopped")
 function stop() { wantPlay = false; engine.stopAll(); syncTransport(); }
 function syncTransport() { const p = playing(); $('#btnPlay').textContent = p ? '❚❚ Pause' : '▶ Play'; $('#btnPlay').classList.toggle('on', p); $('#btnPlay').disabled = !showFn(); }
