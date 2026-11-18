@@ -10,14 +10,16 @@
 //    yoke { W, t, wb, h1, h2, yf, c, d, armW, top }   one-piece U yoke seen from the front: foot width wb flaring to the
 //                          full width W at h1, arms of thickness t from h2 up to `top` with a round end (armW deep),
 //                          inner floor at yf with corner chamfer c, lower part d deep. Replaces bridge + arm.
-//                          arch: true rounds the inner corners (radius c); armR = corner radius of the arm top
-//                          instead of a half-round end.
+//                          arch: true rounds the inner corners (radius c); cy = vertical size of the inner chamfer
+//                          when it is not 45°; armR = corner radius of the arm top instead of a half-round end;
+//                          tTop = arm thickness at the top (outer face leans in); armW0 = arm depth at the bottom.
 //    rings [{ y, r, tube }]            trim rings round the head (stepped lens barrels)
 //    ribs { y0, y1, n, r }             vertical cooling ribs round a cylindrical head
 //    vents [{ side:'x'|'z', off, y, h, n, pitch }]   slotted vent panels on both sides of the head
 //    hood { y0, y1, r0, r1 }           open lens hood (may flare)
-//    logo { arm: 'text', armStyle: 'badge', head: 'text', headSize: [w, h], color }   lettering on both yoke arms (reads
-//                                      upwards, or a horizontal badge below the tilt axis) and on a
+//    logo { arm: 'text', armStyle: 'badge', armDir: 'down', head: 'text', headSize: [w, h], color }   lettering on both
+//                                      yoke arms (reads upwards, or downwards, or a horizontal badge below the tilt
+//                                      axis) and on a
 //                                      badge on the front and back of the head (at plate.y / plate.z)
 //    sink { y0, y1, w, d, n }          finned heat sink at the rear end of the head
 //    shield { pts: [[x, y]…], z }      raised cover panel on the front and back of the head (outline in head x / y)
@@ -242,28 +244,39 @@ export function buildMachine(lcdCanvas, B) {
   /* ── yoke (pan) ── */
   const pan = new THREE.Group(); pan.position.y = B.panY; root.add(pan);
   if (B.yoke) {                                                 // one-piece U yoke
-    const Y = B.yoke, W2 = Y.W / 2, xi = W2 - Y.t, r = Y.armW / 2, cy = Y.top - r, prof = [[-r, Y.h2 - 0.014], [r, Y.h2 - 0.014]];
+    const Y = B.yoke, W2 = Y.W / 2, xi = W2 - Y.t, r = Y.armW / 2, r0 = (Y.armW0 ?? Y.armW) / 2, cy = Y.top - r, prof = [[-r0, Y.h2 - 0.014], [r0, Y.h2 - 0.014]], vc = Y.cy ?? Y.c;
     const inner = [];                                           // inner outline from the right arm down, across the floor, up the left arm
     if (Y.arch) { for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI / 2; inner.push([xi - Y.c + Math.cos(a) * Y.c, Y.yf + Y.c - Math.sin(a) * Y.c]); }
       for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI / 2; inner.push([-xi + Y.c - Math.sin(a) * Y.c, Y.yf + Y.c - Math.cos(a) * Y.c]); } }
-    else inner.push([xi, Y.yf + Y.c], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + Y.c]);
+    else inner.push([xi, Y.yf + vc], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + vc]);
     add(pan, extrude([[-Y.wb / 2, 0], [Y.wb / 2, 0], [W2, Y.h1], [W2, Y.h2], [xi, Y.h2], ...inner, [-xi, Y.h2], [-W2, Y.h2], [-W2, Y.h1]], Y.d, 0.01), M.body);
     if (Y.armR) { const q = Math.min(Y.armR, r);              // flat top with rounded corners
       for (let i = 0; i <= 8; i++) { const a = (i / 8) * Math.PI / 2; prof.push([r - q + Math.cos(a) * q, Y.top - q + Math.sin(a) * q]); }
       for (let i = 0; i <= 8; i++) { const a = Math.PI / 2 + (i / 8) * Math.PI / 2; prof.push([-r + q + Math.cos(a) * q, Y.top - q + Math.sin(a) * q]); }
     } else for (let i = 0; i <= 18; i++) { const a = (i / 18) * Math.PI; prof.push([Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    const tTop = Y.tTop ?? Y.t, armH = Y.top - Y.h2, lean = Math.atan((Y.t - tTop) / armH);   // outer face leans in when the arm thins towards the top
     for (const sx of [-1, 1]) {
-      const ax = sx * (W2 - Y.t / 2);
-      add(pan, extrude(prof, Y.t, 0.011), M.body, ax, 0, 0).rotation.y = Math.PI / 2;
-      if (Y.inlay !== false) add(pan, extrude([[-r * 0.5, Y.h2 + 0.012], [r * 0.5, Y.h2 + 0.012], [r * 0.5, cy], [-r * 0.5, cy]], 0.003, 0.001), M.trim, ax + sx * (Y.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
+      const ax = sx * (W2 - Y.t / 2), geo = extrude(prof, Y.t, 0.011);
+      if (tTop !== Y.t) {                                         // thin the arm towards the top, keeping the inner face flat
+        const P = geo.attributes.position;
+        for (let i = 0; i < P.count; i++) { const f = 1 - (1 - tTop / Y.t) * Math.min(1, Math.max(0, (P.getY(i) - Y.h2) / armH)), z = P.getZ(i); P.setZ(i, sx > 0 ? -Y.t / 2 + (z + Y.t / 2) * f : Y.t / 2 - (Y.t / 2 - z) * f); }
+        geo.computeVertexNormals();
+      }
+      add(pan, geo, M.body, ax, 0, 0).rotation.y = Math.PI / 2;
       const hub = add(pan, new THREE.CylinderGeometry(0.024, 0.024, 0.012, 24), M.trim, ax - sx * (Y.t / 2 + 0.003), B.tiltY, 0); hub.rotation.z = Math.PI / 2;
-      const xo = ax + sx * (Y.t / 2 + 0.0026);
-      for (const y of [Y.h2 + 0.024, cy + r * 0.2]) for (const sz of [-1, 1]) cylX(pan, 0.003, 0.003, M.metal, xo - sx * 0.001, y, sz * r * 0.74);   // screws
+      // everything on the outer face sits in a frame that leans with it: origin at the foot of the arm, y along the face
+      const face = new THREE.Group(); face.position.set(sx * W2, Y.h2, 0); face.rotation.z = sx * lean; pan.add(face);
+      const fy = y => (y - Y.h2) / Math.cos(lean), fo = sx * 0.0026;
+      if (Y.inlay !== false) add(face, extrude([[-r * 0.5, fy(Y.h2 + 0.012)], [r * 0.5, fy(Y.h2 + 0.012)], [r * 0.5, fy(cy)], [-r * 0.5, fy(cy)]], 0.003, 0.001), M.trim, sx * 0.0008, 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
+      for (const y of [Y.h2 + 0.024, cy + r * 0.2]) for (const sz of [-1, 1]) cylX(face, 0.003, 0.003, M.metal, fo - sx * 0.001, fy(y), sz * r * 0.74);   // screws
       if (B.logo && B.logo.arm && B.logo.armStyle === 'badge') {   // horizontal badge below the tilt axis
-        const bw = r * 1.2, bh = r * 0.5, by = B.tiltY - r * 0.75;
-        add(pan, new THREE.BoxGeometry(0.003, bh, bw), M.trim, xo - sx * 0.001, by, 0);
-        const lb = label(B.logo.arm, bw * 0.92, bh * 0.8, B.logo.color); lb.position.set(xo + sx * 0.0008, by, 0); lb.rotation.y = sx * Math.PI / 2; pan.add(lb);
-      } else if (B.logo && B.logo.arm) { const len = (cy - Y.h2) * 0.72, lb = label(B.logo.arm, len, r * 0.62, B.logo.color); lb.position.set(xo, (Y.h2 + cy) / 2 + 0.006, 0); lb.rotation.y = sx * Math.PI / 2; lb.rotateZ(Math.PI / 2); pan.add(lb); }
+        const bw = r * 1.2, bh = r * 0.5, by = fy(B.tiltY - r * 0.75);
+        add(face, new THREE.BoxGeometry(0.003, bh, bw), M.trim, fo - sx * 0.001, by, 0);
+        const lb = label(B.logo.arm, bw * 0.92, bh * 0.8, B.logo.color); lb.position.set(fo + sx * 0.0008, by, 0); lb.rotation.y = sx * Math.PI / 2; face.add(lb);
+      } else if (B.logo && B.logo.arm) {
+        const len = (cy - Y.h2) * 0.72, lb = label(B.logo.arm, len, r * 0.62, B.logo.color);
+        lb.position.set(fo, fy((Y.h2 + cy) / 2 + 0.006), 0); lb.rotation.y = sx * Math.PI / 2; lb.rotateZ(B.logo.armDir === 'down' ? -Math.PI / 2 : Math.PI / 2); face.add(lb);
+      }
     }
   }
   if (!B.yoke) add(pan, loft(B.bridge), M.body);
@@ -294,7 +307,8 @@ export function buildMachine(lcdCanvas, B) {
     else add(tilt, new THREE.BoxGeometry(v.pitch * 0.5, v.h, 0.004), M.trim, u, v.y, s * v.off);
   }
   if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
-  if (B.shield) for (const sz of [-1, 1]) add(tilt, extrude(B.shield.pts, 0.008, 0.003), M.trim, 0, 0, sz * B.shield.z);   // raised cover panel
+  if (B.shield) { const pm = M.body.clone(); pm.color.multiplyScalar(0.72); pm.roughness = 0.4;   // raised cover panel: body paint, a shade darker and smoother
+    for (const sz of [-1, 1]) add(tilt, extrude(B.shield.pts, 0.008, 0.003), pm, 0, 0, sz * B.shield.z); }
   if (B.plate) for (const sz of [-1, 1]) {                       // name plate, lettered when the model gives a logo
     const [pw, ph] = (B.logo && B.logo.headSize) || [0.04, 0.02];
     add(tilt, new THREE.BoxGeometry(pw, ph, 0.003), M.trim, 0, B.plate.y, sz * B.plate.z);

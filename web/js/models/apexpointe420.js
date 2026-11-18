@@ -336,28 +336,31 @@ export default {
   // Panel: touch screen (menu table 4.3: Touch Enable / Touch Rectify) plus the four buttons of drawing 4.1
   panel: { type: 'touch', versions: { device: 'APEXPOINTE 420', model: 'ApexPointe 420', panel: 'H3.12', main: 'H3.12' } },
   rdm: { modelId: 0x0420, description: 'Wincode ApexPointe 420', software: 'H3.12' },
-  // Body: overall size 386 × 234 × 673 mm from the product page; proportions of base, yoke and head from the product photos.
+  // Body: measured from the product page photos (front view and side view with the head upright), scaled by the overall
+  // size 386 × 234 × 673 mm: yoke 391 wide with arms thinning from 55 to 34 mm, arm top at ≈ 450 mm, tilt axis at ≈ 386 mm,
+  // head 265 × 240 mm in section, 165 mm behind and 280 mm in front of the axis, lens hood Ø 190 × 65 mm.
   body: {
-    H: 0.673, style: 'round',                                   // 386 × 234 × 673 mm (product page); shapes from the manual cover drawing and the product photos
-    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.097, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.05, panelY: 0.07, handle: 'bar', corner: 0.03 },
-    feet: { r: 0.02, h: 0.04, x: 0.125, z: 0.08 },
+    H: 0.673, style: 'round',
+    base: { hw: 0.172, bot: 0.024, top: 0.112, shoulder: 0.1, chamfer: 0.016, depth: 0.234, frameW: 0.165, frameH: 0.06, panelY: 0.064, handle: 'bar', corner: 0.03 },
+    feet: { r: 0.018, h: 0.024, x: 0.135, z: 0.085 },
     turntable: { r: 0.095, h: 0.012 }, panY: 0.124,
-    yoke: { W: 0.391, t: 0.05, wb: 0.22, h1: 0.07, h2: 0.105, yf: 0.03, c: 0.035, d: 0.15, armW: 0.113, top: 0.34 },
+    // wide foot, shallow inner V, arms that thin and narrow towards the top
+    yoke: { W: 0.391, t: 0.055, tTop: 0.034, wb: 0.278, h1: 0.057, h2: 0.13, yf: 0.07, c: 0.082, cy: 0.057, d: 0.146, armW: 0.12, armW0: 0.146, top: 0.33, inlay: false },
     tiltY: 0.262,
-    // rear box with flat faces → neck → one wide lens barrel
-    head: [{ y: -0.2, w: 0.13, d: 0.11, c: 0.03 }, { y: -0.186, w: 0.2, d: 0.18, c: 0.045 }, { y: -0.12, w: 0.245, d: 0.215, c: 0.045 }, { y: 0.1, w: 0.245, d: 0.215, c: 0.045 }, { y: 0.135, w: 0.205, d: 0.2, c: 0.08 },
-      { y: 0.15, w: 0.2 }, { y: 0.165, w: 0.24 }, { y: 0.243, w: 0.24 }, { y: 0.255, w: 0.222 }],
-    // cover panel of the product photos: wide at the lens end, narrowing to the rear, grille and logo at the bottom
-    shield: { pts: [[-0.105, 0.095], [0.105, 0.095], [0.088, -0.125], [0.06, -0.165], [-0.06, -0.165], [-0.088, -0.125]], z: 0.1095 },
-    plate: { y: -0.075, z: 0.115 },
-    vents: [{ side: 'x', off: 0.1235, y: -0.03, h: 0.06, n: 5, pitch: 0.012 }, { side: 'z', off: 0.1187, y: -0.135, h: 0.035, n: 8, pitch: 0.011 }],
-    logo: { arm: 'POINTE 480', head: 'Wincode', headSize: [0.1, 0.03] },
-    lensY: 0.256, lensR: 0.094, ringR: 0.108,                   // lens dome adds 31 mm: 0.124 + 0.262 + 0.256 + 0.031 = 0.673
-    lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,
+    // smooth moulded body with a domed rear end → sloped shoulders → lens hood
+    head: [{ y: -0.165, w: 0.16, d: 0.19, r: 0.06 }, { y: -0.152, w: 0.212, d: 0.232, r: 0.07 }, { y: -0.115, w: 0.252, d: 0.24, r: 0.07 }, { y: -0.085, w: 0.265, d: 0.24, r: 0.06 },
+      { y: 0.151, w: 0.265, d: 0.24, r: 0.06 }, { y: 0.205, w: 0.2, d: 0.2, r: 0.09 }, { y: 0.213, w: 0.19 }, { y: 0.27, w: 0.19 }, { y: 0.279, w: 0.176 }],
+    // raised centre panel of the front view, badge and fan grille below it
+    shield: { pts: [[-0.056, 0.157], [0.056, 0.157], [0.074, 0.1], [0.074, -0.085], [0.06, -0.1], [-0.06, -0.1], [-0.074, -0.085], [-0.074, 0.1]], z: 0.1195 },
+    plate: { y: -0.054, z: 0.1255 },
+    vents: [{ side: 'z', off: 0.1195, y: -0.128, h: 0.045, n: 12, pitch: 0.0115 }, { side: 'x', off: 0.133, y: 0.02, h: 0.06, n: 5, pitch: 0.012 }],
+    logo: { arm: 'POINTE480', armDir: 'down', head: 'Wincode', headSize: [0.117, 0.039] },
+    lensY: 0.262, lensR: 0.084, ringR: 0.091,                   // lens dome adds 28 mm: 0.124 + 0.262 + 0.262 + 0.028 = 0.676
+    lcd: [0.058, 0.044], lcdX: -0.018, controls: 'col4', ctrlX: 0.058,
   },
   assumptions: [
     'The manual is titled "LED480 POINTE BSW Moving Head"; it is the document supplied for the ApexPointe 420 and its technical parameters (420 W LED, zoom 3.2–42.6°, 39CH) are those of this fixture.',
-    'Overall size 386 × 234 × 673 mm is from the product page (the manual only gives the package size); the proportions of base, yoke and head are estimated from the manual\'s cover drawing and the product photos.',
+    'Overall size 386 × 234 × 673 mm is from the product page (the manual only gives the package size); the dimensions of base, yoke and head are measured off the product photos, so they are good to a centimetre or two at best. The arm lettering "POINTE480" is what the photos show.',
     'Front panel: the menu table has Touch Enable / Touch Rectify, so the simulator\'s shared touch-panel menu is used. Its pages differ from the manual\'s table in details (Fan mode, Dim mode, Dim freq, stepper information are not reproduced; a Lamp switch is shown although this is an LED fixture).',
     'Drawing 4.1 shows four buttons (MENU, UP, DOWN, ENTER) in a column next to the display; the on-screen key captions are those of the encoder panel.',
     'Beam Shape channels 30–31 (the "SpektraBeam" effects of the channel table) are in the channel list but are not simulated; they do not block the prisms or gobos here.',
