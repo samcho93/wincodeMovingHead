@@ -351,28 +351,32 @@ export default {
   // Panel: touch screen (menu table 4.3: Touch Enable / Touch Rectify) plus the buttons of drawing 4.1
   panel: { type: 'touch', versions: { device: 'MEGA480W BSW', model: 'WOP-M480BSW', panel: 'H3.12', main: 'H3.12' } },
   rdm: { modelId: 0x0480, description: 'WOP-M480BSW Mega480 BSW', software: 'H3.12' },
-  // Body: overall size 391 × 230 × 673 mm from the product page (the manual has no dimension drawing);
-  // the proportions of base, yoke and head are taken from the manual's cover drawing and drawing 4.1.
+  // Body: the product page drawing gives 391 (yoke) / 386 (base) × 230 × 673 mm, arms 113 mm deep, arm top at 460 mm.
+  // Yoke, base and head body are the platform of the ApexPointe 420 (same drawing, same photos apart from the lens end),
+  // so they use the dimensions measured there; the three stepped lens rings and the cover panel are read off the Mega480
+  // photos.
   body: {
-    H: 0.673, style: 'round',                                   // product page drawing: 391 (yoke) / 386 (base) × 230 × 673, arm 113 deep, arm top at 460
-    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.097, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.05, panelY: 0.07, handle: 'bar', corner: 0.03 },
-    feet: { r: 0.02, h: 0.04, x: 0.125, z: 0.08 },
+    H: 0.673, style: 'round',
+    base: { hw: 0.172, bot: 0.024, top: 0.112, shoulder: 0.1, chamfer: 0.016, depth: 0.23, frameW: 0.165, frameH: 0.06, panelY: 0.064, handle: 'bar', corner: 0.03 },
+    feet: { r: 0.018, h: 0.024, x: 0.135, z: 0.085 },
     turntable: { r: 0.095, h: 0.012 }, panY: 0.124,
-    yoke: { W: 0.391, t: 0.05, wb: 0.22, h1: 0.07, h2: 0.105, yf: 0.03, c: 0.035, d: 0.15, armW: 0.113, top: 0.34 },
+    yoke: { W: 0.391, t: 0.055, tTop: 0.034, wb: 0.278, h1: 0.057, h2: 0.13, yf: 0.07, c: 0.082, cy: 0.057, d: 0.146, armW: 0.113, armW0: 0.14, top: 0.336, inlay: false },
     tiltY: 0.262,
-    // rear box → three stepped rings as wide as the box → short lens hood (product page drawing and photos)
-    head: [{ y: -0.2, w: 0.14, d: 0.12, c: 0.035 }, { y: -0.186, w: 0.2, d: 0.185, c: 0.05 }, { y: -0.13, w: 0.257, d: 0.23, c: 0.055 }, { y: 0.13, w: 0.257, d: 0.23, c: 0.055 }, { y: 0.155, w: 0.24, d: 0.225, c: 0.08 },
-      { y: 0.158, w: 0.262 }, { y: 0.186, w: 0.262 }, { y: 0.186, w: 0.24 }, { y: 0.194, w: 0.24 }, { y: 0.194, w: 0.256 }, { y: 0.22, w: 0.256 }, { y: 0.22, w: 0.236 }, { y: 0.228, w: 0.236 }, { y: 0.228, w: 0.25 }, { y: 0.252, w: 0.25 }, { y: 0.256, w: 0.212 }, { y: 0.262, w: 0.206 }],
-    // cover panel of the drawing's front view: narrow at the lens end, wide towards the rear, cut corners
-    shield: { pts: [[-0.065, 0.14], [0.065, 0.14], [0.1, -0.07], [0.07, -0.125], [-0.07, -0.125], [-0.1, -0.07]], z: 0.117 },
-    plate: { y: 0.06, z: 0.1225 },
-    vents: [{ side: 'x', off: 0.1295, y: 0.06, h: 0.05, n: 6, pitch: 0.012 }, { side: 'z', off: 0.1262, y: -0.045, h: 0.05, n: 7, pitch: 0.011 }],
-    logo: { arm: 'Wincode', head: 'MEGA 480', headSize: [0.1, 0.03] },
-    lensY: 0.26, lensR: 0.09, ringR: 0.099,                     // lens dome adds 30 mm: 0.124 + 0.262 + 0.260 + 0.030 = 0.676
-    lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,
+    // smooth moulded body with a domed rear end → shoulders → three stepped lens rings, the front one a deep hood
+    head: [{ y: -0.165, w: 0.16, d: 0.19, r: 0.06 }, { y: -0.152, w: 0.212, d: 0.226, r: 0.07 }, { y: -0.115, w: 0.252, d: 0.23, r: 0.07 }, { y: -0.085, w: 0.265, d: 0.23, r: 0.06 },
+      { y: 0.151, w: 0.265, d: 0.23, r: 0.06 }, { y: 0.196, w: 0.214, d: 0.21, r: 0.1 }, { y: 0.2, w: 0.216 }, { y: 0.226, w: 0.216 }, { y: 0.226, w: 0.23 }, { y: 0.254, w: 0.23 }, { y: 0.254, w: 0.2 }, { y: 0.262, w: 0.196 }],
+    hood: { y0: 0.25, y1: 0.292, r0: 0.122, r1: 0.1235 },
+    rings: [{ y: 0.291, r: 0.1225, tube: 0.0045 }, { y: 0.284, r: 0.113, tube: 0.004 }, { y: 0.276, r: 0.103, tube: 0.004 }, { y: 0.269, r: 0.094, tube: 0.004 }],
+    // cover panel: narrow at the lens end, widest low down, cut corners; badge in the middle, square grille below
+    shield: { pts: [[-0.07, 0.13], [0.07, 0.13], [0.1, -0.085], [0.075, -0.14], [-0.075, -0.14], [-0.1, -0.085]], z: 0.1145 },
+    plate: { y: 0.025, z: 0.1205 },
+    vents: [{ side: 'z', off: 0.1195, y: -0.075, h: 0.06, n: 9, pitch: 0.0105 }, { side: 'x', off: 0.133, y: 0.095, h: 0.045, n: 6, pitch: 0.011 }],
+    logo: { arm: 'Wincode', armDir: 'down', head: 'MEGA 480', headSize: [0.11, 0.035] },
+    lensY: 0.262, lensR: 0.082, ringR: 0.09,                    // hood rim: 0.124 + 0.262 + 0.292 = 0.678
+    lcd: [0.058, 0.044], lcdX: -0.018, controls: 'col4', ctrlX: 0.058,
   },
   assumptions: [
-    'Overall size 391 × 230 × 673 mm is from the product page (the manual only gives the package size); the proportions of base, yoke and head are estimated from the manual\'s cover drawing. 391 mm is taken as the width over the base handles.',
+    'Overall size 391 (yoke) / 386 (base) × 230 × 673 mm, arm depth 113 mm and arm top at 460 mm are from the product page drawing (the manual only gives the package size). The other dimensions are measured off the product photos — the fixture shares yoke, base and head body with the ApexPointe 420 — so they are good to a centimetre or two at best.',
     'Front panel: the product page says touch screen and the menu table has Touch Enable / Touch Rectify, so the simulator\'s shared touch-panel menu is used. Its pages differ from the manual\'s table in details (screen saver and rotation options, Touch Rectify, "Lamp when", "Manual time", stepper information are not reproduced; the Scene page lists the channels of the current channel mode instead of the manual\'s 36 entries).',
     'Drawing 4.1 shows five buttons in a cross; the manual names four (MENU, DOWN, UP, ENTER). Centre = ENTER, up / down move, MENU is on the on-screen key bar; the on-screen key captions are those of the encoder panel.',
     'CH6 Lamp On / Lamp Off is not simulated (the core has no lamp command on a DMX channel): use the Lamp Switch in the menu. Reset values act after being held for 3 s — the manual gives no hold time.',
