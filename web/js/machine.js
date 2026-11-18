@@ -21,19 +21,21 @@
 //    yoke.round (arm plates with a round top and an inlay)
 import * as THREE from 'three';
 
-/** Body lofted from rounded-rectangle sections along Y (a section without d/r is a circle of diameter w) */
+/** Body lofted from sections along Y: { y, w, d, r } rounded rectangle, { y, w, d, c } rectangle with chamfered (flat-cut)
+ *  corners, { y, w } circle of diameter w. */
 function loft(sections, n = 64) {
   const pos = [], idx = [];
-  const ring = (w, d = w, r = w / 2) => {
-    const pts = [], hw = w / 2, hd = d / 2; r = Math.min(r, hw, hd);
+  const ring = (w, d = w, r = w / 2, c = 0) => {
+    const pts = [], hw = w / 2, hd = d / 2; r = Math.min(c || r, hw, hd);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2, q = Math.floor(i / (n / 4));
       const cx = (q === 0 || q === 3 ? 1 : -1) * (hw - r), cz = (q < 2 ? 1 : -1) * (hd - r);
-      pts.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]);
+      const k = c ? r / (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))) : r;   // chamfer: the quarter arc flattened to its chord
+      pts.push([cx + Math.cos(a) * k, cz + Math.sin(a) * k]);
     }
     return pts;
   };
-  sections.forEach(s => ring(s.w, s.d, s.r).forEach(p => pos.push(p[0], s.y, p[1])));
+  sections.forEach(s => ring(s.w, s.d, s.r, s.c).forEach(p => pos.push(p[0], s.y, p[1])));
   for (let j = 0; j < sections.length - 1; j++) for (let i = 0; i < n; i++) {
     const a = j * n + i, b = j * n + (i + 1) % n, c = a + n, d = b + n;
     idx.push(a, c, b, b, c, d);
@@ -46,7 +48,7 @@ function loft(sections, n = 64) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
   const ng = g.toNonIndexed(); ng.computeVertexNormals();
-  return smooth(ng, 50);
+  return smooth(ng, 32);                                        // keeps chamfer edges and steps crisp
 }
 // smooth shading: average normals at coincident positions (cap edges split by angle)
 function smooth(g, angleDeg) {
