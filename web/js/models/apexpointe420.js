@@ -347,7 +347,9 @@ export default {
     // rear box with flat faces → neck → one wide lens barrel
     head: [{ y: -0.2, w: 0.12, d: 0.1, r: 0.03 }, { y: -0.188, w: 0.2, d: 0.17, r: 0.04 }, { y: -0.11, w: 0.24, d: 0.205, r: 0.04 }, { y: 0.1, w: 0.24, d: 0.205, r: 0.04 }, { y: 0.135, w: 0.2, d: 0.19, r: 0.085 },
       { y: 0.15, w: 0.2 }, { y: 0.165, w: 0.24 }, { y: 0.243, w: 0.24 }, { y: 0.255, w: 0.222 }],
-    vents: [{ side: 'x', off: 0.121, y: -0.03, h: 0.06, n: 5, pitch: 0.012 }], plate: { y: 0.0, z: 0.104 },
+    plate: { y: 0.0, z: 0.104 },
+    vents: [{ side: 'x', off: 0.121, y: -0.03, h: 0.06, n: 5, pitch: 0.012 }, { side: 'z', off: 0.1035, y: -0.1, h: 0.04, n: 8, pitch: 0.011 }],
+    logo: { arm: 'POINTE 480', head: 'Wincode', headSize: [0.1, 0.03] },
     lensY: 0.256, lensR: 0.094, ringR: 0.108,                   // lens dome adds 31 mm: 0.124 + 0.262 + 0.256 + 0.031 = 0.673
     lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,
   },

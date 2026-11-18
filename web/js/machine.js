@@ -14,6 +14,9 @@
 //    ribs { y0, y1, n, r }             vertical cooling ribs round a cylindrical head
 //    vents [{ side:'x'|'z', off, y, h, n, pitch }]   slotted vent panels on both sides of the head
 //    hood { y0, y1, r0, r1 }           open lens hood (may flare)
+//    logo { arm: 'text', head: 'text', headSize: [w, h], color }   lettering on both yoke arms (reads upwards) and on a
+//                                      badge on the front and back of the head (at plate.y / plate.z)
+//    sink { y0, y1, w, d, n }          finned heat sink at the rear end of the head
 //  Bar bodies: base.endRise (end plates rising above the bar), base.loops (carrying loops between the heads),
 //    yoke.round (arm plates with a round top and an inlay)
 import * as THREE from 'three';
@@ -66,6 +69,18 @@ const extrude = (pts, depth, bevel = 0.003) => {
   return g;
 };
 
+/** Lettering as a lit, transparent plane (w × h metres) */
+function label(text, w, h, color = '#c4c8ce') {
+  const c = document.createElement('canvas'); c.width = 512; c.height = Math.max(32, Math.round(512 * h / w));
+  const g = c.getContext('2d'); let px = c.height * 0.8;
+  const font = () => { g.font = `italic 700 ${px}px Arial, Helvetica, sans-serif`; };
+  font(); const tw = g.measureText(text).width; if (tw > c.width * 0.94) { px *= c.width * 0.94 / tw; font(); }
+  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, c.width / 2, c.height / 2 + px * 0.04);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.6, metalness: 0.1, depthWrite: false }));
+  m.castShadow = false; return m;
+}
+
 export function buildMachine(lcdCanvas, B) {
   const M = {
     body: new THREE.MeshStandardMaterial({ color: B.color ?? 0x1b1d20, roughness: 0.55, metalness: 0.12 }),
@@ -79,6 +94,11 @@ export function buildMachine(lcdCanvas, B) {
   const root = new THREE.Group(); root.name = 'fixture';
   const clickables = [];
   const add = (parent, geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+  const cylX = (parent, r, h, mat, x, y, z) => { const m = add(parent, new THREE.CylinderGeometry(r, r, h, 12), mat, x, y, z); m.rotation.z = Math.PI / 2; m.castShadow = false; return m; };
+  /** finned heat sink at the rear end of a head */
+  const sink = tilt => { const K = B.sink; if (!K) return; const h = K.y1 - K.y0, yc = (K.y0 + K.y1) / 2;
+    add(tilt, new THREE.BoxGeometry(K.w * 0.92, h * 0.7, K.d * 0.7), M.body, 0, K.y1 - h * 0.35, 0);
+    for (let i = 0; i < K.n; i++) add(tilt, new THREE.BoxGeometry(K.w / K.n * 0.45, h, K.d), M.trim, (i - (K.n - 1) / 2) * (K.w / K.n), yc, 0); };
   const cylZ = (parent, r, h, mat, x, y, z, seg = 28) => { const m = add(parent, new THREE.CylinderGeometry(r, r, h, seg), mat, x, y, z); m.rotation.x = Math.PI / 2; return m; };
 
   /* ── base ── */
@@ -118,6 +138,7 @@ export function buildMachine(lcdCanvas, B) {
     for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * b.depth / 2);
   }
 
+  if (b.frameW) for (const sz of [-1, 1]) for (const sx of [-1, 1]) for (const sy of [-1, 1]) cylZ(base, 0.0028, 0.002, M.metal, sx * (b.frameW / 2 - 0.007), b.panelY + sy * (b.frameH / 2 - 0.007), sz * (zf + 0.0005), 10).castShadow = false;   // panel screws
   // front panel: LCD + controls
   const front = new THREE.Group(); front.position.set(0, b.panelY, zf + 0.0005); base.add(front);
   const lcdTex = new THREE.CanvasTexture(lcdCanvas); lcdTex.colorSpace = THREE.SRGBColorSpace; lcdTex.anisotropy = 4;
@@ -182,7 +203,7 @@ export function buildMachine(lcdCanvas, B) {
         if (Y.round) { const inl = add(pan, inlayGeo, M.trim, sx * (Y.armX + Y.armT / 2), B.tiltY - ar * 0.1, 0); inl.rotation.x = Math.PI / 2 - 0.5; inl.scale.x = 0.12; }   // oblong inlay on each arm plate
       }
       const tilt = new THREE.Group(); tilt.position.y = B.tiltY; pan.add(tilt);
-      add(tilt, headGeo, M.body);
+      add(tilt, headGeo, M.body); sink(tilt);
       for (const sx of [-1, 1]) { const hub = add(tilt, new THREE.CylinderGeometry(0.016, 0.016, 0.006, 20), M.trim, sx * (Y.armX - Y.armT / 2 - 0.004), 0, 0); hub.rotation.z = Math.PI / 2; }
       const lensMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: true });
       const lens = add(tilt, lensGeo, lensMat, 0, B.lensY - 0.003, 0); lens.rotation.x = -Math.PI / 2; lens.castShadow = false;
@@ -212,6 +233,9 @@ export function buildMachine(lcdCanvas, B) {
       add(pan, extrude(prof, Y.t, 0.007), M.body, ax, 0, 0).rotation.y = Math.PI / 2;
       add(pan, extrude([[-r * 0.5, Y.h2 + 0.012], [r * 0.5, Y.h2 + 0.012], [r * 0.5, cy], [-r * 0.5, cy]], 0.003, 0.001), M.trim, ax + sx * (Y.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
       const hub = add(pan, new THREE.CylinderGeometry(0.024, 0.024, 0.012, 24), M.trim, ax - sx * (Y.t / 2 + 0.003), B.tiltY, 0); hub.rotation.z = Math.PI / 2;
+      const xo = ax + sx * (Y.t / 2 + 0.0026);
+      for (const y of [Y.h2 + 0.024, cy + r * 0.2]) for (const sz of [-1, 1]) cylX(pan, 0.003, 0.003, M.metal, xo - sx * 0.001, y, sz * r * 0.74);   // screws
+      if (B.logo && B.logo.arm) { const len = (cy - Y.h2) * 0.72, lb = label(B.logo.arm, len, r * 0.62, B.logo.color); lb.position.set(xo, (Y.h2 + cy) / 2 + 0.006, 0); lb.rotation.y = sx * Math.PI / 2; lb.rotateZ(Math.PI / 2); pan.add(lb); }
     }
   }
   if (!B.yoke) add(pan, loft(B.bridge), M.body);
@@ -225,7 +249,7 @@ export function buildMachine(lcdCanvas, B) {
 
   /* ── head (tilt) ── */
   const tilt = new THREE.Group(); tilt.position.y = B.tiltY; pan.add(tilt);
-  add(tilt, loft(B.head), M.body);
+  add(tilt, loft(B.head), M.body); sink(tilt);
   if (B.slots) for (const sz of [-1, 1]) for (let i = -B.slots.n; i <= B.slots.n; i++) add(tilt, new THREE.BoxGeometry(0.003, 0.024, 0.004), M.trim, i * B.slots.pitch, B.slots.y, sz * B.slots.z);   // cooling slots
   if (B.fins) for (let i = 0; i < B.fins.n; i++) {              // cooling fins around a round head
     const y = B.fins.y0 + (B.fins.y1 - B.fins.y0) * i / (B.fins.n - 1);
@@ -242,7 +266,12 @@ export function buildMachine(lcdCanvas, B) {
     else add(tilt, new THREE.BoxGeometry(v.pitch * 0.5, v.h, 0.004), M.trim, u, v.y, s * v.off);
   }
   if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
-  if (B.plate) for (const sz of [-1, 1]) add(tilt, new THREE.BoxGeometry(0.04, 0.02, 0.003), M.trim, 0, B.plate.y, sz * B.plate.z);   // name plate
+  if (B.plate) for (const sz of [-1, 1]) {                       // name plate, lettered when the model gives a logo
+    const [pw, ph] = (B.logo && B.logo.headSize) || [0.04, 0.02];
+    add(tilt, new THREE.BoxGeometry(pw, ph, 0.003), M.trim, 0, B.plate.y, sz * B.plate.z);
+    for (const sx of [-1, 1]) cylZ(tilt, 0.0025, 0.002, M.metal, sx * (pw / 2 + 0.008), B.plate.y, sz * (B.plate.z + 0.0005), 10).castShadow = false;
+    if (B.logo && B.logo.head) { const lb = label(B.logo.head, pw * 0.94, ph * 0.86, B.logo.color); lb.position.set(0, B.plate.y, sz * (B.plate.z + 0.0021)); if (sz < 0) lb.rotation.y = Math.PI; tilt.add(lb); }
+  }
   const headTop = B.head[B.head.length - 1].y;
   const ring = add(tilt, new THREE.CylinderGeometry(B.ringR, B.ringR + 0.002, 0.012, 56, 1, true), M.trim.clone(), 0, headTop + 0.004, 0); ring.material.side = THREE.DoubleSide;
   add(tilt, new THREE.TorusGeometry(B.ringR - 0.0035, 0.0045, 12, 56), M.trim, 0, headTop + 0.0095, 0).rotation.x = Math.PI / 2;

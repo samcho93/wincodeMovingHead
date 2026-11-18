@@ -156,6 +156,7 @@ export default {
       { y: 0.05, w: 0.214 }, { y: 0.15, w: 0.214 }, { y: 0.16, w: 0.226 }, { y: 0.166, w: 0.226 }],
     ribs: { y0: 0.055, y1: 0.145, n: 36, r: 0.109 }, hood: { y0: 0.16, y1: 0.25, r0: 0.113, r1: 0.126 },
     vents: [{ side: 'x', off: 0.115, y: -0.05, h: 0.05, n: 6, pitch: 0.011 }], plate: { y: -0.03, z: 0.115 },
+    logo: { arm: 'FRAME LIGHT', head: '500W LED FRAME', headSize: [0.11, 0.024] },
     lensY: 0.215, lensR: 0.09, ringR: 0.105,                    // hood rim: 0.150 + 0.270 + 0.250 = 0.670
     lcd: [0.064, 0.048], lcdX: -0.03, controls: 'encoder', ctrlX: 0.052,
   },

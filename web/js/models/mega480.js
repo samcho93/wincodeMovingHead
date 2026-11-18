@@ -363,7 +363,9 @@ export default {
     // rear box → shoulder → three stepped lens rings (product photos)
     head: [{ y: -0.2, w: 0.13, d: 0.11, r: 0.03 }, { y: -0.188, w: 0.215, d: 0.19, r: 0.04 }, { y: -0.12, w: 0.25, d: 0.215, r: 0.045 }, { y: 0.085, w: 0.25, d: 0.215, r: 0.045 }, { y: 0.115, w: 0.21, d: 0.2, r: 0.08 },
       { y: 0.118, w: 0.236 }, { y: 0.15, w: 0.236 }, { y: 0.15, w: 0.214 }, { y: 0.162, w: 0.214 }, { y: 0.162, w: 0.228 }, { y: 0.192, w: 0.228 }, { y: 0.192, w: 0.208 }, { y: 0.204, w: 0.208 }, { y: 0.204, w: 0.222 }, { y: 0.25, w: 0.222 }, { y: 0.258, w: 0.2 }],
-    vents: [{ side: 'x', off: 0.126, y: 0.02, h: 0.05, n: 6, pitch: 0.012 }], plate: { y: -0.03, z: 0.109 },
+    plate: { y: -0.03, z: 0.109 },
+    vents: [{ side: 'x', off: 0.126, y: 0.02, h: 0.05, n: 6, pitch: 0.012 }, { side: 'z', off: 0.1085, y: -0.11, h: 0.05, n: 9, pitch: 0.011 }],
+    logo: { arm: 'Wincode', head: 'MEGA 480', headSize: [0.1, 0.03] },
     lensY: 0.26, lensR: 0.082, ringR: 0.098,                    // lens dome adds 27 mm: 0.124 + 0.262 + 0.260 + 0.027 = 0.673
     lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,
   },

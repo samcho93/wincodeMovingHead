@@ -31,7 +31,7 @@ everything the manual does not state goes into `assumptions`).
    The `program` steps you write are also what the stage editor's showcase plays for this model (one look per step),
    so make them show the fixture's main features: colours, gobos, prism, zoom, movement.
    The 3D body is described by `body` (read the header of `web/js/machine.js`): `yoke` for the U-shaped yoke, `head` loft
-   sections (rounded boxes and circles; repeat a `y` to make a step), and the optional `rings`, `ribs`, `vents`, `hood`,
+   sections (rounded boxes and circles; repeat a `y` to make a step), and the optional `rings`, `ribs`, `vents`, `hood`, `sink`, `logo` (lettering as it appears in the photos),
    `base.handle` and `controls` ('cross5', 'col4' or 'encoder'). Shape it after the manual's drawing and the product
    photos, not after another model.
 5. **Write `web/js/models/<id>.js`** and register it in `web/js/models/index.js` (one import, one entry in `LIST`).

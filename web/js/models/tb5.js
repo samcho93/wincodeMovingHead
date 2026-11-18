@@ -251,6 +251,7 @@ export default {
     yoke: { w: 0.184, d: 0.11, h: 0.026, armX: 0.084, armT: 0.012, armD: 0.112, armTop: 0.176, round: true },
     head: [{ y: -0.06, w: 0.1 }, { y: -0.05, w: 0.15 }, { y: 0.058, w: 0.15 }, { y: 0.064, w: 0.156 }, { y: 0.072, w: 0.15 }],
     lensY: 0.074, lensR: 0.062, ringR: 0.07,                    // lens dome adds 20.5 mm: 0.125 + 0.133 + 0.074 + 0.0205 = 0.3525
+    sink: { y0: -0.086, y1: -0.05, w: 0.11, d: 0.11, n: 9 },      // finned box at the rear end of each head (rear product photo)
     lcd: [0.058, 0.0435], lcdX: -0.022, controls: 'cross5', ctrlX: 0.036,
   },
   assumptions: [
