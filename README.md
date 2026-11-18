@@ -144,8 +144,8 @@ Panel operation per model:
 from one DMX patch.
 
 - **Examples**: pick one in the top bar and press *Load example* — it loads and plays.
-  *All three models — showcase* has two 250W BSW, the 500W Frame and the AquaVortex TB5 in a 48-second programmed
-  show (scenes, EFX, a chaser, on a timeline against a backing track); the other three examples show one model each.
+  *All models — showcase* has two 250W BSW, the 500W Frame, the ApexPointe 420, the Mega480 and the AquaVortex TB5 in a 48-second programmed
+  show (scenes, EFX, a chaser, on a timeline against a backing track); the other examples show one model each.
   The backing track is synthesised in the browser, so no audio file is shipped.
 - **Transport**: Play / Pause, Stop, a position slider and Loop. The show keeps time from a worker clock and the audio,
   so it does not stall when the window is in the background.

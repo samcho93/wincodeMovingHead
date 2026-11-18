@@ -57,7 +57,39 @@ function build(name, use) {
     track('Frame movement', [[eEight, B(6), B(16), '#2f8f5b'], [eEight, B(20), B(23), '#2f8f5b']]);
   }
 
-  /* ── AquaVortex TB5: five heads, RGBL, pixel rings ── */
+  /* ── ApexPointe 420: multi-facet prisms, beam reducers, continuous pan ── */
+  if (use.apex) {
+    const A = fix('ApexPointe', 'apexpointe420', '39CH', 201, use.frame ? -1.9 : 0, -1.8);
+    // wheel and effect channels are LTP: every look states all of them, so nothing is left over from the look before
+    const base = { dimmer: 255, strobe: 40, focus: 128, goboRot: 128, pan: 128, tilt: 78, panCtrl: 0, vColor: 0, color: 0, cyan: 0, magenta: 0, yellow: 0, gobo: 0, rotGobo: 0, prism1: 0, prism2: 0, frost: 0 };
+    const sBeam = scene('Apex · red reducer beam', [[A, { ...base, color: 132, gobo: 60, zoom: 250 }]], 1500);
+    const sFlower = scene('Apex · 18-facet magenta flower', [[A, { ...base, color: 150, prism1: 13, prism1Rot: 90, zoom: 190 }]]);
+    const sGlass = scene('Apex · cyan glass gobo', [[A, { ...base, cyan: 255, rotGobo: 35, goboRot: 100, zoom: 140 }]]);
+    const sRainbow = scene('Apex · multicolour linear prism', [[A, { ...base, rotGobo: 44, goboRot: 60, prism2: 13, prism2Rot: 100, zoom: 170 }]]);
+    const sSpin = scene('Apex · continuous pan', [[A, { ...base, panCtrl: 150, color: 174, gobo: 30, tilt: 96, zoom: 230 }]]);
+    const sWash = scene('Apex · congo blue wash', [[A, { ...base, vColor: 100, frost: 210, zoom: 20 }]]);
+    const eCircle = efx('Apex · circle', [{ fx: A.id, head: 0 }], { width: 30, height: 20, yOffset: 82, duration: 6000 });
+    track('Apex looks', [[sBeam, B(1), B(5), '#a83b3b'], [sFlower, B(5), B(9), '#a83b5c'], [sGlass, B(9), B(13), '#3b9aa8'], [sRainbow, B(13), B(16), '#8a4fb0'], [sSpin, B(16), B(19), '#3b6ea8'], [sWash, B(19), B(21), '#3b6ea8'], [sFlower, B(21), B(24), '#a83b5c']]);
+    track('Apex movement', [[eCircle, B(3), B(16), '#2f8f5b'], [eCircle, B(21), B(23), '#2f8f5b']]);
+  }
+
+  /* ── Mega480 BSW: CMY, preset colours, two prism wheels ── */
+  if (use.mega) {
+    const M = fix('Mega480', 'mega480', '39CH', 241, use.frame ? 1.9 : 0, -1.8);
+    // wheel and effect channels are LTP: every look states all of them, so nothing is left over from the look before
+    const base = { dimmer: 255, strobe: 40, focus: 128, goboRot: 128, pan: 128, tilt: 78, cmyMacro: 0, color: 0, cyan: 0, magenta: 0, yellow: 0, gobo: 0, rotGobo: 0, prism1: 0, prism2: 0, frost: 0 };
+    const sBeam = scene('Mega · white pencil beam', [[M, { ...base, zoom: 255 }]], 1500);
+    const sAmber = scene('Mega · amber gobo', [[M, { ...base, yellow: 255, magenta: 110, gobo: 12, zoom: 150 }]]);
+    const sGlass = scene('Mega · green rotating gobo', [[M, { ...base, cyan: 255, yellow: 255, rotGobo: 38, goboRot: 90, zoom: 130 }]]);
+    const sPrism = scene('Mega · blue prism', [[M, { ...base, cyan: 255, magenta: 160, prism2: 17, prism2Rot: 100, zoom: 190 }]]);
+    const sPreset = scene('Mega · preset colour + frost', [[M, { ...base, cmyMacro: 51, frost: 210, zoom: 30 }]]);
+    const sStrobe = scene('Mega · strobe', [[M, { ...base, strobe: 85, zoom: 240, tilt: 96 }]], 0, 0);
+    const eEight = efx('Mega · eight', [{ fx: M.id, head: 0 }], { algo: 'Eight', width: 34, height: 16, yOffset: 82, duration: 6000 });
+    track('Mega looks', [[sBeam, B(1), B(4), '#8f8a2f'], [sAmber, B(4), B(8), '#a8673b'], [sGlass, B(8), B(12), '#2f8f5b'], [sPrism, B(12), B(16), '#3b6ea8'], [sStrobe, B(16), B(18), '#a83b3b'], [sPreset, B(18), B(21), '#8a4fb0'], [sPrism, B(21), B(24), '#3b6ea8']]);
+    track('Mega movement', [[eEight, B(2), B(16), '#2f8f5b'], [eEight, B(21), B(23), '#2f8f5b']]);
+  }
+
+  /* ── AquaVortex TB5: five heads, RGBL, pixel rings (patched last: with every model on stage its fifth head is the one over the projection budget) ── */
   if (use.tb5) {
     const T = fix('TB5', 'tb5', '85CH', 101, 0, 1.6), H = [1, 2, 3, 4, 5];
     /** per-head values: f(headIndex 0..4) → { r, g, b, l, zoom, tilt, pan, ring: [r, g, b], macro } */
@@ -79,8 +111,10 @@ function build(name, use) {
 }
 
 export const EXAMPLES = [
-  { id: 'all', name: 'All three models — showcase', about: '2 × 250W BSW, 500W Frame and AquaVortex TB5 on one stage, 48 s show with music', build: () => build('All three models — showcase', { bsw: true, frame: true, tb5: true }) },
+  { id: 'all', name: 'All models — showcase', about: '2 × 250W BSW, 500W Frame, ApexPointe 420, Mega480 and AquaVortex TB5 on one stage, 48 s show with music', build: () => build('All models — showcase', { bsw: true, frame: true, tb5: true, apex: true, mega: true }) },
   { id: 'bsw', name: '250W BSW pair — beams, gobos, prism', about: 'two WOP-LM1012B', build: () => build('250W BSW pair', { bsw: true }) },
   { id: 'frame', name: '500W Frame — CMY and framing blades', about: 'one WOP-LM500WF', build: () => build('500W Frame', { frame: true }) },
   { id: 'tb5', name: 'AquaVortex TB5 — five heads and pixel rings', about: 'one WOP-AVortex TB5 in 85CH mode', build: () => build('AquaVortex TB5', { tb5: true }) },
+  { id: 'apex', name: 'ApexPointe 420 — prisms, reducers, continuous pan', about: 'one ApexPointe 420 in 39CH mode', build: () => build('ApexPointe 420', { apex: true }) },
+  { id: 'mega', name: 'Mega480 BSW — CMY, gobos, prisms', about: 'one WOP-M480BSW in 39CH mode', build: () => build('Mega480 BSW', { mega: true }) },
 ];
