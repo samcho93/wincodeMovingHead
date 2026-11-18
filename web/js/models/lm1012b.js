@@ -255,7 +255,7 @@ export default {
   // Body: dimension drawing on manual page 5 — 296 (W) × 224 (D) × 492 (H) mm
   body: {
     H: 0.492, style: 'box', handles: true,                      // 296 (W) × 224 (D) × 492 (H) mm, manual chapter 2; shapes from the cover drawing
-    base: { hw: 0.113, bot: 0.03, top: 0.105, shoulder: 0.083, chamfer: 0.02, depth: 0.2, frameW: 0.166, frameH: 0.062, panelY: 0.067 },
+    base: { hw: 0.113, bot: 0.03, top: 0.105, shoulder: 0.092, chamfer: 0.02, depth: 0.2, frameW: 0.166, frameH: 0.054, panelY: 0.063, corner: 0.022 },
     feet: { r: 0.014, h: 0.03, x: 0.075, z: 0.07 },
     turntable: { r: 0.078, h: 0.02 }, panY: 0.125,
     yoke: { W: 0.292, t: 0.036, wb: 0.17, h1: 0.04, h2: 0.07, yf: 0.02, c: 0.028, d: 0.12, armW: 0.088, top: 0.245 },

@@ -355,18 +355,20 @@ export default {
   // the proportions of base, yoke and head are taken from the manual's cover drawing and drawing 4.1.
   body: {
     H: 0.673, style: 'round',                                   // product page drawing: 391 (yoke) / 386 (base) × 230 × 673, arm 113 deep, arm top at 460
-    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.092, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.058, panelY: 0.074, handle: 'bar' },
+    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.097, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.05, panelY: 0.07, handle: 'bar', corner: 0.03 },
     feet: { r: 0.02, h: 0.04, x: 0.125, z: 0.08 },
     turntable: { r: 0.095, h: 0.012 }, panY: 0.124,
     yoke: { W: 0.391, t: 0.05, wb: 0.22, h1: 0.07, h2: 0.105, yf: 0.03, c: 0.035, d: 0.15, armW: 0.113, top: 0.34 },
     tiltY: 0.262,
-    // rear box → shoulder → three stepped lens rings (product photos)
-    head: [{ y: -0.2, w: 0.14, d: 0.12, c: 0.035 }, { y: -0.186, w: 0.2, d: 0.185, c: 0.05 }, { y: -0.13, w: 0.257, d: 0.23, c: 0.055 }, { y: 0.06, w: 0.257, d: 0.23, c: 0.055 }, { y: 0.085, w: 0.257, d: 0.23, c: 0.075 }, { y: 0.115, w: 0.215, d: 0.21, c: 0.085 },
-      { y: 0.118, w: 0.236 }, { y: 0.15, w: 0.236 }, { y: 0.15, w: 0.214 }, { y: 0.162, w: 0.214 }, { y: 0.162, w: 0.228 }, { y: 0.192, w: 0.228 }, { y: 0.192, w: 0.208 }, { y: 0.204, w: 0.208 }, { y: 0.204, w: 0.222 }, { y: 0.25, w: 0.222 }, { y: 0.258, w: 0.2 }],
-    plate: { y: -0.03, z: 0.1165 },
-    vents: [{ side: 'x', off: 0.1295, y: 0.02, h: 0.05, n: 6, pitch: 0.012 }, { side: 'z', off: 0.116, y: -0.11, h: 0.05, n: 9, pitch: 0.011 }],
+    // rear box → three stepped rings as wide as the box → short lens hood (product page drawing and photos)
+    head: [{ y: -0.2, w: 0.14, d: 0.12, c: 0.035 }, { y: -0.186, w: 0.2, d: 0.185, c: 0.05 }, { y: -0.13, w: 0.257, d: 0.23, c: 0.055 }, { y: 0.13, w: 0.257, d: 0.23, c: 0.055 }, { y: 0.155, w: 0.24, d: 0.225, c: 0.08 },
+      { y: 0.158, w: 0.262 }, { y: 0.186, w: 0.262 }, { y: 0.186, w: 0.24 }, { y: 0.194, w: 0.24 }, { y: 0.194, w: 0.256 }, { y: 0.22, w: 0.256 }, { y: 0.22, w: 0.236 }, { y: 0.228, w: 0.236 }, { y: 0.228, w: 0.25 }, { y: 0.252, w: 0.25 }, { y: 0.256, w: 0.212 }, { y: 0.262, w: 0.206 }],
+    // cover panel of the drawing's front view: narrow at the lens end, wide towards the rear, cut corners
+    shield: { pts: [[-0.065, 0.14], [0.065, 0.14], [0.1, -0.07], [0.07, -0.125], [-0.07, -0.125], [-0.1, -0.07]], z: 0.117 },
+    plate: { y: 0.06, z: 0.1225 },
+    vents: [{ side: 'x', off: 0.1295, y: 0.06, h: 0.05, n: 6, pitch: 0.012 }, { side: 'z', off: 0.1262, y: -0.045, h: 0.05, n: 7, pitch: 0.011 }],
     logo: { arm: 'Wincode', head: 'MEGA 480', headSize: [0.1, 0.03] },
-    lensY: 0.26, lensR: 0.082, ringR: 0.098,                    // lens dome adds 27 mm: 0.124 + 0.262 + 0.260 + 0.027 = 0.673
+    lensY: 0.26, lensR: 0.09, ringR: 0.099,                     // lens dome adds 30 mm: 0.124 + 0.262 + 0.260 + 0.030 = 0.676
     lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,
   },
   assumptions: [

@@ -146,7 +146,7 @@ export default {
   // the proportions of base, yoke and head are taken from the product photos.
   body: {
     H: 0.67, style: 'round',                                    // 380 × 270 × 670 mm (product page); shapes from the manual cover drawing and the product photos
-    base: { hw: 0.168, bot: 0.045, top: 0.13, shoulder: 0.106, chamfer: 0.03, depth: 0.258, frameW: 0.2, frameH: 0.066, panelY: 0.088, handle: 'bar' },
+    base: { hw: 0.168, bot: 0.045, top: 0.13, shoulder: 0.112, chamfer: 0.03, depth: 0.258, frameW: 0.2, frameH: 0.06, panelY: 0.08, handle: 'bar', corner: 0.035 },
     feet: { r: 0.02, h: 0.045, x: 0.12, z: 0.088 },
     turntable: { r: 0.1, h: 0.02 }, panY: 0.15,
     yoke: { W: 0.36, t: 0.046, wb: 0.22, h1: 0.06, h2: 0.1, yf: 0.03, c: 0.05, d: 0.16, armW: 0.1, top: 0.335 },

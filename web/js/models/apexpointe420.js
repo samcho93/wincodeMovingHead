@@ -339,7 +339,7 @@ export default {
   // Body: overall size 386 × 234 × 673 mm from the product page; proportions of base, yoke and head from the product photos.
   body: {
     H: 0.673, style: 'round',                                   // 386 × 234 × 673 mm (product page); shapes from the manual cover drawing and the product photos
-    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.092, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.058, panelY: 0.074, handle: 'bar' },
+    base: { hw: 0.172, bot: 0.04, top: 0.112, shoulder: 0.097, chamfer: 0.022, depth: 0.23, frameW: 0.19, frameH: 0.05, panelY: 0.07, handle: 'bar', corner: 0.03 },
     feet: { r: 0.02, h: 0.04, x: 0.125, z: 0.08 },
     turntable: { r: 0.095, h: 0.012 }, panY: 0.124,
     yoke: { W: 0.391, t: 0.05, wb: 0.22, h1: 0.07, h2: 0.105, yf: 0.03, c: 0.035, d: 0.15, armW: 0.113, top: 0.34 },
@@ -347,8 +347,10 @@ export default {
     // rear box with flat faces → neck → one wide lens barrel
     head: [{ y: -0.2, w: 0.13, d: 0.11, c: 0.03 }, { y: -0.186, w: 0.2, d: 0.18, c: 0.045 }, { y: -0.12, w: 0.245, d: 0.215, c: 0.045 }, { y: 0.1, w: 0.245, d: 0.215, c: 0.045 }, { y: 0.135, w: 0.205, d: 0.2, c: 0.08 },
       { y: 0.15, w: 0.2 }, { y: 0.165, w: 0.24 }, { y: 0.243, w: 0.24 }, { y: 0.255, w: 0.222 }],
-    plate: { y: 0.0, z: 0.109 },
-    vents: [{ side: 'x', off: 0.1235, y: -0.03, h: 0.06, n: 5, pitch: 0.012 }, { side: 'z', off: 0.1085, y: -0.1, h: 0.04, n: 8, pitch: 0.011 }],
+    // cover panel of the product photos: wide at the lens end, narrowing to the rear, grille and logo at the bottom
+    shield: { pts: [[-0.105, 0.095], [0.105, 0.095], [0.088, -0.125], [0.06, -0.165], [-0.06, -0.165], [-0.088, -0.125]], z: 0.1095 },
+    plate: { y: -0.075, z: 0.115 },
+    vents: [{ side: 'x', off: 0.1235, y: -0.03, h: 0.06, n: 5, pitch: 0.012 }, { side: 'z', off: 0.1187, y: -0.135, h: 0.035, n: 8, pitch: 0.011 }],
     logo: { arm: 'POINTE 480', head: 'Wincode', headSize: [0.1, 0.03] },
     lensY: 0.256, lensR: 0.094, ringR: 0.108,                   // lens dome adds 31 mm: 0.124 + 0.262 + 0.256 + 0.031 = 0.673
     lcd: [0.05, 0.04], lcdX: -0.012, controls: 'col4', ctrlX: 0.034,

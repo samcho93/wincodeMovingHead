@@ -17,6 +17,8 @@
 //    logo { arm: 'text', head: 'text', headSize: [w, h], color }   lettering on both yoke arms (reads upwards) and on a
 //                                      badge on the front and back of the head (at plate.y / plate.z)
 //    sink { y0, y1, w, d, n }          finned heat sink at the rear end of the head
+//    shield { pts: [[x, y]…], z }      raised cover panel on the front and back of the head (outline in head x / y)
+//    base.corner                       plan-view corner chamfer of the base (the base is bevelled on all four sides)
 //  Bar bodies: base.endRise (end plates rising above the bar), base.loops (carrying loops between the heads),
 //    yoke.round (arm plates with a round top and an inlay)
 import * as THREE from 'three';
@@ -123,7 +125,10 @@ export function buildMachine(lcdCanvas, B) {
     }
     for (const sz of [-1, 1]) add(base, new THREE.BoxGeometry(b.frameW, b.frameH, 0.012), M.trim, 0, b.panelY, sz * hd);
   } else {
-    add(base, extrude([[-hw, b.bot], [hw, b.bot], [hw, b.shoulder], [hw - b.chamfer, b.top], [-hw + b.chamfer, b.top], [-hw, b.shoulder]], b.depth, 0.004), M.body);
+    const bc = b.corner ?? 0.028;                               // bevelled on all four sides: skirt, wall, shoulder
+    add(base, loft([{ y: b.bot, w: hw * 2 - 0.024, d: b.depth - 0.024, c: bc }, { y: b.bot + 0.014, w: hw * 2, d: b.depth, c: bc }, { y: b.shoulder, w: hw * 2, d: b.depth, c: bc },
+      { y: b.top, w: hw * 2 - b.chamfer * 2, d: b.depth - b.chamfer * 1.3, c: bc }]), M.body);
+    add(base, loft([{ y: b.top, w: hw * 1.25, d: b.depth * 0.72, c: bc }, { y: b.top + 0.006, w: hw * 1.2, d: b.depth * 0.68, c: bc }]), M.trim);   // top plate under the turntable
     if (B.handles) for (const sx of [-1, 1]) {                    // carrying handles (sides, ribbed)
       const h = add(base, extrude([[0, b.bot + 0.006], [0.035, b.bot + 0.02], [0.035, b.top - 0.021], [0, b.top - 0.007]], b.depth * 0.75, 0.003), M.body, sx * hw);
       if (sx < 0) h.scale.x = -1;
@@ -228,11 +233,11 @@ export function buildMachine(lcdCanvas, B) {
   const pan = new THREE.Group(); pan.position.y = B.panY; root.add(pan);
   if (B.yoke) {                                                 // one-piece U yoke
     const Y = B.yoke, W2 = Y.W / 2, xi = W2 - Y.t, r = Y.armW / 2, cy = Y.top - r, prof = [[-r, Y.h2 - 0.014], [r, Y.h2 - 0.014]];
-    add(pan, extrude([[-Y.wb / 2, 0], [Y.wb / 2, 0], [W2, Y.h1], [W2, Y.h2], [xi, Y.h2], [xi, Y.yf + Y.c], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + Y.c], [-xi, Y.h2], [-W2, Y.h2], [-W2, Y.h1]], Y.d, 0.006), M.body);
+    add(pan, extrude([[-Y.wb / 2, 0], [Y.wb / 2, 0], [W2, Y.h1], [W2, Y.h2], [xi, Y.h2], [xi, Y.yf + Y.c], [xi - Y.c, Y.yf], [-xi + Y.c, Y.yf], [-xi, Y.yf + Y.c], [-xi, Y.h2], [-W2, Y.h2], [-W2, Y.h1]], Y.d, 0.01), M.body);
     for (let i = 0; i <= 18; i++) { const a = (i / 18) * Math.PI; prof.push([Math.cos(a) * r, cy + Math.sin(a) * r]); }
     for (const sx of [-1, 1]) {
       const ax = sx * (W2 - Y.t / 2);
-      add(pan, extrude(prof, Y.t, 0.007), M.body, ax, 0, 0).rotation.y = Math.PI / 2;
+      add(pan, extrude(prof, Y.t, 0.011), M.body, ax, 0, 0).rotation.y = Math.PI / 2;
       add(pan, extrude([[-r * 0.5, Y.h2 + 0.012], [r * 0.5, Y.h2 + 0.012], [r * 0.5, cy], [-r * 0.5, cy]], 0.003, 0.001), M.trim, ax + sx * (Y.t / 2 + 0.0008), 0, 0).rotation.y = Math.PI / 2;   // side inlay (logo strip)
       const hub = add(pan, new THREE.CylinderGeometry(0.024, 0.024, 0.012, 24), M.trim, ax - sx * (Y.t / 2 + 0.003), B.tiltY, 0); hub.rotation.z = Math.PI / 2;
       const xo = ax + sx * (Y.t / 2 + 0.0026);
@@ -268,6 +273,7 @@ export function buildMachine(lcdCanvas, B) {
     else add(tilt, new THREE.BoxGeometry(v.pitch * 0.5, v.h, 0.004), M.trim, u, v.y, s * v.off);
   }
   if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
+  if (B.shield) for (const sz of [-1, 1]) add(tilt, extrude(B.shield.pts, 0.008, 0.003), M.trim, 0, 0, sz * B.shield.z);   // raised cover panel
   if (B.plate) for (const sz of [-1, 1]) {                       // name plate, lettered when the model gives a logo
     const [pw, ph] = (B.logo && B.logo.headSize) || [0.04, 0.02];
     add(tilt, new THREE.BoxGeometry(pw, ph, 0.003), M.trim, 0, B.plate.y, sz * B.plate.z);
