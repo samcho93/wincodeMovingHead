@@ -21,6 +21,8 @@ const level = v => { if (v == null) return null; const s = String(v).toLowerCase
 const se = (c, prop, parse) => (c[prop] != null ? [parse(c[prop]), parse(c[prop])] : c[prop + 'Start'] != null ? [parse(c[prop + 'Start']), parse(c[prop + 'End'])] : null);
 const FX = { Open: 'open', Closed: 'closed', Strobe: 'strobe', Pulse: 'pulse', RampUp: 'fadein', RampDown: 'pulse', RampUpDown: 'pulse', Lightning: 'random', Spikes: 'strobe', Burst: 'strobe' };
 const COLOR = { 'Warm White': 'Warm White', 'Cold White': 'Cold White' };
+/** label of a rotation range from its speeds: Stop / CW / CCW, slow → fast */
+const turn = (what, r) => { if (!r || (!r[0] && !r[1])) return `${what} stop`; const d = r[0] + r[1] < 0 ? 'CCW' : 'CW', a = Math.abs(r[0]), b = Math.abs(r[1]); return `${what} ${d}${a === b ? '' : a < b ? ' slow … fast' : ' fast … slow'}`; };
 
 export function fromOFL(J, manKey, fixKey, manName) {
   if (!J || !J.modes || !(J.availableChannels || J.templateChannels)) throw new Error('Not an Open Fixture Library fixture');
@@ -40,15 +42,16 @@ export function fromOFL(J, manKey, fixKey, manName) {
       case 'ShutterStrobe': { const fx = FX[c.shutterEffect] || 'strobe', r = se(c, 'speed', v => Math.abs(speed(v, 1, 20))) || [8, 8];
         set('Shutter', fx === 'open' || fx === 'closed' ? null : r, { fx: c.randomTiming && fx !== 'open' && fx !== 'closed' ? 'random' : fx }); o.label = c.comment || c.shutterEffect; break; }
       case 'WheelSlot': { const w = wheelIx(c, chName), r = se(c, 'slotNumber', num); if (w < 0 || !r) break; set('WheelSlot', [r[0] - 1, r[1] - 1], { wheel: w });
-        const sl = wheels[w].slots[Math.round(r[0]) - 1]; o.label = c.comment || (sl && (sl.name || sl.type)) || `Slot ${r[0]}`; if (r[0] % 1) o.label = `Split ${r[0]}`; break; }
-      case 'WheelRotation': { const w = wheelIx(c, chName); if (w < 0) break; set('WheelRotation', se(c, 'speed', v => speed(v, 0.15, 3)) || [0, 0], { wheel: w }); o.label = 'Wheel rotation'; break; }
+        const sl = wheels[w].slots[Math.round(r[0]) - 1], nth = sl ? wheels[w].slots.slice(0, Math.round(r[0])).filter(x => x.type === sl.type).length : 0;
+        o.label = c.comment || (sl && (sl.name || (sl.type === 'Open' ? 'Open' : `${sl.type} ${nth}`))) || `Slot ${r[0]}`; if (r[0] % 1) o.label = `Split ${r[0]}`; else if (r[0] !== r[1]) o.label += ' …'; break; }
+      case 'WheelRotation': { const w = wheelIx(c, chName); if (w < 0) break; set('WheelRotation', se(c, 'speed', v => speed(v, 0.15, 3)) || [0, 0], { wheel: w }); o.label = turn('Wheel rotation', [o.s, o.e]); break; }
       case 'WheelShake': { const w = wheelIx(c, chName); if (w < 0) break; set('WheelShake', se(c, 'shakeSpeed', v => Math.abs(speed(v, 2, 12))) || [6, 6], { wheel: w }); o.label = 'Shake'; break; }
-      case 'WheelSlotRotation': { const w = wheelIx(c, chName), ang = se(c, 'angle', num); if (ang) set('SlotRotation', ang, { wheel: w, angle: true }); else set('SlotRotation', se(c, 'speed', v => speed(v, 0.03, 1.5)) || [0, 0], { wheel: w }); o.label = ang ? 'Gobo index' : 'Gobo rotation'; break; }
+      case 'WheelSlotRotation': { const w = wheelIx(c, chName), ang = se(c, 'angle', num); if (ang) set('SlotRotation', ang, { wheel: w, angle: true }); else set('SlotRotation', se(c, 'speed', v => speed(v, 0.03, 1.5)) || [0, 0], { wheel: w }); o.label = ang ? 'Gobo index' : turn('Gobo rotation', [o.s, o.e]); break; }
       case 'Zoom': { const r = se(c, 'angle', v => { const s = String(v).toLowerCase(); return s === 'narrow' ? 6 : s === 'wide' ? 45 : s === 'closed' ? 3 : num(v) * (s.endsWith('%') ? 0.45 : 1); }); if (r) set('Zoom', r); o.label = 'Zoom'; break; }
       case 'Focus': set('Focus', se(c, 'distance', level) || [0, 1]); o.label = 'Focus'; break;
       case 'Frost': set('Frost', se(c, 'frostIntensity', level) || [1, 1]); o.label = 'Frost'; break;
-      case 'Prism': { const ang = se(c, 'angle', num); if (ang) set('Prism', ang, { angle: true }); else set('Prism', se(c, 'speed', v => speed(v, 0.05, 1.5)) || [0, 0]); o.label = c.comment || 'Prism'; break; }
-      case 'PrismRotation': { const ang = se(c, 'angle', num); if (ang) set('PrismRotation', ang, { angle: true }); else set('PrismRotation', se(c, 'speed', v => speed(v, 0.05, 1.5)) || [0, 0]); o.label = 'Prism rotation'; break; }
+      case 'Prism': { const ang = se(c, 'angle', num); if (ang) set('Prism', ang, { angle: true }); else set('Prism', se(c, 'speed', v => speed(v, 0.05, 1.5)) || [0, 0]); o.label = c.comment || (ang ? 'Prism index' : c.speed != null || c.speedStart != null ? turn('Prism', [o.s, o.e]) : 'Prism'); break; }
+      case 'PrismRotation': { const ang = se(c, 'angle', num); if (ang) set('PrismRotation', ang, { angle: true }); else set('PrismRotation', se(c, 'speed', v => speed(v, 0.05, 1.5)) || [0, 0]); o.label = ang ? 'Prism index' : turn('Prism rotation', [o.s, o.e]); break; }
       case 'NoFunction': o.label = c.comment || 'No function'; break;
     }
     return o;
