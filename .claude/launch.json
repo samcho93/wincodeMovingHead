@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server/index.js"],
       "port": 7740
+    },
+    {
+      "name": "dmxstudio",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["../wincodeDmxStudio/server/index.js"],
+      "port": 7750
     }
   ]
 }

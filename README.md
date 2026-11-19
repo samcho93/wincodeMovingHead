@@ -186,6 +186,15 @@ method follows [QLC+](https://www.qlcplus.org/): the tabs run in the same order 
 - **Files**: the workspace is saved as JSON (Save / Open) and autosaved in the browser. Audio files are kept in the browser's storage, not in the workspace file — choose them again after moving to another computer.
 - The clock runs in a worker, so the editor keeps sending 40 Hz while its window is in the background.
 
+## Wincode DMX Studio (separate project)
+
+A stand-alone lighting console — programmer, groups and palettes, cue lists with tracking, effects, playback faders, up
+to 64 universes — lives in its own repository: https://github.com/samcho93/wincodeDmxStudio
+(live: https://samcho93.github.io/wincodeDmxStudio/). The **🎚 DMX Studio** button of the simulator and of the stage opens
+it; its **🎭 3D Stage** button hands its patch to the stage page, whose fixtures then follow the Virtual DMX cable.
+Locally, with that project in the folder next to this one, the server serves it at `http://127.0.0.1:7740/studio/` so
+that both share one origin. The built-in DMX editor above is unchanged.
+
 ## Add-model agent (development only)
 
 **Ctrl + double-click the WINCODE logo** (anywhere on the logo area at the top left) or **Ctrl + Alt + M** opens the

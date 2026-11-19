@@ -28,6 +28,7 @@ const HTTP_PORT = +(process.env.WMH_PORT || 7740);
 const DIST = process.argv.includes('--dist') || process.env.WMH_DIST === '1';
 const ROOT = path.join(__dirname, '..');
 const WEB = path.join(ROOT, 'web');
+const STUDIO = path.join(ROOT, '..', 'wincodeDmxStudio', 'web');
 const THREE_DIR = path.join(ROOT, 'node_modules', 'three');
 const DATA = path.join(ROOT, 'data');
 fs.mkdirSync(DATA, { recursive: true });
@@ -118,6 +119,10 @@ const server = http.createServer(async (req, res) => {
   if (p === '/api/ports') { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); return res.end(JSON.stringify(await DmxSerial.list())); }
   if (p.startsWith('/vendor/three/')) return sendFile(res, THREE_DIR, p.slice('/vendor/three/'.length));
   if (p.startsWith('/docs/')) return sendFile(res, path.join(ROOT, 'docs'), p.slice('/docs/'.length));
+  // Wincode DMX Studio (a separate project in the folder next to this one): served under /studio/ when it is there, so that
+  // both programs share one origin and the studio can drive this simulator over the Virtual DMX cable.
+  if (p === '/studio') { res.writeHead(302, { Location: '/studio/' }); return res.end(); }
+  if (p.startsWith('/studio/')) return sendFile(res, STUDIO, p === '/studio/' ? 'index.html' : p.slice('/studio/'.length));
   if (p === '/') p = '/index.html';
   sendFile(res, WEB, p.slice(1));
 });

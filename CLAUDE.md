@@ -28,6 +28,11 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - Views render with `fill(el, …)` (skips null children). Debug: `WMX.engine`, `WMX.store`, `WMX.views`.
 - Output: virtual cable message `{ t:'dmx', u, data }` (the simulator filters on its cable universe) or ws binary type 3 (per-universe host) → Art-Net / sACN.
 
+## Wincode DMX Studio (separate project)
+- `D:\Work\Web\wincodeDmxStudio` / https://github.com/samcho93/wincodeDmxStudio — a stand-alone lighting console. The built-in DMX editor above stays as it is.
+- It drives this simulator over the Virtual DMX cable, which needs one origin: next to this site on GitHub Pages, and locally `server/index.js` serves its `web/` under `/studio/`. The `🎚 DMX Studio` links (`#lnkStudio`) point there.
+- Shared contract: `BroadcastChannel('wmh-dmx')` message `{ t:'dmx', u, data }`, the stage file format and `localStorage['wmh.stage.v1']` (the studio hands its patch to the stage through it). Its fixture profiles are generated from `web/js/models/*.js` (`npm run import-wincode` there) — regenerate after a model changes.
+
 ## Stage editor (`web/stage.html`, `web/js/stage/`)
 - Several fixtures on one stage: each is a `Fixture` created with `{ persist: false, settings }` (no localStorage), its own machine and one `Beam` per head. Stage file = `{ app: 'wmh-stage', fixtures: [layout], workspace }`; layout ids = workspace fixture ids.
 - Plays the workspace's first show with the editor's `Engine` inside the page (`store.persist = false` so the editor's autosave slot is never touched; hand-over is explicit via `store.handOver` / `store.peekSaved`). Engine clock = worker timer; fixtures and rendering = rAF. When nothing plays, fixtures follow the virtual cable.

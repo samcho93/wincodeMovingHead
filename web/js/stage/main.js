@@ -256,3 +256,6 @@ let saved = null; try { saved = JSON.parse(localStorage.getItem(LS) || 'null'); 
 try { load(saved && saved.app === 'wmh-stage' ? saved : EXAMPLES[0].build()); } catch (e) { load(EXAMPLES[0].build()); }
 frame();
 installAgentEntry();                                         // development only: Ctrl + double-click the logo / Ctrl + Alt + M
+
+// Wincode DMX Studio is a separate site: next to this one on GitHub Pages, under /studio/ on the local server
+{ const a = document.querySelector('#lnkStudio'); if (a && window.WMH_STATIC) a.href = '../wincodeDmxStudio/'; }

@@ -324,3 +324,6 @@ setPower(saved.power !== '0');
 if (saved.tx === '1') toggleTx(true);
 if (fx.settings.runMode === 'SOUND') micStart();
 frame();
+
+// Wincode DMX Studio is a separate site: next to this one on GitHub Pages, under /studio/ on the local server
+{ const a = document.querySelector('#lnkStudio'); if (a && window.WMH_STATIC) a.href = '../wincodeDmxStudio/'; }
