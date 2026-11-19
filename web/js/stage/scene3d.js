@@ -11,6 +11,18 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 export const ROOM = { w: 16, d: 14, h: 7, back: -6 };
 export const TRUSS_Y = 4.6;                                  // height of the lower truss chords
 
+const trussMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.35, metalness: 0.9 });
+/** A box truss of the given length along X; origin = middle of the lower chords (where fixtures hang) */
+export function buildTruss(len) {
+  const g = new THREE.Group(), tube = (r, l, seg) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, seg), trussMat);
+  for (const [y, z] of [[0, -0.14], [0, 0.14], [0.28, -0.14], [0.28, 0.14]]) { const t = tube(0.025, len, 12); t.rotation.z = Math.PI / 2; t.position.set(0, y, z); g.add(t); }
+  for (let x = -len / 2; x <= len / 2 + 1e-6; x += 0.5) {
+    for (const z of [-0.14, 0.14]) { const t = tube(0.012, 0.28, 6); t.position.set(x, 0.14, z); g.add(t); }
+    for (const y of [0, 0.28]) { const t = tube(0.012, 0.28, 6); t.rotation.x = Math.PI / 2; t.position.set(x, y, 0); g.add(t); }
+  }
+  return g;
+}
+
 export function createStage(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -39,13 +51,6 @@ export function createStage(host) {
   plane(ROOM.w, ROOM.d, wallM, 0, ROOM.h, cz, Math.PI / 2, 0);
   const grid = new THREE.GridHelper(ROOM.w, ROOM.w, 0x2a2a30, 0x202024); grid.position.set(0, 0.002, cz); grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
 
-  // truss across the stage (shown when a fixture hangs from it)
-  const truss = new THREE.Group(); truss.visible = false; scene.add(truss);
-  {
-    const m = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.35, metalness: 0.9 }), len = ROOM.w - 2;
-    for (const [y, z] of [[0, -0.14], [0, 0.14], [0.28, -0.14], [0.28, 0.14]]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, len, 12), m); t.rotation.z = Math.PI / 2; t.position.set(0, TRUSS_Y + y, z); truss.add(t); }
-    for (let x = -len / 2; x <= len / 2; x += 0.5) for (const z of [-0.14, 0.14]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 6), m); t.position.set(x, TRUSS_Y + 0.14, z); truss.add(t); }
-  }
   const hemi = new THREE.HemisphereLight(0x55607a, 0x0a0a0c, 0.2); scene.add(hemi);
   const work = new THREE.DirectionalLight(0xfff2e0, 0); work.position.set(3, 6, 5); scene.add(work);
   const fill = new THREE.DirectionalLight(0xdfe8ff, 0.35); fill.position.set(2, 4, 6); scene.add(fill);   // weak front light so the fixtures are visible
@@ -76,5 +81,5 @@ export function createStage(host) {
     for (const b of beams) { b.vol.visible = b.volWas; b.flare.visible = b.flareWas; }
     composer.render();
   }
-  return { THREE, renderer, scene, camera, controls, floor, truss, depthRT, size, render, setWorkLight, set onResize(f) { onResize = f; } };
+  return { THREE, renderer, scene, camera, controls, floor, depthRT, size, render, setWorkLight, set onResize(f) { onResize = f; } };
 }

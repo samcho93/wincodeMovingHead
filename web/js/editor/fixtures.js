@@ -65,7 +65,7 @@ export function mountFixtures(app, root) {
             h('td', null, select(ws.universes.map((u, i) => [i, u.name]), f.universe, v => { f.universe = +v; store.emit('fixtures'); })),
             h('td', null, numInput(f.address, 1, 512, v => { f.address = v; store.emit('fixtures'); })),
             h('td', null, `${f.address}–${f.address + n - 1} (${n})${bad.has(f.id) ? '  ⚠ overlap / out of range' : ''}`),
-            h('td', null, d && d.sim ? h('a', { class: 'btn sm', href: `index.html?model=${d.sim}`, target: 'wmh-sim-' + f.id, title: `Opens this model in the 3D simulator. Set its DMX address to ${f.address} and DMX IN to the virtual cable (universe ${ws.universes[f.universe].outUniverse}).` }, '🔦 Simulator') : ''));
+            h('td', null, d && d.sim && d.manufacturer === 'Wincode' ? h('a', { class: 'btn sm', href: `index.html?model=${d.sim}`, target: 'wmh-sim-' + f.id, title: `Opens this model in the 3D simulator. Set its DMX address to ${f.address} and DMX IN to the virtual cable (universe ${ws.universes[f.universe].outUniverse}).` }, '🔦 Simulator') : ''));
         }))),
       ws.fixtures.length ? null : h('p', { class: 'muted' }, 'No fixtures yet. Add the fixtures of your rig, then build scenes in the Functions tab.'));
   }

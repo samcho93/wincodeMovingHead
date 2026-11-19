@@ -1,5 +1,7 @@
 // editor/store.js — the workspace (what QLC+ calls a project): universes, patched fixtures, functions, virtual console.
 //  Saved as JSON (file download / upload) and autosaved to localStorage. Audio files live in IndexedDB, keyed by name.
+import { registerAll } from '../library/desc.js';
+
 const LS = 'wmh.editor.workspace.v1';
 export const MAX_UNIVERSES = 32;
 
@@ -10,6 +12,7 @@ export function blankWorkspace() {
     fixtures: [],        // { id, name, def, mode, universe (0-based), address (1-based) }
     functions: [],       // { id, type, name, … } — see engine.js for the fields of each type
     vc: { widgets: [] }, // virtual console
+    library: {},         // descriptions of the library fixtures in the patch (library/desc.js), so the file opens anywhere
   };
 }
 
@@ -27,8 +30,8 @@ export const store = {
   peekSaved() { try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); return j && j.app === 'wmh-dmx-editor' ? j : null; } catch (e) { return null; } },
   /** hand a workspace to the DMX editor: it opens it on its next start */
   handOver(ws) { localStorage.setItem(LS, JSON.stringify(ws)); },
-  restore() { try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j && j.app === 'wmh-dmx-editor') { this.ws = Object.assign(blankWorkspace(), j); return true; } } catch (e) {} return false; },
-  load(json) { if (!json || json.app !== 'wmh-dmx-editor') throw new Error('Not a DMX editor workspace file'); this.ws = Object.assign(blankWorkspace(), json); this.emit('workspace'); },
+  restore() { try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j && j.app === 'wmh-dmx-editor') { this.ws = Object.assign(blankWorkspace(), j); registerAll(this.ws); return true; } } catch (e) {} return false; },
+  load(json) { if (!json || json.app !== 'wmh-dmx-editor') throw new Error('Not a DMX editor workspace file'); this.ws = Object.assign(blankWorkspace(), json); registerAll(this.ws); this.emit('workspace'); },   // ws.library: descriptions of the imported fixtures it uses
   reset() { this.ws = blankWorkspace(); this.emit('workspace'); },
   download() {
     const a = document.createElement('a');

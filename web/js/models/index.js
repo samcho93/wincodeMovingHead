@@ -30,6 +30,10 @@
 //   rdm         { modelId, description, software }
 //   body        dimensions for the procedural 3D model (machine.js)
 //   assumptions [strings]                  shown in the Guide tab
+//  Optional: highlight { key: value } ("simply shine" values for the stage editor's lamp test; default program.base),
+//   chGroup { key: 'intensity' | 'colour' | 'pan' | 'tilt' | 'effect' } (the editor derives it from the key otherwise).
+//  Models made from a library description (library/desc.js) use panel.type 'none' (menu-none.js) and are registered
+//  at run time with registerModel().
 import lm1012b from './lm1012b.js';
 import lm500wf from './lm500wf.js';
 import tb5 from './tb5.js';
@@ -39,6 +43,9 @@ import mega480 from './mega480.js';
 export const LIST = [lm1012b, lm500wf, tb5, apexpointe420, mega480];
 export const MODELS = Object.fromEntries(LIST.map(m => [m.id, m]));
 export const DEFAULT_MODEL = LIST[0].id;
+/** A model made at run time from a fixture-library description (library/desc.js). It is not added to LIST: the
+ *  single-fixture simulator and the examples keep to the hand-written models. */
+export function registerModel(m) { MODELS[m.id] = m; return m; }
 
 /** Model chosen by ?model=, else the last one used, else the first in LIST */
 export function currentModelId() {

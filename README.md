@@ -155,8 +155,23 @@ from one DMX patch.
   The backing track is synthesised in the browser, so no audio file is shipped.
 - **Transport**: Play / Pause, Stop, a position slider and Loop. The show keeps time from a worker clock and the audio,
   so it does not stall when the window is in the background.
-- **Editing the stage**: add fixtures (model list at the right), click one to select it, drag it across the floor,
-  or type its position, rotation, DMX address and channel mode; mount it on the floor or inverted on the truss; remove it.
+- **Fixture library** (*＋ Add fixtures…*): search every fixture that can stand on the stage, choose channel mode,
+  quantity and mounting, and add the whole row at once — it is addressed automatically, into the next universe when one is full.
+  - *Wincode* — the hand-written models of this simulator (full 3D body, panel and menu).
+  - *Open Fixture Library* — 610 fixtures of 127 manufacturers, bundled (`web/js/library/data/ofl`, MIT licence,
+    built by `node tools/import-ofl.mjs <checkout>`).
+  - *Imported files* — **GDTF** (`.gdtf`, the open format of grandMA3, Vectorworks, Capture …) or an Open Fixture
+    Library `.json`: press *Import GDTF / OFL file…* or drop the files on the window. They stay in the browser's library.
+  Library fixtures drive a stand-in 3D body from their own channel chart: dimmer, shutter and strobe, pan and tilt,
+  colour wheel, RGB / CMY mixing, gobo wheels with rotation, prism, zoom, focus and frost. Macro and effect channels do
+  nothing; pixels of a bar are averaged into one beam; a GDTF file's own 3D model is not read.
+- **Editing the stage**: click a fixture to select it (Shift-click for several), drag it across the floor or along its
+  truss, or type position, rotation, universe, DMX address and channel mode. *＋ Truss* adds a truss with its own depth,
+  height and length; *Hang from* moves a fixture between the floor and a truss. A fixture without tilt has an *Aim* angle.
+  With several selected: *Spread evenly*, *Same depth*, *Face front*, *Fan*, *Re-address* (consecutive addresses, left
+  to right), *Duplicate*, *Remove*. Keys: Del, Ctrl+D, Ctrl+A, arrow keys (Shift = 0.5 m), Q / E to turn, Esc.
+  *💡 Highlight* is a lamp test: the selection shines open, full and white whatever the show sends.
+  Camera presets (3D / Front / Top / Side) are at the bottom left of the view.
 - **Files**: *Save* writes a `.stage.json` with the layout, the patch and the show; *Open* loads one; the last stage is
   kept in the browser.
 - **Programming the show**: *Edit show* opens the stage's patch and show in the DMX editor. While the stage is not
@@ -165,7 +180,9 @@ from one DMX patch.
 - A stage file's show is an ordinary DMX editor workspace; the examples are generated in code
   (`web/js/stage/examples.js`) from the model definitions, so they follow any change in a channel layout.
 - Limits: the first 9 heads light the floor and walls (the rest still show their beam in the air); only single-head
-  fixtures cast shadows. Generic fixtures in the patch have no 3D model and are not shown.
+  fixtures cast shadows. Generic fixtures in the patch have no 3D model and are not shown. Trusses run left to right only.
+- A stage file carries the descriptions of the library fixtures it uses (`workspace.library`), so it opens on another
+  computer and in the DMX editor without the library being there.
 
 ## DMX Editor
 

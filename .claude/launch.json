@@ -12,6 +12,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["../wincodeDmxStudio/server/index.js"],
       "port": 7750
+    },
+    {
+      "name": "nodemanager",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["../wincodeNodeManager/server/index.mjs"],
+      "port": 7760
     }
   ]
 }

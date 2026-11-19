@@ -14,7 +14,7 @@ const GROUP = {
 };
 export const groupOf = key => GROUP[baseOf(key)] || 'effect';
 export const isHTP = group => group === 'intensity' || group === 'colour';
-const chan = (key, name) => ({ key, name, group: groupOf(key), htp: isHTP(groupOf(key)) });
+const chan = (key, name, group = groupOf(key)) => ({ key, name, group, htp: isHTP(group) });
 
 /** Heads of one mode: channel indexes of the pan/tilt pairs (for EFX) — one entry per head */
 function headsOf(channels) {
@@ -34,14 +34,19 @@ function def(id, manufacturer, model, modes, describe) {
 }
 
 const DEFS = new Map();
-for (const M of LIST) {
-  const modes = {};
-  for (const m of Object.values(M.modes)) modes[m.id] = { label: m.label, channels: m.channels.map(k => chan(k, M.ch[k])) };
-  const d = def('wincode/' + M.id, 'Wincode', `${M.name} (${M.code})`, modes, M.describe);
-  d.defaultMode = M.defaultMode; d.sim = M.id;                 // sim: opens in the 3D simulator
-  DEFS.set(d.id, d);
+export const library = [];
+/** Make a simulator model patchable. Built-in models get the id 'wincode/<id>'; a model made from a library
+ *  description (library/desc.js) keeps its own id and may give the group of each channel in M.chGroup. */
+export function addModel(M, id = 'wincode/' + M.id, manufacturer = 'Wincode') {
+  if (DEFS.has(id)) return DEFS.get(id);
+  const modes = {}, G = M.chGroup || {};
+  for (const m of Object.values(M.modes)) modes[m.id] = { label: m.label, channels: m.channels.map(k => chan(k, M.ch[k], G[k])) };
+  const d = def(id, manufacturer, M.code ? `${M.name} (${M.code})` : M.name, modes, M.describe);
+  d.defaultMode = M.defaultMode; d.sim = M.id;                 // sim: has a 3D model (models/index.js MODELS)
+  DEFS.set(d.id, d); library.push(d); return d;
 }
-const G = (id, model, modes) => DEFS.set('generic/' + id, def('generic/' + id, 'Generic', model, modes));
+for (const M of LIST) addModel(M);
+const G = (id, model, modes) => { const d = def('generic/' + id, 'Generic', model, modes); DEFS.set(d.id, d); library.push(d); };
 const one = (label, list) => ({ label, channels: list.map(([k, n]) => chan(k, n)) });
 G('dimmer', 'Dimmer', { '1CH': one('1CH', [['dimmer', 'Dimmer']]) });
 G('rgb', 'RGB', { '3CH': one('3CH', [['r', 'Red'], ['g', 'Green'], ['b', 'Blue']]), '4CH': one('4CH (Dimmer + RGB)', [['dimmer', 'Dimmer'], ['r', 'Red'], ['g', 'Green'], ['b', 'Blue']]) });
@@ -50,6 +55,5 @@ G('moving', 'Moving Head', { '11CH': one('11CH', [['pan', 'Pan'], ['panFine', 'P
 G('scanner', 'Scanner', { '6CH': one('6CH', [['pan', 'Pan'], ['tilt', 'Tilt'], ['dimmer', 'Dimmer'], ['strobe', 'Shutter'], ['color', 'Colour'], ['gobo', 'Gobo']]) });
 { const modes = {}; for (const n of [1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64]) modes[n + 'CH'] = one(n + 'CH', Array.from({ length: n }, (_, i) => ['dimmer' + (i + 1), 'Channel ' + (i + 1)])); G('multi', 'Generic channels', modes); }
 
-export const library = [...DEFS.values()];
 export const getDef = id => DEFS.get(id);
 export const modeOf = fx => { const d = DEFS.get(fx.def); return d ? d.modes[fx.mode] || d.modes[d.defaultMode] : null; };

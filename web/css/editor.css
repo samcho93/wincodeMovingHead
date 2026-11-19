@@ -94,3 +94,14 @@ body.operate #vcProps { display: none; }
 .mon div { background: #14181d; text-align: center; padding: 2px 0; color: #5f6b7f; position: relative; overflow: hidden; }
 .mon div b { position: relative; font-weight: 400; color: #e8ecf0; } .mon div i { position: absolute; left: 0; bottom: 0; right: 0; background: rgba(240,146,58,.35); }
 .mon div.pat { background: #19202a; }
+
+/* stage editor: camera presets, truss table, fixture library window */
+#views { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 4px; }
+table.mini { width: 100%; border-collapse: collapse; } table.mini th { text-align: left; font-weight: 500; font-size: 11px; color: var(--dim); padding: 2px 3px; } table.mini td { padding: 2px 3px; }
+table.mini input[type=text] { width: 100%; min-width: 60px; } table.mini input[type=number] { width: 56px; }
+.dlg.lib { width: min(1000px, 94vw); max-width: none; } .dlg.lib .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.lib-body { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; margin-top: 10px; height: min(60vh, 560px); }
+.lib-left { display: flex; flex-direction: column; min-height: 0; } .lib-list { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #0e1115; }
+.lib-detail { overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; } .lib-detail h3 { margin: 0 0 2px; }
+.lib-chans { font-size: 12px; columns: 2; column-gap: 14px; margin-top: 4px; } .lib-chans div { break-inside: avoid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 760px) { .lib-body { grid-template-columns: 1fr; height: auto; } .lib-list { max-height: 34vh; } .lib-detail { max-height: 40vh; } }
