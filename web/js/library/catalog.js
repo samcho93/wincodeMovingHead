@@ -1,11 +1,11 @@
 // library/catalog.js — where fixture descriptions come from in the browser.
-//  · the bundled Open Fixture Library (data/ofl: an index for searching, one file per manufacturer, loaded when needed;
+//  · the bundled Open Fixture Library (ofl-data: an index for searching, one file per manufacturer, loaded when needed;
 //    built by tools/import-ofl.mjs)
 //  · fixtures the user imported from a GDTF or Open Fixture Library file — kept in this browser
 import { fromOFL } from './ofl.js';
 import { fromGDTF } from './gdtf.js';
 
-const BASE = new URL('./data/ofl/', import.meta.url), LS = 'wmh.library.user.v1';
+const BASE = new URL('./ofl-data/', import.meta.url), LS = 'wmh.library.user.v1';
 let indexP = null; const packs = new Map();
 /** [{ id, m: manufacturer, n: name, c: categories, k: { mode: channels }, f: ['moving', 'rgb', 'gobo', 'prism'] }] */
 export const oflIndex = () => indexP || (indexP = fetch(new URL('index.json', BASE)).then(r => { if (!r.ok) throw new Error('The bundled fixture library is missing'); return r.json(); }).catch(e => { indexP = null; throw e; }));

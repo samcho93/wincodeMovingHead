@@ -3,7 +3,7 @@
  *  import-ofl.mjs — build the bundled fixture library from the Open Fixture Library
  *    git clone --depth 1 https://github.com/OpenLightingProject/open-fixture-library
  *    node tools/import-ofl.mjs <path to that checkout>
- *  Writes web/js/library/data/ofl/index.json (one line per fixture, for the browser's search) and one file per
+ *  Writes web/js/library/ofl-data/index.json (one line per fixture, for the browser's search) and one file per
  *  manufacturer with the converted descriptions (library/desc.js). Every fixture is converted with the same code the
  *  browser uses (library/ofl.js) and its model is run once in every mode; what fails or carries no light is left out.
  *  The Open Fixture Library is MIT licensed — its notice is copied next to the data.
@@ -16,7 +16,7 @@ import { modelFromDesc } from '../web/js/library/desc.js';
 
 const SRC = process.argv[2];
 if (!SRC || !fs.existsSync(path.join(SRC, 'fixtures', 'manufacturers.json'))) { console.error('Usage: node tools/import-ofl.mjs <open-fixture-library checkout>'); process.exit(1); }
-const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'js', 'library', 'data', 'ofl');
+const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'js', 'library', 'ofl-data');
 const mans = JSON.parse(fs.readFileSync(path.join(SRC, 'fixtures', 'manufacturers.json'), 'utf8'));
 const LIGHT = new Set(['Intensity', 'ColorIntensity', 'WheelSlot', 'Shutter']);
 fs.rmSync(OUT, { recursive: true, force: true }); fs.mkdirSync(OUT, { recursive: true });

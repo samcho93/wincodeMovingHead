@@ -1,0 +1,1 @@
+{"613sx":{"id":"ofl/robert-juliat/613sx","source":"ofl","manufacturer":"Robert Juliat","name":"613SX","categories":["Dimmer"],"lens":[28,54],"wheels":[],"channels":{"dimmer":{"name":"Dimmer","def":0,"caps":[{"a":0,"b":255,"type":"Intensity","label":"Intensity","s":0,"e":1}]}},"modes":[{"id":"Dimmer","label":"Dimmer (1)","channels":["dimmer"]}]}}

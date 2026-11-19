@@ -158,7 +158,7 @@ from one DMX patch.
 - **Fixture library** (*＋ Add fixtures…*): search every fixture that can stand on the stage, choose channel mode,
   quantity and mounting, and add the whole row at once — it is addressed automatically, into the next universe when one is full.
   - *Wincode* — the hand-written models of this simulator (full 3D body, panel and menu).
-  - *Open Fixture Library* — 610 fixtures of 127 manufacturers, bundled (`web/js/library/data/ofl`, MIT licence,
+  - *Open Fixture Library* — 610 fixtures of 127 manufacturers, bundled (`web/js/library/ofl-data`, MIT licence,
     built by `node tools/import-ofl.mjs <checkout>`).
   - *Imported files* — **GDTF** (`.gdtf`, the open format of grandMA3, Vectorworks, Capture …) or an Open Fixture
     Library `.json`: press *Import GDTF / OFL file…* or drop the files on the window. They stay in the browser's library.

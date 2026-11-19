@@ -35,7 +35,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 
 ## Fixture library (`web/js/library/`)
 - Fixtures that are not hand-written models: `ofl.js` (Open Fixture Library JSON) and `gdtf.js` (GDTF zip + XML) convert to one neutral description (format at the top of `desc.js`); `modelFromDesc()` makes a model with the normal contract and a generic `decode()`; `register()` adds it to `MODELS` (not `LIST`) and to the editor's library.
-- Bundled data: `data/ofl/index.json` + one file per manufacturer, built by `node tools/import-ofl.mjs <open-fixture-library checkout>` (converts with the browser's code and runs every mode once). Regenerate after changing `ofl.js` or `desc.js`. MIT notice sits next to the data.
+- Bundled data: `ofl-data/index.json` + one file per manufacturer, built by `node tools/import-ofl.mjs <open-fixture-library checkout>` (converts with the browser's code and runs every mode once). Regenerate after changing `ofl.js` or `desc.js`. MIT notice sits next to the data.
 - A workspace keeps the descriptions it uses in `ws.library`; `store.load` / `store.restore` register them, so stage files and editor hand-overs are self-contained. `catalog.js` also keeps user imports in `localStorage['wmh.library.user.v1']`.
 - Imported models share a stand-in body and have `panel.type: 'none'` (`menu-none.js`). A new capability type = a cap type in the importers + a case in `decode()` in `desc.js`.
 - DMX Studio does not know these fixtures yet (it has its own profile list).
