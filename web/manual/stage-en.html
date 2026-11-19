@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wincode Stage Editor — User Manual</title>
+<link rel="stylesheet" href="manual.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="toc">
+  <div class="brand">WINCODE</div><div class="sub">Stage Editor · User Manual</div>
+  <div class="lang"><a class="on" href="stage-en.html">English</a><a href="stage-ko.html">한국어</a></div>
+  <a href="#intro">1. What the Stage Editor is</a>
+  <a href="#screen">2. The screen</a>
+  <a href="#examples">3. Examples and playback</a>
+  <a href="#library">4. The fixture library</a>
+  <a href="#import">5. Importing GDTF and OFL files</a>
+  <a href="#truss">6. Trusses</a>
+  <a href="#move">7. Selecting and moving</a>
+  <a href="#fixture">8. One fixture: patch and position</a>
+  <a href="#many">9. Several fixtures at once</a>
+  <a href="#highlight">10. Highlight — the lamp test</a>
+  <a href="#files">11. Stage files</a>
+  <a href="#show">12. Making light: DMX Studio and the DMX editor</a>
+  <a href="#sim">13. What a library fixture does</a>
+  <a href="#walk">14. A stage in ten minutes</a>
+  <a href="#faq">15. Limits and troubleshooting</a>
+  <a href="../stage.html">← Open the Stage Editor</a>
+</nav>
+<main>
+<h1>Wincode Stage Editor <small>User Manual · build a 3D stage from a fixture library and watch it follow DMX</small></h1>
+
+<h2 id="intro">1. What the Stage Editor is</h2>
+<p>The Stage Editor is a 3D stage in the browser. You take fixtures from a <b>library</b>, hang them on <b>trusses</b> or stand them on the floor, give them DMX addresses, and the stage shows what they do — beams in haze, colours, gobos and movement — when a console sends DMX.</p>
+<figure><img src="img/s04-stage.png" alt="A stage with fixtures from three sources"><figcaption>Twelve fixtures on two trusses and the floor: Cameo spots and Robe washes from the bundled library, Clay Paky Sharpys imported from a GDTF file.</figcaption></figure>
+<p>It is the "visualiser" half of a lighting system. The "console" half is <a href="https://samcho93.github.io/wincodeDmxStudio/">Wincode DMX Studio</a> or the simulator's built-in DMX editor.</p>
+<table>
+  <tr><th>Where fixtures come from</th><th>How many</th><th>How they look</th></tr>
+  <tr><td><b>Wincode</b> models</td><td>5</td><td>Their own 3D body, built from the manual and product photos; working front panel and menu.</td></tr>
+  <tr><td><b>Open Fixture Library</b> (bundled)</td><td>610, from 127 manufacturers</td><td>A stand-in body; their own channels, colours and beam.</td></tr>
+  <tr><td><b>Imported files</b> — GDTF or Open Fixture Library JSON</td><td>as many as you import</td><td>The same stand-in body.</td></tr>
+</table>
+<p>Open it at <a href="https://samcho93.github.io/wincodeMovingHead/stage.html">samcho93.github.io/wincodeMovingHead/stage.html</a>, or locally with <code>npm start</code> at <a href="http://127.0.0.1:7740/stage.html">http://127.0.0.1:7740/stage.html</a>. Use Chrome or Edge.</p>
+
+<h2 id="screen">2. The screen</h2>
+<figure><img src="img/s01-showcase.png" alt="The Stage Editor with the showcase example"><figcaption>The showcase example playing: top bar, 3D view, side panel.</figcaption></figure>
+<table>
+  <tr><th>Top bar</th><th>What it does</th></tr>
+  <tr><td>Example list · <i>Units</i> · style · <span class="b">Load example</span></td><td>Ready-made stages with a programmed show (chapter 3).</td></tr>
+  <tr><td><span class="b">▶ Play</span> · <span class="b">■</span> · time · slider · <i>Loop</i></td><td>Plays the show of this stage.</td></tr>
+  <tr><td><i>Haze</i> · <i>Work light</i></td><td>How visible the beams are in the air; a bright room for building and positioning.</td></tr>
+  <tr><td><span class="b">New</span> · <span class="b">Open</span> · <span class="b">Save</span></td><td>Stage files (chapter 11).</td></tr>
+  <tr><td><span class="b">⟲ From editor</span> · <span class="b">🎚 DMX Studio</span> · <span class="b">🎛 Edit show</span> · <span class="b">🔦 Simulator</span></td><td>The programs that make the light (chapter 12), and the single-fixture simulator.</td></tr>
+  <tr><td>The pill at the right</td><td><i>Playing the show</i> · <i>Following the virtual DMX cable</i> · <i>No DMX</i> — where the fixtures get their values from, now.</td></tr>
+</table>
+<table>
+  <tr><th>3D view</th><th></th></tr>
+  <tr><td>Drag</td><td>Orbit the camera.</td></tr>
+  <tr><td>Wheel</td><td>Zoom.</td></tr>
+  <tr><td>Right-drag</td><td>Pan.</td></tr>
+  <tr><td><span class="b">3D</span> <span class="b">Front</span> <span class="b">Top</span> <span class="b">Side</span> (bottom left)</td><td>Camera presets. <i>Top</i> with <i>Work light</i> on is the plan view for positioning.</td></tr>
+</table>
+<p>The <b>side panel</b> holds the stage's name, the trusses, the list of fixtures and, below it, the settings of what is selected.</p>
+
+<h2 id="examples">3. Examples and playback</h2>
+<p>Choose an example and press <span class="b">Load example</span>: it replaces the stage and starts playing.</p>
+<ul>
+  <li><b>All models — showcase</b>: all five Wincode models in a 48-second show.</li>
+  <li><b>One model each</b>: <i>Units</i> sets how many of that fixture stand on the stage (up to 8), and the style how they play together — <i>Unison</i>, <i>Mirror</i>, <i>Fan</i>, <i>Wave</i>, <i>Canon</i>.</li>
+</ul>
+<p><span class="b">▶ Play</span> / <span class="b">❚❚ Pause</span> and <span class="b">■</span> control the show; drag the slider to jump; <i>Loop</i> repeats it. A stage you build yourself has no show until you program one (chapter 12) — until then it follows the DMX it receives.</p>
+
+<h2 id="library">4. The fixture library</h2>
+<p>Press <span class="b">＋ Add fixtures…</span> in the side panel.</p>
+<figure><img src="img/s02-library.png" alt="The fixture library window"><figcaption>The library: search on the left, the chosen fixture with its channel list on the right.</figcaption></figure>
+<ol class="steps">
+  <li><b>Search.</b> Type part of a name or a manufacturer. Several words narrow the list: <i>spot 300</i>, <i>robe wash</i>.</li>
+  <li><b>Filter</b> if you like. <i>All kinds</i> → moving heads, colour changers, pixel bars, blinders, strobes … <i>All sources</i> → Wincode, Open Fixture Library, imported files.</li>
+  <li><b>Click a fixture.</b> The right side shows its manufacturer and kind, and the channels of the chosen mode, numbered.</li>
+  <li><b>Choose the channel mode.</b> The channel list follows.</li>
+  <li><b>Quantity</b>: how many to add (1–48).</li>
+  <li><b>Mounting</b>: <i>Hung from the truss</i> or <i>On the floor</i>.</li>
+  <li><b>Press <span class="b">＋ Add to the stage</span>.</b></li>
+</ol>
+<p>The fixtures arrive as a row, already selected:</p>
+<ul>
+  <li><b>On a truss</b> they hang next to what is already there, or centred when the truss is empty. If there is no truss yet, one is made.</li>
+  <li><b>On the floor</b> they take the first free row, starting near the front.</li>
+  <li><b>Addresses</b> are given automatically: the first free block in universe 1, and the next universe when one is full.</li>
+</ul>
+<p>Each row of the list tells you what a fixture has — <i>rgb</i> (colour mixing), <i>gobo</i>, <i>prism</i> — and the sizes of its channel modes, for instance <i>5/15/24 ch</i>.</p>
+
+<h2 id="import">5. Importing GDTF and OFL files</h2>
+<p>For a fixture that is not in the library, get its file and press <span class="b">Import GDTF / OFL file…</span> in the library window — or drop the files anywhere on the window. Several files can be imported at once.</p>
+<figure><img src="img/s03-import.png" alt="Imported fixtures in the library"><figcaption>After importing a GDTF file: the fixture is listed under <i>Imported files</i> and selected, ready to add.</figcaption></figure>
+<table>
+  <tr><th>Format</th><th>Where to get it</th></tr>
+  <tr><td><b>GDTF</b> (<code>.gdtf</code>)</td><td>The open fixture format of the lighting industry (DIN SPEC 15800). Manufacturers publish their fixtures at <a href="https://gdtf-share.com">gdtf-share.com</a>; grandMA3, Vectorworks, Capture and others use the same files.</td></tr>
+  <tr><td><b>Open Fixture Library</b> (<code>.json</code>)</td><td><a href="https://open-fixture-library.org">open-fixture-library.org</a> — download a fixture in its own format, or write one in its fixture editor.</td></tr>
+</table>
+<p>What is read from a GDTF file: name and manufacturer, the wheels with their slot names and colours, every DMX mode with its channels, functions and value ranges, and the beam angle. What is <b>not</b> read: the 3D model inside the file, and channels repeated through geometry references (the cells of a pixel fixture appear once).</p>
+<p>Imported fixtures stay in this browser's library. <span class="b">Forget</span> removes one from the library; stages that use it keep their copy.</p>
+
+<h2 id="truss">6. Trusses</h2>
+<p><span class="b">＋ Truss</span> adds a truss; the <b>Trusses</b> table lists them.</p>
+<table>
+  <tr><th>Column</th><th>Meaning</th></tr>
+  <tr><td>Name</td><td>Shown in the <i>Hang from</i> lists.</td></tr>
+  <tr><td>Depth Z</td><td>How far back the truss is, in metres. 0 is the middle of the stage, negative is towards the back wall.</td></tr>
+  <tr><td>Height</td><td>Height of the lower chords, where the fixtures hang (1.5–6.5 m).</td></tr>
+  <tr><td>Length</td><td>Length in metres, centred on the stage.</td></tr>
+  <tr><td><span class="b">✕</span></td><td>Removes the truss. What hung from it goes to the floor.</td></tr>
+</table>
+<p>Fixtures follow their truss: change its depth or height and they move with it. Trusses run from left to right.</p>
+
+<h2 id="move">7. Selecting and moving</h2>
+<table>
+  <tr><th>Action</th><th>How</th></tr>
+  <tr><td>Select one</td><td>Click it on the stage or in the list. An orange ring on the floor marks it.</td></tr>
+  <tr><td>Select several</td><td>Shift-click (or Ctrl-click) more — on the stage or in the list.</td></tr>
+  <tr><td>Select all · none</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd> · <kbd>Esc</kbd>, or click an empty part of the stage.</td></tr>
+  <tr><td>Move</td><td>Drag a selected fixture: everything selected moves with it, in steps of 10 cm. A fixture on a truss slides along the truss only.</td></tr>
+  <tr><td>Nudge</td><td>Arrow keys: 10 cm. With <kbd>Shift</kbd>: 50 cm. Up / down move away from and towards you.</td></tr>
+  <tr><td>Turn</td><td><kbd>Q</kbd> / <kbd>E</kbd>: 15° left / right.</td></tr>
+  <tr><td>Duplicate</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd>. The copy stands 60 cm to the right and gets the next free address.</td></tr>
+  <tr><td>Remove</td><td><kbd>Del</kbd>.</td></tr>
+</table>
+<p>The keys work while the pointer is not in a text field.</p>
+
+<h2 id="fixture">8. One fixture: patch and position</h2>
+<figure><img src="img/s06-fixture.png" alt="Settings of the selected fixture"><figcaption>The selected fixture: patch above, position below, and what it is doing right now.</figcaption></figure>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td>Name</td><td>Shown in the list, and in the console the stage is handed to.</td></tr>
+  <tr><td>Channel mode</td><td>Which of the fixture's channel layouts it is set to. Must be the mode the console uses.</td></tr>
+  <tr><td>Universe · DMX address</td><td>Where the fixture listens. The list shows the range it occupies: <i>U1.117–136</i>.</td></tr>
+  <tr><td>Hang from</td><td><i>Floor</i>, or one of the trusses. A hung fixture is upside down, as in reality.</td></tr>
+  <tr><td>Position X · Z (m)</td><td>Left–right and front–back. On a truss only X can be set.</td></tr>
+  <tr><td>Rotation (°)</td><td>Turns the whole fixture around its vertical axis.</td></tr>
+  <tr><td>Aim (°)</td><td>Only for a fixture <b>without tilt</b> (a PAR, a bar): the angle at which it is clamped. 0 = straight down from a truss, straight up from the floor.</td></tr>
+  <tr><td>Output</td><td>Its intensity, pan and tilt at this moment.</td></tr>
+  <tr><td>Value source</td><td><i>DMX … Hz</i>, <i>no DMX signal</i>, or <i>highlight (lamp test)</i>.</td></tr>
+</table>
+<p>For a Wincode model, <span class="b">🔦 Open in simulator</span> opens that fixture alone, with its front panel and menu.</p>
+
+<h2 id="many">9. Several fixtures at once</h2>
+<figure><img src="img/s05-multi.png" alt="Tools for several selected fixtures"><figcaption>Five fixtures selected: the tools replace the single-fixture settings.</figcaption></figure>
+<table>
+  <tr><th>Tool</th><th>What it does</th></tr>
+  <tr><td><span class="b">↔ Spread evenly</span></td><td>Equal spacing between the leftmost and the rightmost of the selection. If they stand on one spot, they are spread 1.2 m apart.</td></tr>
+  <tr><td><span class="b">⇥ Same depth</span></td><td>Puts the floor fixtures of the selection in one line, at the depth of the first.</td></tr>
+  <tr><td><span class="b">⟲ Face front</span></td><td>Rotation 0 for all.</td></tr>
+  <tr><td><span class="b">⇋ Fan</span></td><td>Mirrors the rotation left and right of the middle: the left half turns one way, the right half the other (30° if none was set).</td></tr>
+  <tr><td>Hang from</td><td>Moves the whole selection to a truss, or to the floor.</td></tr>
+  <tr><td>Re-address</td><td>Choose a universe and a start address and press <span class="b">Apply</span>: the selection gets consecutive addresses from there, <b>left to right</b>, skipping what other fixtures occupy and continuing in the next universe when one is full.</td></tr>
+  <tr><td><span class="b">💡 Highlight</span> · <span class="b">⧉ Duplicate</span> · <span class="b">✕ Remove</span></td><td>For the whole selection.</td></tr>
+</table>
+
+<h2 id="highlight">10. Highlight — the lamp test</h2>
+<p><span class="b">💡 Highlight</span> makes the selection shine open, full and white — whatever the show or the console sends. A lamp appears before the fixture's name in the list. Press it again to give the fixture back.</p>
+<p>Use it to see where a fixture points while you position it, to check which fixture is which, and to see a library fixture's beam before any console is connected.</p>
+
+<h2 id="files">11. Stage files</h2>
+<table>
+  <tr><th>Button</th><th>What it does</th></tr>
+  <tr><td><span class="b">Save</span></td><td>Downloads <code><i>name</i>.stage.json</code>: trusses, positions, the patch, the show — and the description of every library fixture used, so the file opens on any computer.</td></tr>
+  <tr><td><span class="b">Open</span></td><td>Loads a stage file.</td></tr>
+  <tr><td><span class="b">New</span></td><td>An empty stage.</td></tr>
+</table>
+<p>The stage you are working on is also kept in the browser and comes back the next time you open the page.</p>
+
+<h2 id="show">12. Making light: DMX Studio and the DMX editor</h2>
+<p>The Stage Editor shows light; it does not program it. Whenever its own show is not playing, the stage follows the <b>virtual DMX cable</b> — a connection between pages of the same site.</p>
+<table>
+  <tr><th>Program</th><th>How to use it with the stage</th></tr>
+  <tr><td><b>Wincode DMX Studio</b> — the lighting console</td><td>Patch the same fixtures there (it has the same library) and press its <span class="b">🎭 3D Stage</span>: it hands its patch to this page and the fixtures appear here at the same addresses. Or build the stage here and patch the studio to match. Then program in the studio; the stage follows.</td></tr>
+  <tr><td><b>DMX editor</b> — built into the simulator</td><td><span class="b">🎛 Edit show</span> opens this stage's patch in the editor. Make scenes, chasers, effects and a show there. <span class="b">⟲ From editor</span> brings the result back; it then plays here with <span class="b">▶ Play</span> and is saved in the stage file.</td></tr>
+  <tr><td>A real console (Art-Net, sACN)</td><td>Not directly: the stage listens to the virtual DMX cable only. The single-fixture simulator page is the one that receives Art-Net and sACN through the local server.</td></tr>
+</table>
+<p class="note">The pill at the top right tells you what is happening: <i>Following the virtual DMX cable</i> means a console page is sending and the stage obeys it.</p>
+
+<h2 id="sim">13. What a library fixture does</h2>
+<p>A Wincode model is written by hand from its manual. A library fixture is built automatically from its channel chart, so it does what the chart describes and no more.</p>
+<table>
+  <tr><th>Simulated</th><th>Not simulated</th></tr>
+  <tr><td>Dimmer, shutter, strobe (also pulse and random)<br>Pan and tilt with their real ranges, pan/tilt speed, continuous pan<br>Colour wheel with the library's colours, half-colour positions, wheel rotation<br>RGB / RGBW / amber / UV … mixing, CMY mixing<br>Two gobo wheels, gobo rotation and indexing, shake<br>Prism and prism rotation · zoom · focus · frost</td>
+    <td>The fixture's real shape — all use one stand-in body<br>The real gobo pictures — stand-in patterns are drawn<br>Single pixels of a bar or matrix — they are averaged into one beam<br>Macro, effect, programme and maintenance channels<br>Iris, framing shutters, colour temperature channels<br>The front panel and menu</td></tr>
+</table>
+<p class="note">Library data is written by volunteers and manufacturers and was not checked against the fixtures' manuals. Before a real show, compare the channel list in the library window with the fixture's manual.</p>
+
+<h2 id="walk">14. A stage in ten minutes</h2>
+<ol class="steps">
+  <li><b>Start empty.</b> Press <span class="b">New</span>. Tick <i>Work light</i>.</li>
+  <li><b>Hang four spots.</b> <span class="b">＋ Add fixtures…</span> → search <i>auro spot 300</i> → click it → <i>Quantity</i> 4, <i>Hung from the truss</i> → <span class="b">＋ Add to the stage</span>. A truss appears with four fixtures; they are selected.</li>
+  <li><b>See them.</b> Press <span class="b">💡 Highlight</span>. Four white beams point straight down. Untick <i>Work light</i> to see them in haze.</li>
+  <li><b>Add a back truss.</b> <span class="b">＋ Truss</span>. In the table name it <i>Back truss</i>, set <i>Height</i> to 5.2 and <i>Length</i> to 10.</li>
+  <li><b>Hang five washes on it.</b> Add 5 × <i>Robin LEDWash 600</i> on the truss. With the five still selected, set <i>Hang from</i> to <i>Back truss</i>, then press <span class="b">↔ Spread evenly</span>.</li>
+  <li><b>Floor fixtures from a GDTF file.</b> In the library press <span class="b">Import GDTF / OFL file…</span>, choose a <code>.gdtf</code> file, set <i>Quantity</i> 3 and <i>On the floor</i>, and add.</li>
+  <li><b>Check the plan.</b> Press <span class="b">Top</span>: both trusses and the floor row from above. Drag fixtures where you want them; use the arrow keys for small steps.</li>
+  <li><b>Check the addresses.</b> The list shows each range. To renumber a group, select it, set <i>Re-address</i> to U1 and a start address, press <span class="b">Apply</span>.</li>
+  <li><b>Save.</b> Type a name at the top of the side panel and press <span class="b">Save</span>.</li>
+  <li><b>Make light.</b> Press <span class="b">🎛 Edit show</span> to program in the DMX editor, or patch the same fixtures in DMX Studio and work from there.</li>
+</ol>
+<figure><img src="img/s07-top.png" alt="Top view with work light"><figcaption>The <i>Top</i> view with the work light on: the plan of the stage.</figcaption></figure>
+
+<h2 id="faq">15. Limits and troubleshooting</h2>
+<table>
+  <tr><th>Question</th><th>Answer</th></tr>
+  <tr><td>A yellow line says "More than 9 heads".</td><td>The first nine heads light the floor and walls; the others still show their beam in the air. It keeps the picture smooth. Only the first three single-head fixtures cast shadows.</td></tr>
+  <tr><td>A fixture stays dark.</td><td>Select it and look at <i>Value source</i>. <i>no DMX signal</i>: nothing is sending on its universe. With a signal: check that mode and address match the console, and that its shutter channel is open — a fixture with a closed shutter is dark at full dimmer. <span class="b">💡 Highlight</span> shows whether the fixture itself works.</td></tr>
+  <tr><td>The stage does not follow DMX Studio.</td><td>Both pages must come from the same site: both on <code>samcho93.github.io</code>, or both through the local server (<code>http://127.0.0.1:7740/stage.html</code> and <code>…/studio/</code>). And the stage's own show must be stopped.</td></tr>
+  <tr><td>A fixture I patched in a console does not appear.</td><td>Generic profiles (plain dimmer, RGB …) have no 3D model. Use a library fixture instead.</td></tr>
+  <tr><td>A GDTF file is refused.</td><td>The message says why. A file without DMX modes, or one that is not a GDTF archive, cannot be read. A pixel fixture whose cells are defined through geometry references imports with one cell only.</td></tr>
+  <tr><td>Colours of a wheel look wrong.</td><td>They are the library's. A slot without a colour in the library is shown white.</td></tr>
+  <tr><td>Can a truss run front to back, or at an angle?</td><td>Not yet: trusses run left to right. The room is 16 × 14 m and 7 m high and cannot be changed.</td></tr>
+  <tr><td>Where did my imported fixture go on another computer?</td><td>The library of imported files belongs to the browser. A <b>stage file</b> carries the fixtures it uses, so open the stage file there.</td></tr>
+</table>
+</main>
+</div>
+</body>
+</html>

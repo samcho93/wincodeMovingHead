@@ -140,6 +140,8 @@ Panel operation per model:
 
 ## Stage Editor
 
+Manual with screenshots: [English](https://samcho93.github.io/wincodeMovingHead/manual/stage-en.html) · [한국어](https://samcho93.github.io/wincodeMovingHead/manual/stage-ko.html)
+
 `stage.html` (button **🎭 Stage**) puts any number of fixtures, of any mix of models, on one 3D stage and runs them
 from one DMX patch.
 

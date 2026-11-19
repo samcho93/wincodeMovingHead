@@ -55,7 +55,7 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - When the model contract changes, update `models/index.js` (header), `tools/check-model.mjs` and `tools/agent-prompt.md` together.
 
 ## Rules
-- All user-visible text and all code comments are English.
+- All user-visible text and all code comments are English. The one exception is the Korean manual (`web/manual/stage-ko.html`), kept in step with `stage-en.html` (same chapters, same screenshots in `web/manual/img/`).
 - Fixture logic stays in the browser (`fixture.js`) so the static build works; the server only bridges UDP / serial.
 - One canvas (`BeamImage.out` in `gobos.js`) feeds the projected spot, the volumetric beam and the lens — keep them in sync through it.
 - Manufacturer manual PDFs (`docs/*.pdf`) are git-ignored; do not publish them.
