@@ -51,6 +51,7 @@
   <tr><th>상단 바</th><th>하는 일</th></tr>
   <tr><td>예제 목록 · <i>Units</i> · 스타일 · <span class="b">Load example</span></td><td>쇼가 프로그램되어 있는 완성된 무대(3장).</td></tr>
   <tr><td><span class="b">▶ Play</span> · <span class="b">■</span> · 시간 · 슬라이더 · <i>Loop</i></td><td>이 무대의 쇼를 재생합니다.</td></tr>
+  <tr><td><span class="b">⏺ Rec</span></td><td>무대 화면을 MP4 영상으로 녹화합니다(3장).</td></tr>
   <tr><td><i>Haze</i> · <i>Work light</i></td><td>공중에서 빔이 보이는 정도, 그리고 설치·배치용 밝은 작업등(페이지를 열면 켜져 있으며, 어두운 무대에서 쇼를 보려면 체크를 풉니다).</td></tr>
   <tr><td><span class="b">New</span> · <span class="b">Open</span> · <span class="b">Save</span></td><td>스테이지 파일(11장).</td></tr>
   <tr><td><span class="b">⟲ From editor</span> · <span class="b">🎚 DMX Studio</span> · <span class="b">🎛 Edit show</span> · <span class="b">🔦 Simulator</span></td><td>빛을 만드는 프로그램들(12장)과 단일 조명기 시뮬레이터.</td></tr>
@@ -72,6 +73,16 @@
   <li><b>모델별 예제</b>: <i>Units</i>로 그 조명기를 몇 대 세울지 정하고(최대 8대), 스타일로 함께 움직이는 방식을 정합니다 — <i>Unison</i>, <i>Mirror</i>, <i>Fan</i>, <i>Wave</i>, <i>Canon</i>.</li>
 </ul>
 <p><span class="b">▶ Play</span> / <span class="b">❚❚ Pause</span>와 <span class="b">■</span>로 쇼를 제어하고, 슬라이더를 끌어 위치를 옮기며, <i>Loop</i>로 반복합니다. 직접 만든 무대에는 쇼를 프로그램하기 전까지(12장) 쇼가 없습니다. 그동안은 들어오는 DMX를 따릅니다.</p>
+
+<h3>영상 녹화</h3>
+<p><span class="b">⏺ Rec</span>는 무대를 배포할 수 있는 영상 파일로 녹화합니다. 3D 화면만 녹화되며 위쪽 바, 옆 패널, 선택 표시는 들어가지 않습니다. 쇼의 소리도 함께 녹음됩니다.</p>
+<ol class="steps">
+  <li>화면을 정합니다: 카메라(끌기 또는 카메라 버튼), <i>Haze</i>, 어두운 무대를 원하면 <i>Work light</i> 끄기. 영상 크기는 화면에 보이는 3D 화면 크기와 같으므로, 원하는 영상 크기만큼 창을 키워 둡니다.</li>
+  <li><span class="b">⏺ Rec</span>를 누릅니다. 쇼가 처음부터 시작되고 버튼에 녹화 시간이 표시됩니다.</li>
+  <li>쇼가 끝나면 녹화가 멈추고 <code><i>이름</i>.mp4</code>가 내려받아집니다. 더 일찍 끝내려면 버튼을 다시 누르거나 <span class="b">■</span>를 누릅니다. 녹화 중에는 <i>Loop</i>가 무시되어 한 번만 재생됩니다.</li>
+</ol>
+<p>녹화 중에도 카메라를 움직일 수 있습니다. 쇼가 없는 무대에서는 가상 DMX 케이블로 들어오는 동작을, 멈출 때까지 녹화합니다.</p>
+<div class="note">파일은 최신 Chrome과 Edge에서 MP4(H.264 영상, AAC 소리)입니다. MP4를 쓸 수 없는 브라우저에서는 WebM으로 저장할지 묻습니다. 녹화 중에는 창을 앞에 두십시오. 브라우저는 뒤에 있는 페이지를 느리게 돌리고, 영상도 함께 느려집니다.</div>
 
 <h2 id="library">4. 조명 라이브러리</h2>
 <p>옆 패널의 <span class="b">＋ Add fixtures…</span>를 누릅니다.</p>

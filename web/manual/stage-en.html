@@ -50,6 +50,7 @@
   <tr><th>Top bar</th><th>What it does</th></tr>
   <tr><td>Example list · <i>Units</i> · style · <span class="b">Load example</span></td><td>Ready-made stages with a programmed show (chapter 3).</td></tr>
   <tr><td><span class="b">▶ Play</span> · <span class="b">■</span> · time · slider · <i>Loop</i></td><td>Plays the show of this stage.</td></tr>
+  <tr><td><span class="b">⏺ Rec</span></td><td>Records the stage view to an MP4 video (chapter 3).</td></tr>
   <tr><td><i>Haze</i> · <i>Work light</i></td><td>How visible the beams are in the air; a bright room for building and positioning (on when the page opens; untick it to see the show in the dark).</td></tr>
   <tr><td><span class="b">New</span> · <span class="b">Open</span> · <span class="b">Save</span></td><td>Stage files (chapter 11).</td></tr>
   <tr><td><span class="b">⟲ From editor</span> · <span class="b">🎚 DMX Studio</span> · <span class="b">🎛 Edit show</span> · <span class="b">🔦 Simulator</span></td><td>The programs that make the light (chapter 12), and the single-fixture simulator.</td></tr>
@@ -71,6 +72,16 @@
   <li><b>One model each</b>: <i>Units</i> sets how many of that fixture stand on the stage (up to 8), and the style how they play together — <i>Unison</i>, <i>Mirror</i>, <i>Fan</i>, <i>Wave</i>, <i>Canon</i>.</li>
 </ul>
 <p><span class="b">▶ Play</span> / <span class="b">❚❚ Pause</span> and <span class="b">■</span> control the show; drag the slider to jump; <i>Loop</i> repeats it. A stage you build yourself has no show until you program one (chapter 12) — until then it follows the DMX it receives.</p>
+
+<h3>Recording a video</h3>
+<p><span class="b">⏺ Rec</span> records the stage to a video file you can pass on. Only the 3D view is recorded — no top bar, no side panel, no selection marks — together with the sound of the show.</p>
+<ol class="steps">
+  <li>Set the picture: the camera (drag, or a camera button), <i>Haze</i>, <i>Work light</i> off for a dark stage. The video has the size the view has on screen, so make the window as large as you want the video.</li>
+  <li>Press <span class="b">⏺ Rec</span>. The show starts from the beginning and the button counts the time.</li>
+  <li>When the show ends the recording stops and <code><i>name</i>.mp4</code> is downloaded. To stop earlier press the button again, or <span class="b">■</span>. <i>Loop</i> is ignored while recording: one pass.</li>
+</ol>
+<p>You can move the camera while it records. A stage without a show records what the virtual DMX cable does, until you stop it.</p>
+<div class="note">The file is MP4 (H.264 video, AAC sound) in current Chrome and Edge. A browser that cannot write MP4 offers WebM instead. Keep the window in front while recording: a browser slows a page in the background down, and the video with it.</div>
 
 <h2 id="library">4. The fixture library</h2>
 <p>Press <span class="b">＋ Add fixtures…</span> in the side panel.</p>

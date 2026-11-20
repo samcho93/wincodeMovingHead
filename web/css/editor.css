@@ -105,3 +105,4 @@ table.mini input[type=text] { width: 100%; min-width: 60px; } table.mini input[t
 .lib-detail { overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; } .lib-detail h3 { margin: 0 0 2px; }
 .lib-chans { font-size: 12px; columns: 2; column-gap: 14px; margin-top: 4px; } .lib-chans div { break-inside: avoid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 760px) { .lib-body { grid-template-columns: 1fr; height: auto; } .lib-list { max-height: 34vh; } .lib-detail { max-height: 40vh; } }
+#btnRec.on { border-color: #b3382c; color: #ff8a7a; }   /* recording */

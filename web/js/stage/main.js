@@ -12,7 +12,7 @@ import { EXAMPLES, STYLES, arrange, maxUnits, BEAT_FILE, BPM, LENGTH } from './e
 import { makeBeat } from './beat.js';
 import { openLibrary } from './library-ui.js';
 import { store, blankWorkspace, audioFiles } from '../editor/store.js';
-import { Engine, durationOf } from '../editor/engine.js';
+import { Engine, durationOf, audioEl } from '../editor/engine.js';
 import { getDef } from '../editor/library.js';
 import { freeAddress } from '../editor/fixtures.js';
 import { h, fill, select, numInput, textInput, fmtTime } from '../editor/ui.js';
@@ -79,7 +79,7 @@ function autoPlace(list, pieces = file.trusses) {
 const markers = [];
 const markerMat = new THREE.MeshBasicMaterial({ color: 0xf0923a, transparent: true, opacity: 0.9, depthWrite: false });
 function showMarkers() {
-  const list = items.filter(i => sel.has(i.lay.id));
+  const list = rec ? [] : items.filter(i => sel.has(i.lay.id));   // no selection marks in a recording
   while (markers.length < list.length) { const m = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.47, 48), markerMat); m.rotation.x = -Math.PI / 2; S.scene.add(m); markers.push(m); }
   markers.forEach((m, i) => { m.visible = i < list.length; if (m.visible) m.position.set(list[i].lay.x, 0.006, list[i].lay.z); });
 }
@@ -136,7 +136,7 @@ const emptyStage = () => ({ app: 'wmh-stage', version: 3, name: 'New stage', roo
 function load(f) {
   if (!f || f.app !== 'wmh-stage' || !f.workspace) throw new Error('Not a stage file');
   wantPlay = false; playSeq++;                                // the old show is gone: its "ended" must not restart anything
-  engine.reset(); [...items].forEach(removeItem); sel.clear(); cur = null; curPiece = null;
+  recStop(); engine.reset(); [...items].forEach(removeItem); sel.clear(); cur = null; curPiece = null;
   file = f; store.load(f.workspace); file.workspace = store.ws;   // the engine re-reads universes and the patch; keep one workspace object
   { const r = roomOf(f.room); file.room = { w: r.w, d: r.d, h: r.h }; S.setRoom(file.room); }   // files from before rooms had a size get the default
   if (!file.trusses) {                                        // version 1 files: one fixed truss line per depth at which something hangs
@@ -157,9 +157,10 @@ function download() {
 /* ── transport: plays the first show of the workspace ── */
 const showFn = () => store.ws.functions.find(f => f.type === 'show');
 const playing = () => { const s = showFn(); return !!s && engine.isRunning(s.id); };
+const ensureBeat = async () => { if (store.ws.functions.some(f => f.type === 'audio' && f.file === BEAT_FILE) && !(await audioFiles.get(BEAT_FILE))) await audioFiles.put(BEAT_FILE, makeBeat(LENGTH / 1000, BPM)); };   // the examples' backing track is synthesised on first use
 async function play(offset = 0) {
   const my = ++playSeq, s = showFn(); if (!s) return alert('This stage has no show yet. Use "Edit show" to program one in the DMX editor.');
-  if (store.ws.functions.some(f => f.type === 'audio' && f.file === BEAT_FILE) && !(await audioFiles.get(BEAT_FILE))) await audioFiles.put(BEAT_FILE, makeBeat(LENGTH / 1000, BPM));   // the examples' backing track is synthesised on first use
+  await ensureBeat();
   if (my !== playSeq || s !== showFn()) return;               // a newer play / load came in while the track was being prepared
   // Restarting a running show stops the old runner first. That must not look like "the show ended" to the loop handler
   // below, or every restart would trigger another one.
@@ -167,13 +168,51 @@ async function play(offset = 0) {
 }
 let playSeq = 0;
 let wantPlay = false;                                        // true while the show is meant to run (tells "ended" from "stopped")
-function stop() { wantPlay = false; engine.stopAll(); syncTransport(); }
+function stop() { wantPlay = false; engine.stopAll(); syncTransport(); recStop(); }
 function syncTransport() { const p = playing(); $('#btnPlay').textContent = p ? '❚❚ Pause' : '▶ Play'; $('#btnPlay').classList.toggle('on', p); $('#btnPlay').disabled = !showFn(); }
 let pausedAt = 0;
 $('#btnPlay').addEventListener('click', () => { if (playing()) { pausedAt = engine.runner(showFn().id).t; stop(); } else play(pausedAt); });
 $('#btnStop').addEventListener('click', () => { pausedAt = 0; stop(); });
 $('#seek').addEventListener('input', e => { const s = showFn(); if (!s) return; pausedAt = e.target.value / 1000 * durationOf(s); if (playing()) play(pausedAt); });
-engine.on(ev => { if (ev !== 'run') return; const s = showFn(), ended = wantPlay && s && !engine.isRunning(s.id); syncTransport(); if (ended) { pausedAt = 0; if ($('#chkLoop').checked) play(0); else wantPlay = false; } });
+engine.on(ev => { if (ev !== 'run') return; const s = showFn(), ended = wantPlay && s && !engine.isRunning(s.id); syncTransport(); if (ended) { pausedAt = 0; if (rec) { wantPlay = false; recStop(); } else if ($('#chkLoop').checked) play(0); else wantPlay = false; } });
+
+/* ── recording: the 3D view (the canvas only — no top bar, no side panel) and the show's sound, as an MP4 file ── */
+let rec = null;                                              // { recorder, chunks, t0, ext }
+const REC_TYPES = [['video/mp4;codecs=avc1.640028,mp4a.40.2', 'mp4'], ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'], ['video/mp4', 'mp4'], ['video/webm;codecs=vp9,opus', 'webm'], ['video/webm', 'webm']];
+let recAudio = null; const recSources = new WeakSet();       // one audio graph for the page: element → speakers + recorder
+async function recStart() {
+  if (rec) return;
+  if (!window.MediaRecorder || !S.renderer.domElement.captureStream) return alert('This browser cannot record video. Use a current Chrome or Edge.');
+  const type = REC_TYPES.find(t => MediaRecorder.isTypeSupported(t[0])); if (!type) return alert('This browser offers no video format to record in.');
+  if (type[1] !== 'mp4' && !confirm('This browser cannot write MP4 directly; the recording will be a WebM file instead (current Chrome and Edge write MP4). Record anyway?')) return;
+  stop(); pausedAt = 0;
+  const stream = S.renderer.domElement.captureStream(60), show = showFn();
+  try {                                                      // the sound of the show: its audio items go to the speakers and into the file
+    await ensureBeat();
+    const files = [...new Set(store.ws.functions.filter(f => f.type === 'audio').map(f => f.file))];
+    if (files.length) {
+      recAudio = recAudio || (() => { const ctx = new AudioContext(); return { ctx, out: ctx.createMediaStreamDestination() }; })();
+      await Promise.race([recAudio.ctx.resume(), new Promise(r => setTimeout(r, 400))]);   // (a context that may not start yet must not hold the recording up)
+      for (const f of files) { const el = await audioEl(f); if (el && !recSources.has(el)) { const src = recAudio.ctx.createMediaElementSource(el); src.connect(recAudio.ctx.destination); src.connect(recAudio.out); recSources.add(el); } }
+      for (const t of recAudio.out.stream.getAudioTracks()) stream.addTrack(t);
+    }
+  } catch (e) { console.warn('Recording without sound:', e); }
+  const px = S.size.w * S.size.h, recorder = new MediaRecorder(stream, { mimeType: type[0], videoBitsPerSecond: Math.round(Math.min(24e6, Math.max(6e6, px * 6))), audioBitsPerSecond: 192000 });
+  const mine = rec = { recorder, chunks: [], t0: performance.now(), ext: type[1] };
+  recorder.ondataavailable = e => { if (e.data.size) mine.chunks.push(e.data); };
+  recorder.onstop = () => {
+    stream.getVideoTracks().forEach(t => t.stop());
+    const blob = new Blob(mine.chunks, { type: type[0].split(';')[0] }), a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = (file.name || 'stage').replace(/[^\w.-]+/g, '_') + '.' + mine.ext; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  };
+  showMarkers(); recorder.start(1000); $('#btnRec').classList.add('on');
+  if (show) play(0);                                          // one pass from the start; without a show it records what the DMX cable does until stopped
+}
+function recStop() {
+  if (!rec) return; const r = rec; rec = null; $('#btnRec').classList.remove('on'); $('#btnRec').textContent = '⏺ Rec'; showMarkers();
+  setTimeout(() => { try { r.recorder.stop(); } catch (e) {} }, 250);   // let the last frames through
+}
+$('#btnRec').addEventListener('click', () => { if (rec) { stop(); pausedAt = 0; } else recStart(); });
 
 /* ── editing the patch and the layout ── */
 const footprint = f => getDef(f.def).modes[f.mode].channels.length;
@@ -412,7 +451,7 @@ function simulate(dt, now, time) {
     }
   }
 }
-Object.assign(window.WST, { simulate, load: f => { load(f); play(0); }, addFixtures, removeFixtures, duplicate, readdress, addTruss, highlight, applyRig, autoPlace });
+Object.assign(window.WST, { simulate, load: f => { load(f); play(0); }, addFixtures, removeFixtures, duplicate, readdress, addTruss, highlight, applyRig, autoPlace, recStart, recStop, isRecording: () => !!rec });
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), now = performance.now(), time = clock.elapsedTime, live = engine.top.size > 0;
@@ -423,6 +462,7 @@ function frame() {
     uiT = now;
     const s = showFn(), r = s && engine.runner(s.id), t = r && !r.done ? r.t : pausedAt, len = s ? durationOf(s) : 0;
     $('#time').textContent = `${fmtTime(t)}${len ? ' / ' + fmtTime(len) : ''}`; if (len && document.activeElement !== $('#seek')) $('#seek').value = Math.round(t / len * 1000);
+    if (rec) $('#btnRec').textContent = `⏹ ${fmtTime(now - rec.t0).slice(0, 5)}`;
     const p = $('#src'); p.className = 'pill ' + (live || cableOn ? 'on' : 'off'); p.textContent = live ? 'Playing the show' : cableOn ? 'Following the virtual DMX cable' : 'No DMX';
     const si = sel.size === 1 && items.find(i => i.lay.id === cur);
     if (si) { const o = $('#selOut'), q = $('#selSrc'); if (o) o.textContent = `${(si.fx.intensity * 100).toFixed(0)}% · pan ${si.fx.pan.pos.toFixed(0)}° · tilt ${si.fx.tilt.pos.toFixed(0)}°`; if (q) q.textContent = si.hl ? 'highlight (lamp test)' : si.fx.dmxSignal ? `DMX ${si.fx.dmxFps.toFixed(0)} Hz` : 'no DMX signal'; }
