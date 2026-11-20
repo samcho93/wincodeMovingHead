@@ -1,10 +1,13 @@
 // stage/main.js — Stage Editor: several fixtures of any model on one 3D stage, driven by one DMX patch.
-//  A stage file holds the layout (trusses, where each fixture stands or hangs) and a DMX editor workspace (patch,
+//  A stage file holds the layout (the room, its truss rig — see rig/rig.js — and where each fixture stands or hangs:
+//  on the floor at x / z, or on a truss piece at t = 0..1 along it) and a DMX editor workspace (patch,
 //  functions, show, and the descriptions of the library fixtures it uses). The show plays here through the editor's
 //  own engine; when nothing plays, the fixtures follow the virtual DMX cable, so a console in another window can
 //  program the same stage live.
 import * as THREE from 'three';
-import { createStage, buildTruss, TRUSS_Y, ROOM } from './scene3d.js';
+import { createStage, TRUSS_Y, ROOM } from './scene3d.js';
+import { norm, buildPiece, disposePiece, pointAt, nearestT, clampT, mountable, lengthOf, distribute, addPiece, nextId, legsFor, savedRig, keepRig, roomOf } from '../rig/rig.js';
+import { pieceEditor, pieceLine, openRigDialog } from '../rig/rig-ui.js';
 import { EXAMPLES, STYLES, arrange, maxUnits, BEAT_FILE, BPM, LENGTH } from './examples.js';
 import { makeBeat } from './beat.js';
 import { openLibrary } from './library-ui.js';
@@ -30,7 +33,7 @@ const LS = 'wmh.stage.v1';
 const MAX_PROJECTED = 9, MAX_SHADOWS = 3;                    // projected spots cost texture units in every lit material
 const MENUS = { touch: TouchMenu, buttons: Menu, none: NullMenu };
 const snap = v => Math.round(v * 10) / 10, clamp = (v, a, b) => Math.min(b, Math.max(a, v)), rad = THREE.MathUtils.degToRad;
-const X_MAX = ROOM.w / 2 - 0.5, Z_MIN = ROOM.back + 0.5, Z_MAX = ROOM.back + ROOM.d - 0.5;
+const xMax = () => ROOM.w / 2 - 0.5, zMin = () => ROOM.back + 0.5, zMax = () => ROOM.back + ROOM.d - 0.5;   // the room can change size
 
 store.persist = false;                                       // never overwrite the DMX editor's own autosave from here
 const engine = new Engine();
@@ -38,7 +41,7 @@ const S = createStage($('#viewport'));
 let file = null;                                             // the stage file being shown
 let items = [];                                              // runtime: { lay, patch, model, fx, menu, R, beams: [{ img, beam, head, r }], hl }
 const sel = new Set();                                       // selected fixture ids (the last one clicked is `cur`)
-let cur = null, haze = 0.55;
+let cur = null, haze = 0.55, curPiece = null;                 // curPiece: id of the truss piece open in the panel
 window.WST = { engine, store, get items() { return items; }, get file() { return file; }, get sel() { return [...sel]; }, scene: S };   // for debugging from the console
 
 /* ── DMX from other windows (the DMX editor, DMX Studio, the slider transmitter) ── */
@@ -47,15 +50,29 @@ new BroadcastChannel(CABLE).onmessage = e => { const m = e.data; if (m && m.t ==
 
 /* ── trusses ── */
 const trussGroups = new Map();                               // truss id → THREE.Group
-const trussOf = lay => (lay.mount === 'truss' ? file.trusses.find(t => t.id === lay.truss) || file.trusses[0] : null);
-function addTruss(props = {}) {
-  const id = 1 + file.trusses.reduce((m, t) => Math.max(m, t.id), 0), t = Object.assign({ id, name: `Truss ${id}`, x: 0, z: 0, y: TRUSS_Y, len: ROOM.w - 2 }, props);
-  file.trusses.push(t); return t;
-}
+const trussOf = lay => (lay.mount === 'truss' ? file.trusses.find(t => t.id === lay.truss && mountable(t)) || file.trusses.find(mountable) : null);
+function addTruss(props = {}) { return addPiece(file.trusses, Object.assign({ name: `Truss ${nextId(file.trusses)}`, x: 0, z: 0, y: Math.min(TRUSS_Y, ROOM.h - 1), len: Math.min(14, ROOM.w - 2) }, props)); }
 function drawTrusses() {
-  for (const g of trussGroups.values()) { S.scene.remove(g); g.traverse(o => o.geometry && o.geometry.dispose()); }
+  for (const g of trussGroups.values()) { S.scene.remove(g); disposePiece(g); }
   trussGroups.clear();
-  for (const t of file.trusses) { const g = buildTruss(t.len); g.position.set(t.x, t.y, t.z); S.scene.add(g); trussGroups.set(t.id, g); }
+  for (const t of file.trusses) { const g = buildPiece(t); S.scene.add(g); trussGroups.set(t.id, g); }
+}
+/** everything that depends on the rig follows it */
+function rigChanged() { drawTrusses(); items.forEach(place); changed(); showMarkers(); }
+/** a rig (room + trusses) replaces this stage's: what hung on the old trusses is spread over the new ones */
+function applyRig(rig) {
+  const hung = file.fixtures.filter(l => l.mount === 'truss');
+  file.room = { ...rig.room }; file.trusses = rig.trusses.map(t => norm({ ...t })); S.setRoom(file.room); curPiece = null;
+  const spots = distribute(file.trusses, hung.length);
+  hung.forEach((l, i) => { if (spots[i]) { l.truss = spots[i].piece.id; l.t = spots[i].t; l.rot = 0; } else { l.mount = 'floor'; l.truss = undefined; } });
+  rigChanged(); drawPanel(); S.setView('persp');
+}
+/** hang fixtures on the rig by themselves: evenly along the given pieces (all that can carry, by default), shared by length */
+function autoPlace(list, pieces = file.trusses) {
+  if (!pieces.some(mountable)) return alert('The rig has no truss to hang from. Add a truss or load a rig first.');
+  const spots = distribute(pieces, list.length);
+  list.forEach((i, k) => { Object.assign(i.lay, { mount: 'truss', truss: spots[k].piece.id, t: spots[k].t, rot: 0 }); place(i); });
+  changed(); drawPanel(); showMarkers();
 }
 
 /* ── building / disposing fixtures ── */
@@ -67,11 +84,15 @@ function showMarkers() {
   markers.forEach((m, i) => { m.visible = i < list.length; if (m.visible) m.position.set(list[i].lay.x, 0.006, list[i].lay.z); });
 }
 function place(it) {
-  const l = it.lay; if (l.mount === 'truss' && !file.trusses.length) { addTruss({ z: l.z }); drawTrusses(); }
-  const tr = trussOf(l);
-  if (tr) { l.truss = tr.id; l.z = tr.z; l.x = clamp(l.x, tr.x - tr.len / 2 + 0.2, tr.x + tr.len / 2 - 0.2); }
+  const l = it.lay; if (l.mount === 'truss' && !file.trusses.some(mountable)) { addTruss({ z: l.z }); drawTrusses(); }
+  const tr = trussOf(l); let yaw = l.rot || 0;
+  if (tr) {                                                  // on a truss: at t along it, turned with it (rot is relative to the truss)
+    if (l.truss !== tr.id || l.t == null) l.t = nearestT(tr, l.x, l.z);   // newly hung, or a file from before `t`: the nearest point
+    l.truss = tr.id; l.t = clampT(tr, l.t);
+    const P = pointAt(tr, l.t); l.x = Math.round(P.x * 1000) / 1000; l.z = Math.round(P.z * 1000) / 1000; yaw += P.yaw;
+  } else { l.x = clamp(l.x, -xMax(), xMax()); l.z = clamp(l.z, zMin(), zMax()); }
   it.R.root.position.set(l.x, tr ? tr.y - 0.13 : 0, l.z);
-  it.R.root.rotation.set(0, rad(l.rot || 0), tr ? Math.PI : 0);
+  it.R.root.rotation.set(0, rad(yaw), tr ? Math.PI : 0);
   it.fx.inverted = !!tr;
 }
 function addItem(lay) {
@@ -107,16 +128,17 @@ function highlight(it, on) {
 }
 
 /* ── stage files ── */
-const emptyStage = () => ({ app: 'wmh-stage', version: 2, name: 'New stage', trusses: [], fixtures: [], workspace: Object.assign(blankWorkspace(), { name: 'New stage' }) });
+const emptyStage = () => ({ app: 'wmh-stage', version: 3, name: 'New stage', room: { w: ROOM.w, d: ROOM.d, h: ROOM.h }, trusses: [], fixtures: [], workspace: Object.assign(blankWorkspace(), { name: 'New stage' }) });
 function load(f) {
   if (!f || f.app !== 'wmh-stage' || !f.workspace) throw new Error('Not a stage file');
   wantPlay = false; playSeq++;                                // the old show is gone: its "ended" must not restart anything
-  engine.reset(); [...items].forEach(removeItem); sel.clear(); cur = null;
+  engine.reset(); [...items].forEach(removeItem); sel.clear(); cur = null; curPiece = null;
   file = f; store.load(f.workspace); file.workspace = store.ws;   // the engine re-reads universes and the patch; keep one workspace object
+  { const r = roomOf(f.room); file.room = { w: r.w, d: r.d, h: r.h }; S.setRoom(file.room); }   // files from before rooms had a size get the default
   if (!file.trusses) {                                        // version 1 files: one fixed truss line per depth at which something hangs
     file.trusses = []; for (const l of f.fixtures) if (l.mount === 'truss') { const t = file.trusses.find(t => Math.abs(t.z - l.z) < 0.05) || addTruss({ z: l.z }); l.truss = t.id; }
   }
-  drawTrusses();
+  file.trusses.forEach(norm); drawTrusses();
   for (const lay of f.fixtures) addItem(lay);
   drawPanel(); syncTransport(); showMarkers();
 }
@@ -158,18 +180,19 @@ function touchPatch() { store.emit('fixtures'); changed(); drawPanel(); showMark
 function addFixtures({ def, desc, mode, count, mount }) {
   const ws = store.ws, n = def.modes[mode].channels.length, made = [], short = def.model.replace(/ \(.*/, '');
   if (desc) keepInWorkspace(ws, desc);
-  const tr = mount === 'truss' ? file.trusses[0] || addTruss() : null, gap = count > 1 ? Math.min(1.2, (ROOM.w - 3) / (count - 1)) : 0;
+  const tr = mount === 'truss' ? file.trusses.find(t => t.id === curPiece && mountable(t)) || file.trusses.find(mountable) || addTruss() : null;
   if (tr) drawTrusses();
   // where the new row goes: on the floor the first free row from the front; on a truss next to what already hangs there
-  const lim = tr ? tr.len / 2 - 0.4 : X_MAX, mid = tr ? tr.x : 0, w = gap * (count - 1);
+  const L = tr ? lengthOf(tr) : 0, gap = count > 1 ? Math.min(1.2, ((tr ? L : ROOM.w) - (tr ? 0.8 : 3)) / (count - 1)) : 0, lim = xMax(), w = gap * (count - 1);
   const rowOf = z => file.fixtures.filter(l => (tr ? l.mount === 'truss' && l.truss === tr.id : l.mount !== 'truss' && Math.abs(l.z - z) < 0.5));
   const z0 = tr ? tr.z : [1.5, 0.5, 2.5, -0.5, 3.5, -1.5, -2.5].find(z => !rowOf(z).length) ?? 1.5, there = rowOf(z0);
-  const right = there.length ? Math.max(...there.map(l => l.x)) + Math.max(gap, 0.8) : -Infinity, x0 = there.length && right + w <= mid + lim ? right : mid - w / 2;
+  const right = there.length ? Math.max(...there.map(l => l.x)) + Math.max(gap, 0.8) : -Infinity, x0 = there.length && right + w <= lim ? right : -w / 2;
+  const after = there.length ? Math.max(...there.map(l => l.t || 0)) + Math.max(gap, 0.8) / L : 2, t0 = after + w / L <= 1 - 0.2 / L ? after : 0.5 - w / L / 2;   // along the truss
   for (let i = 0; i < count; i++) {
     const slot = freeSlot(n); if (!slot) { alert(`No universe has ${n} free channels left. ${made.length} of ${count} fixtures were added.`); break; }
     const id = store.id(), num = ws.fixtures.filter(f => f.def === def.id).length + 1;
     ws.fixtures.push({ id, name: `${short} ${num}`, def: def.id, mode, universe: slot.universe, address: slot.address });
-    const lay = { id, x: snap(x0 + i * gap), z: z0, rot: 0, mount, truss: tr ? tr.id : undefined };
+    const lay = tr ? { id, x: 0, z: 0, rot: 0, mount, truss: tr.id, t: t0 + i * gap / L } : { id, x: snap(x0 + i * gap), z: z0, rot: 0, mount };
     file.fixtures.push(lay); if (addItem(lay)) made.push(id);
   }
   sel.clear(); made.forEach(id => sel.add(id)); cur = made[made.length - 1] ?? null; touchPatch(); return made;
@@ -189,7 +212,7 @@ function duplicate(ids) {
     const p = store.fixture(id), l = file.fixtures.find(x => x.id === id); if (!p || !l) continue;
     const slot = freeSlot(footprint(p), p.universe) || freeSlot(footprint(p)); if (!slot) { alert('No free channels left for another copy.'); break; }
     const nid = store.id(); ws.fixtures.push(Object.assign({}, p, { id: nid, name: p.name.replace(/\s*\d*$/, '') + ' ' + (ws.fixtures.filter(f => f.def === p.def).length + 1), universe: slot.universe, address: slot.address }));
-    const lay = Object.assign({}, l, { id: nid, x: clamp(snap(l.x + 0.6), -X_MAX, X_MAX) }); file.fixtures.push(lay); if (addItem(lay)) made.push(nid);
+    const tr = trussOf(l), lay = Object.assign({}, l, { id: nid }, tr ? { t: (l.t || 0) + 0.6 / lengthOf(tr) } : { x: clamp(snap(l.x + 0.6), -xMax(), xMax()) }); file.fixtures.push(lay); if (addItem(lay)) made.push(nid);
   }
   if (made.length) { sel.clear(); made.forEach(id => sel.add(id)); cur = made[made.length - 1]; } touchPatch();
 }
@@ -206,25 +229,45 @@ function readdress(ids, universe, address) {
 }
 const selItems = () => items.filter(i => sel.has(i.lay.id));
 const bySide = list => [...list].sort((a, b) => a.lay.x - b.lay.x || a.lay.z - b.lay.z);
+/** equal spacing: fixtures on the same truss between the first and the last of them along it (or over the whole truss when
+ *  they sit in one spot), the ones on the floor between the leftmost and the rightmost */
+function spread(list) {
+  const groups = new Map(); for (const i of list) { const k = i.lay.mount === 'truss' ? i.lay.truss : 'floor'; (groups.get(k) || groups.set(k, []).get(k)).push(i); }
+  for (const [k, g] of groups) {
+    if (g.length < 2) continue;
+    if (k === 'floor') { const L = bySide(g), a = L[0].lay.x, b = L[L.length - 1].lay.x, w = b - a < 0.2 ? Math.min(1.2 * (L.length - 1), 2 * xMax()) : b - a, x0 = b - a < 0.2 ? clamp(a - w / 2, -xMax(), xMax() - w) : a; L.forEach((i, n) => { i.lay.x = snap(x0 + w * n / (L.length - 1)); place(i); }); continue; }
+    const tr = trussOf(g[0].lay), L = [...g].sort((a, b) => a.lay.t - b.lay.t), a = L[0].lay.t, b = L[L.length - 1].lay.t;
+    if ((b - a) * lengthOf(tr) < 0.2) distribute([tr], L.length).forEach((sp, n) => { L[n].lay.t = sp.t; place(L[n]); });
+    else L.forEach((i, n) => { i.lay.t = a + (b - a) * n / (L.length - 1); place(i); });
+  }
+  changed(); showMarkers(); drawPanel();
+}
 
 /* ── side panel ── */
 function drawPanel() {
-  const ws = store.ws, it = items.find(i => i.lay.id === cur), many = selItems(), row = (label, el) => [h('span', null, label), el];
+  const ws = store.ws, it = items.find(i => i.lay.id === cur), many = selItems(), row = (label, el) => [h('span', null, label), el], piece = file.trusses.find(t => t.id === curPiece);
   const setPatch = (key, v) => { it.patch[key] = v; if (key === 'mode') { it.fx.set('mode', v); for (const fn of ws.functions) if (fn.values) delete fn.values[it.patch.id]; } if (key === 'address') it.fx.set('address', v); touchPatch(); };
   const setLay = (list, key, v) => { for (const i of list) { i.lay[key] = v; place(i); } changed(); showMarkers(); };
   const num = (value, min, max, step, fn) => h('input', { type: 'number', step, min, max, value, onchange: e => fn(clamp(+e.target.value || 0, min, max)) });
-  const trussSel = (list, value) => select([['', 'Floor'], ...file.trusses.map(t => [t.id, `${t.name} (${t.y} m)`])], value, v => { for (const i of list) { i.lay.mount = v ? 'truss' : 'floor'; i.lay.truss = v ? +v : undefined; place(i); } changed(); drawPanel(); showMarkers(); });
+  const trussSel = (list, value) => select([['', 'Floor'], ...file.trusses.filter(mountable).map(t => [t.id, `${t.name} (${t.y} m)`])], value, v => { for (const i of list) { i.lay.mount = v ? 'truss' : 'floor'; i.lay.truss = v ? +v : undefined; place(i); } changed(); drawPanel(); showMarkers(); });
   const hlBtn = list => { const on = list.every(i => i.hl); return h('button', { class: 'btn sm' + (on ? ' on' : ''), title: 'Lamp test: the selected fixtures shine open, full and white whatever the show sends', onclick: () => { list.forEach(i => highlight(i, !on)); drawPanel(); } }, '💡 Highlight'); };
   let reU = 0, reA = 1;
   fill($('#stagePanel'),
     h('h3', null, 'Stage'),
-    h('div', { class: 'kv' }, row('Name', textInput(file.name, v => { file.name = v; ws.name = v; changed(); })), row('Show', h('b', null, showFn() ? `${showFn().name} · ${fmtTime(durationOf(showFn()))}` : 'none — use "Edit show"'))),
+    h('div', { class: 'kv' }, row('Name', textInput(file.name, v => { file.name = v; ws.name = v; changed(); })), row('Show', h('b', null, showFn() ? `${showFn().name} · ${fmtTime(durationOf(showFn()))}` : 'none — use "Edit show"')),
+      row('Room W × D × H (m)', h('div', { class: 'row' }, ['w', 'd', 'h'].map(k => h('input', { type: 'number', step: 1, style: 'width:58px', value: file.room[k], title: { w: 'Width', d: 'Depth', h: 'Height' }[k], onchange: e => { file.room[k] = +e.target.value; S.setRoom(file.room); Object.assign(file.room, { w: ROOM.w, d: ROOM.d, h: ROOM.h }); e.target.value = file.room[k]; rigChanged(); } }))))),
     h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { class: 'btn acc', onclick: () => openLibrary(addFixtures), title: 'Open the fixture library: Wincode models, the Open Fixture Library, GDTF import' }, '＋ Add fixtures…'),
-      h('button', { class: 'btn sm', title: 'Add a truss to hang fixtures from', onclick: () => { addTruss({ z: snap(clamp((file.trusses.length ? Math.min(...file.trusses.map(t => t.z)) : 1) - 1.5, Z_MIN, Z_MAX)) }); drawTrusses(); changed(); drawPanel(); } }, '＋ Truss')),
-    file.trusses.length ? [h('h3', null, `Trusses (${file.trusses.length})`), h('table', { class: 'mini' }, h('tr', null, ['Name', 'Depth Z', 'Height', 'Length', ''].map(x => h('th', null, x))),
-      file.trusses.map(t => { const upd = (k, v) => { t[k] = v; drawTrusses(); items.forEach(place); changed(); showMarkers(); if (k === 'y' || k === 'name') drawPanel(); };
-        return h('tr', null, h('td', null, textInput(t.name, v => upd('name', v))), h('td', null, num(t.z, Z_MIN, Z_MAX, 0.1, v => upd('z', v))), h('td', null, num(t.y, 1.5, ROOM.h - 0.5, 0.1, v => upd('y', v))), h('td', null, num(t.len, 1, ROOM.w - 1, 0.5, v => upd('len', v))),
-          h('td', null, h('button', { class: 'btn sm', title: 'Remove the truss; what hangs from it goes to the floor', onclick: () => { for (const i of items) if (i.lay.mount === 'truss' && i.lay.truss === t.id) { i.lay.mount = 'floor'; i.lay.truss = undefined; } file.trusses = file.trusses.filter(x => x !== t); drawTrusses(); items.forEach(place); changed(); drawPanel(); showMarkers(); } }, '✕'))); }))] : null,
+      h('button', { class: 'btn sm', title: 'Hang fixtures on the rig by themselves: the selected ones (all when none is selected), evenly along the trusses — or along the truss that is open below', onclick: () => autoPlace(many.length ? bySide(many) : items, piece && mountable(piece) ? [piece] : file.trusses) }, '⚙ Auto-place')),
+    h('h3', null, `Rig (${file.trusses.length} ${file.trusses.length === 1 ? 'piece' : 'pieces'})`),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn sm', title: 'Add a straight truss to hang fixtures from', onclick: () => { curPiece = addTruss({ z: snap(clamp((file.trusses.length ? Math.min(...file.trusses.map(t => t.z)) : 1) - 1.5, zMin(), zMax())) }).id; rigChanged(); drawPanel(); } }, '＋ Truss'),
+      h('button', { class: 'btn sm', title: 'Replace the room and the trusses with a ready-made rig, the rig from the Stage Builder, or a rig file', onclick: () => openRigDialog(applyRig, 'The rig is the room and its trusses. Loading one replaces the trusses of this stage; the fixtures that hang are spread over the new trusses.') }, '📂 Load rig…'),
+      h('button', { class: 'btn sm', title: 'Open this stage\'s room and trusses in the Stage Builder: straight, upright, circle and arc pieces, towers, snapping. Bring the result back with "Load rig…".', onclick: () => { keepRig({ app: 'wmh-rig', version: 1, name: file.name, room: file.room, trusses: file.trusses }); window.open('rig.html', 'wmh-rig'); } }, '🏗 Stage Builder')),
+    h('div', null, file.trusses.map(t => h('div', { class: 'fnrow' + (t.id === curPiece ? ' sel' : ''), onclick: () => { curPiece = t.id === curPiece ? null : t.id; drawPanel(); } }, h('span', { class: 'nm' }, t.name), h('span', { class: 'note' }, pieceLine(t))))),
+    piece ? [pieceEditor(piece, ROOM, k => { rigChanged(); if (k === 'type' || k === 'name' || k === 'y' || k === 'len' || k === 'r' || k === 'angle' || k === 'h') drawPanel(); }),
+      h('div', { class: 'row', style: 'margin-top:6px' },
+        mountable(piece) ? h('button', { class: 'btn sm', title: 'Towers from the floor up to this truss: under its ends (four under a circle)', onclick: () => { legsFor(file.trusses, piece); rigChanged(); drawPanel(); } }, '⫿ Add legs') : null,
+        h('button', { class: 'btn sm danger', title: 'Remove this piece; what hangs from it goes to the floor', onclick: () => { for (const i of items) if (i.lay.mount === 'truss' && i.lay.truss === piece.id) { i.lay.mount = 'floor'; i.lay.truss = undefined; } file.trusses = file.trusses.filter(x => x !== piece); curPiece = null; rigChanged(); drawPanel(); } }, '✕ Remove piece'))] : null,
     h('h3', null, `Fixtures (${items.length})`),
     h('div', null, items.map(i => h('div', { class: 'fnrow' + (sel.has(i.lay.id) ? ' sel' : ''), onclick: e => selectItem(i.lay.id, e.shiftKey || e.ctrlKey || e.metaKey) },
       h('span', { class: 'nm' }, i.hl ? '💡 ' : '', i.patch.name), h('span', { class: 'note' }, `${i.model.name} · U${i.patch.universe + 1}.${String(i.patch.address).padStart(3, '0')}–${i.patch.address + i.fx.footprint - 1}`)))),
@@ -232,9 +275,9 @@ function drawPanel() {
     many.length > 1 ? [
       h('h3', null, `${many.length} fixtures selected`),
       h('div', { class: 'row' },
-        h('button', { class: 'btn sm', title: 'Equal spacing between the leftmost and the rightmost one', onclick: () => { const L = bySide(many), a = L[0].lay.x, b = L[L.length - 1].lay.x, w = b - a < 0.2 ? Math.min(1.2 * (L.length - 1), 2 * X_MAX) : b - a, x0 = b - a < 0.2 ? clamp(a - w / 2, -X_MAX, X_MAX - w) : a; L.forEach((i, k) => { i.lay.x = snap(x0 + w * k / (L.length - 1)); place(i); }); changed(); showMarkers(); } }, '↔ Spread evenly'),
+        h('button', { class: 'btn sm', title: 'Equal spacing: along their truss, or between the leftmost and the rightmost one on the floor', onclick: () => spread(many) }, '↔ Spread evenly'),
         h('button', { class: 'btn sm', title: 'Put all of them at the depth of the first one', onclick: () => setLay(many.filter(i => i.lay.mount !== 'truss'), 'z', many[0].lay.z) }, '⇥ Same depth'),
-        h('button', { class: 'btn sm', title: 'Turn every fixture so that its front faces the audience', onclick: () => { setLay(many, 'rot', 0); drawPanel(); } }, '⟲ Face front'),
+        h('button', { class: 'btn sm', title: 'Rotation 0: on the floor the front faces the audience, on a truss the fixture hangs square to it', onclick: () => { setLay(many, 'rot', 0); drawPanel(); } }, '⟲ Face front'),
         h('button', { class: 'btn sm', title: 'Mirror the rotation left and right of the middle', onclick: () => { const L = bySide(many); L.forEach((i, k) => { const m = L[L.length - 1 - k]; if (k < L.length / 2) { const r = Math.abs(i.lay.rot || m.lay.rot || 30); i.lay.rot = r; m.lay.rot = -r; place(i); place(m); } }); changed(); drawPanel(); } }, '⇋ Fan')),
       h('div', { class: 'kv', style: 'margin-top:6px' }, row('Hang from', trussSel(many, many.every(i => i.lay.truss === many[0].lay.truss && i.lay.mount === many[0].lay.mount) ? many[0].lay.truss ?? '' : '')),
         row('Re-address', h('div', { class: 'row' }, select(ws.universes.map((u, i) => [i, `U${i + 1}`]), 0, v => { reU = +v; }), numInput(1, 1, 512, v => { reA = v; }, { style: 'width:62px' }),
@@ -249,9 +292,9 @@ function drawPanel() {
         row('Universe', select(ws.universes.map((u, i) => [i, u.name]), it.patch.universe, v => setPatch('universe', +v))),
         row('DMX address', numInput(it.patch.address, 1, 512, v => setPatch('address', v))),
         row('Hang from', trussSel([it], it.lay.mount === 'truss' ? it.lay.truss : '')),
-        row('Position X (m)', num(it.lay.x, -X_MAX, X_MAX, 0.1, v => setLay([it], 'x', v))),
-        it.lay.mount === 'truss' ? null : row('Position Z (m)', num(it.lay.z, Z_MIN, Z_MAX, 0.1, v => setLay([it], 'z', v))),
-        row('Rotation (°)', numInput(it.lay.rot || 0, -180, 180, v => setLay([it], 'rot', v))),
+        it.lay.mount === 'truss' ? row('Along the truss (m)', (() => { const tr = trussOf(it.lay), L = lengthOf(tr); return num(Math.round(it.lay.t * L * 100) / 100, 0, Math.round(L * 100) / 100, 0.1, v => setLay([it], 't', v / L)); })()) : row('Position X (m)', num(it.lay.x, -xMax(), xMax(), 0.1, v => setLay([it], 'x', v))),
+        it.lay.mount === 'truss' ? null : row('Position Z (m)', num(it.lay.z, zMin(), zMax(), 0.1, v => setLay([it], 'z', v))),
+        row('Rotation (°)', numInput(it.lay.rot || 0, -180, 180, v => setLay([it], 'rot', v), { title: it.lay.mount === 'truss' ? 'Turned against the truss it hangs on' : 'Turned on the floor: 0 = the front faces the audience' })),
         it.model.spec.tiltRange ? null : row('Aim (°)', numInput(it.lay.aim || 0, -135, 135, v => { it.lay.aim = v; changed(); }, { title: 'A fixture without tilt: the angle at which it is clamped. 0 = straight down from a truss / straight up from the floor' })),
         row('Output', h('b', { id: 'selOut' }, '—')), row('Value source', h('b', { id: 'selSrc' }, '—'))),
       h('div', { class: 'row', style: 'margin-top:8px' }, hlBtn([it]),
@@ -286,7 +329,10 @@ dom.addEventListener('pointerdown', e => {
 dom.addEventListener('pointermove', e => {
   if (!drag) { dom.style.cursor = pick(e) ? 'grab' : ''; return; }
   aim(e); if (!ray.ray.intersectPlane(ground, hitP)) return;
-  for (const s of drag.start) { s.i.lay.x = clamp(snap(s.x + hitP.x - drag.x), -X_MAX, X_MAX); if (s.i.lay.mount !== 'truss') s.i.lay.z = clamp(snap(s.z + hitP.z - drag.z), Z_MIN, Z_MAX); place(s.i); }
+  for (const s of drag.start) { const l = s.i.lay, tr = trussOf(l);
+    if (tr) l.t = nearestT(tr, s.x + hitP.x - drag.x, s.z + hitP.z - drag.z);                                  // slides along its truss, whatever its shape
+    else { l.x = clamp(snap(s.x + hitP.x - drag.x), -xMax(), xMax()); l.z = clamp(snap(s.z + hitP.z - drag.z), zMin(), zMax()); }
+    place(s.i); }
   drag.moved = true; showMarkers();
 });
 addEventListener('pointerup', e => {
@@ -296,7 +342,7 @@ addEventListener('pointerup', e => {
 });
 addEventListener('keydown', e => {
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) || document.querySelector('.dlg-back') || !sel.size) return;
-  const list = selItems(), step = e.shiftKey ? 0.5 : 0.1, move = (dx, dz) => { for (const i of list) { i.lay.x = clamp(snap(i.lay.x + dx), -X_MAX, X_MAX); if (i.lay.mount !== 'truss') i.lay.z = clamp(snap(i.lay.z + dz), Z_MIN, Z_MAX); place(i); } changed(); showMarkers(); drawPanel(); };
+  const list = selItems(), step = e.shiftKey ? 0.5 : 0.1, move = (dx, dz) => { for (const i of list) { const tr = trussOf(i.lay); if (tr) i.lay.t += dx / lengthOf(tr); else { i.lay.x = clamp(snap(i.lay.x + dx), -xMax(), xMax()); i.lay.z = clamp(snap(i.lay.z + dz), zMin(), zMax()); } place(i); } changed(); showMarkers(); drawPanel(); };
   const turn = d => { for (const i of list) { i.lay.rot = ((((i.lay.rot || 0) + d + 180) % 360) + 360) % 360 - 180; place(i); } changed(); drawPanel(); };
   if (e.key === 'Delete') removeFixtures([...sel]);
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') duplicate([...sel]);
@@ -330,13 +376,12 @@ $('#btnPull').addEventListener('click', () => {
   if (!confirm(`Replace this stage's patch and show with the DMX editor's workspace "${w.name}"?`)) return;
   registerAll(w);
   const lays = w.fixtures.filter(x => (getDef(x.def) || {}).sim).map((x, i) => file.fixtures.find(l => l.id === x.id) || { id: x.id, x: -3 + (i % 7), z: Math.floor(i / 7) * 1.2, rot: 0, mount: 'floor' });
-  pausedAt = 0; load({ app: 'wmh-stage', version: 2, name: w.name || file.name, trusses: file.trusses, fixtures: lays, workspace: w }); changed();
+  pausedAt = 0; load({ app: 'wmh-stage', version: 3, name: w.name || file.name, room: file.room, trusses: file.trusses, fixtures: lays, workspace: w }); changed();
 });
 $('#rngHaze').addEventListener('input', e => { haze = e.target.value / 100; });
 $('#chkWork').addEventListener('change', e => S.setWorkLight(e.target.checked)); S.setWorkLight($('#chkWork').checked);   // on by default (the box is ticked in the page)
 // camera presets
-const VIEWS = { persp: [[5.5, 3.4, 8.5], [0, 1.6, -1]], front: [[0, 2.4, 13], [0, 2.2, 0]], top: [[0, 19, 1.01], [0, 0, 1]], side: [[14, 2.6, 1], [0, 2.2, 1]] };
-document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { const [p, t] = VIEWS[b.dataset.view]; S.camera.position.set(...p); S.controls.target.set(...t); S.controls.update(); }));
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => S.setView(b.dataset.view)));   // presets follow the room size
 
 /* ── loop ── */
 // The show clock is a worker timer (40 Hz) so playback and audio stay in step even when this window is in the
@@ -363,7 +408,7 @@ function simulate(dt, now, time) {
     }
   }
 }
-Object.assign(window.WST, { simulate, load: f => { load(f); play(0); }, addFixtures, removeFixtures, duplicate, readdress, addTruss, highlight });
+Object.assign(window.WST, { simulate, load: f => { load(f); play(0); }, addFixtures, removeFixtures, duplicate, readdress, addTruss, highlight, applyRig, autoPlace });
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), now = performance.now(), time = clock.elapsedTime, live = engine.top.size > 0;
@@ -383,6 +428,8 @@ function frame() {
 /* ── start: the last stage, or the showcase example ── */
 let saved = null; try { saved = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
 try { load(saved && saved.app === 'wmh-stage' ? saved : EXAMPLES[0].build()); } catch (e) { console.warn('The saved stage could not be opened:', e); load(EXAMPLES[0].build()); }
+// opened from the Stage Builder ("Use in the Stage Editor"): its rig replaces this stage's
+if (location.hash === '#rig') { const r = savedRig(); history.replaceState(null, '', location.pathname + location.search); if (r) applyRig(r); }
 frame();
 installAgentEntry();                                         // development only: Ctrl + double-click the logo / Ctrl + Alt + M
 

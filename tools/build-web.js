@@ -34,7 +34,7 @@ const A = `a/${stamp}`;
 cpDir(path.join(ROOT, 'web', 'js'), path.join(OUT, A, 'js'), f => !DEV_ONLY.test(f) && !f.endsWith('package.json'));
 cpDir(path.join(ROOT, 'web', 'css'), path.join(OUT, A, 'css'));
 cpDir(path.join(ROOT, 'web', 'manual'), path.join(OUT, 'manual'), f => !f.endsWith('.html'));   // the manuals' pages were copied above; these are their stylesheet and pictures
-for (const page of ['index.html', 'console.html', 'editor.html', 'stage.html']) {
+for (const page of ['index.html', 'console.html', 'editor.html', 'stage.html', 'rig.html']) {
   const f = path.join(OUT, page);
   const html = fs.readFileSync(f, 'utf8')
     .replace('<link rel="stylesheet" href="css/', `<script>window.WMH_STATIC = 1; window.WMH_BUILD = '${stamp}';</script>\n<link rel="stylesheet" href="${A}/css/`)

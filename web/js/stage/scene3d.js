@@ -8,20 +8,11 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-export const ROOM = { w: 16, d: 14, h: 7, back: -6 };
-export const TRUSS_Y = 4.6;                                  // height of the lower truss chords
+import { roomOf } from '../rig/rig.js';
 
-const trussMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.35, metalness: 0.9 });
-/** A box truss of the given length along X; origin = middle of the lower chords (where fixtures hang) */
-export function buildTruss(len) {
-  const g = new THREE.Group(), tube = (r, l, seg) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, seg), trussMat);
-  for (const [y, z] of [[0, -0.14], [0, 0.14], [0.28, -0.14], [0.28, 0.14]]) { const t = tube(0.025, len, 12); t.rotation.z = Math.PI / 2; t.position.set(0, y, z); g.add(t); }
-  for (let x = -len / 2; x <= len / 2 + 1e-6; x += 0.5) {
-    for (const z of [-0.14, 0.14]) { const t = tube(0.012, 0.28, 6); t.position.set(x, 0.14, z); g.add(t); }
-    for (const y of [0, 0.28]) { const t = tube(0.012, 0.28, 6); t.rotation.x = Math.PI / 2; t.position.set(x, y, 0); g.add(t); }
-  }
-  return g;
-}
+/** The room in use: { w, d, h, back }. One object, updated by setRoom(), so that every module reads the current size. */
+export const ROOM = roomOf(null);
+export const TRUSS_Y = 4.6;                                  // default height of the lower truss chords (trusses are built by rig/rig.js)
 
 export function createStage(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -42,14 +33,31 @@ export function createStage(host) {
   // room: floor, back wall, side walls, ceiling
   const floorM = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.78, metalness: 0.05 });
   const wallM = new THREE.MeshStandardMaterial({ color: 0x4a4a50, roughness: 0.95 });
-  const plane = (w, h, m, x, y, z, rx, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); p.receiveShadow = true; scene.add(p); return p; };
-  const cz = ROOM.back + ROOM.d / 2;
-  const floor = plane(ROOM.w, ROOM.d, floorM, 0, 0, cz, -Math.PI / 2, 0);
-  plane(ROOM.w, ROOM.h, wallM, 0, ROOM.h / 2, ROOM.back, 0, 0);
-  plane(ROOM.d, ROOM.h, wallM, -ROOM.w / 2, ROOM.h / 2, cz, 0, Math.PI / 2);
-  plane(ROOM.d, ROOM.h, wallM, ROOM.w / 2, ROOM.h / 2, cz, 0, -Math.PI / 2);
-  plane(ROOM.w, ROOM.d, wallM, 0, ROOM.h, cz, Math.PI / 2, 0);
-  const grid = new THREE.GridHelper(ROOM.w, ROOM.w, 0x2a2a30, 0x202024); grid.position.set(0, 0.002, cz); grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+  const room = new THREE.Group(); scene.add(room);
+  const plane = (w, h, m, x, y, z, rx, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); p.receiveShadow = true; room.add(p); return p; };
+  /** build the room again in another size ({ w, d, h } in metres) */
+  function setRoom(r) {
+    Object.assign(ROOM, roomOf(r));
+    for (const o of [...room.children]) { room.remove(o); o.geometry.dispose(); }
+    const cz = ROOM.back + ROOM.d / 2;
+    plane(ROOM.w, ROOM.d, floorM, 0, 0, cz, -Math.PI / 2, 0);
+    plane(ROOM.w, ROOM.h, wallM, 0, ROOM.h / 2, ROOM.back, 0, 0);
+    plane(ROOM.d, ROOM.h, wallM, -ROOM.w / 2, ROOM.h / 2, cz, 0, Math.PI / 2);
+    plane(ROOM.d, ROOM.h, wallM, ROOM.w / 2, ROOM.h / 2, cz, 0, -Math.PI / 2);
+    plane(ROOM.w, ROOM.d, wallM, 0, ROOM.h, cz, Math.PI / 2, 0);
+    // a 1 m grid on the floor, with a line through x = 0 and z = 0
+    const pts = [], x0 = -Math.floor(ROOM.w / 2), z0 = Math.ceil(ROOM.back), z1 = ROOM.back + ROOM.d;
+    for (let x = x0; x <= -x0; x++) pts.push(x, 0, ROOM.back, x, 0, z1); for (let z = z0; z <= z1; z++) pts.push(-ROOM.w / 2, 0, z, ROOM.w / 2, 0, z);
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const grid = new THREE.LineSegments(lg, gridM); grid.position.y = 0.002; room.add(grid);
+    controls.maxDistance = Math.max(22, Math.hypot(ROOM.w, ROOM.d) * 1.1); camera.far = Math.max(90, controls.maxDistance * 2.5); camera.updateProjectionMatrix();
+  }
+  /** camera presets for the current room: { persp, front, top, side } → [position, target] */
+  const views = () => { const k = Math.max(ROOM.w / 16, ROOM.d / 14, ROOM.h / 7), cz = ROOM.back + ROOM.d / 2;
+    return { persp: [[ROOM.w * 0.42, ROOM.h * 0.95, ROOM.back + ROOM.d * 1.2], [0, ROOM.h * 0.3, ROOM.back + ROOM.d * 0.42]], front: [[0, ROOM.h * 0.34, 13 * k], [0, ROOM.h * 0.31, 0]], top: [[0, 19 * k, cz + 0.01], [0, 0, cz]], side: [[14 * k, ROOM.h * 0.37, cz], [0, ROOM.h * 0.31, cz]] }; };
+  const setView = name => { const [p, t] = views()[name]; camera.position.set(...p); controls.target.set(...t); controls.update(); };
+  const gridM = new THREE.LineBasicMaterial({ color: 0x2a2a30, transparent: true, opacity: 0.5 });
+  setRoom(ROOM);
 
   const hemi = new THREE.HemisphereLight(0x55607a, 0x0a0a0c, 0.2); scene.add(hemi);
   const work = new THREE.DirectionalLight(0xfff2e0, 0); work.position.set(3, 6, 5); scene.add(work);
@@ -81,5 +89,5 @@ export function createStage(host) {
     for (const b of beams) { b.vol.visible = b.volWas; b.flare.visible = b.flareWas; }
     composer.render();
   }
-  return { THREE, renderer, scene, camera, controls, floor, depthRT, size, render, setWorkLight, set onResize(f) { onResize = f; } };
+  return { THREE, renderer, scene, camera, controls, setRoom, setView, depthRT, size, render, setWorkLight, set onResize(f) { onResize = f; } };
 }

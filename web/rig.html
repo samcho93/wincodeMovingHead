@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wincode Stage Builder</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/editor.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body class="stg">
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="logo">WINCODE</span><span class="sub" style="display:inline">Stage Builder</span></div>
+    <div class="tb-group">
+      <select id="selPreset" title="Ready-made rigs"></select>
+      <button class="tb" id="btnPreset" title="Load the selected rig (replaces the current one)">Load rig</button>
+    </div>
+    <div class="tb-group">
+      <label class="chk" title="Pieces move in steps of this size">Grid <select id="selGrid"><option value="0.05">5 cm</option><option value="0.1">10 cm</option><option value="0.25" selected>25 cm</option><option value="0.5">50 cm</option><option value="1">1 m</option></select></label>
+      <label class="chk" title="Ends of pieces jump to the ends of other pieces when they come close"><input type="checkbox" id="chkSnap" checked> Snap ends</label>
+      <label class="chk"><input type="checkbox" id="chkWork" checked> Work light</label>
+    </div>
+    <div class="tb-group right">
+      <button class="tb" id="btnNew" title="Empty rig">New</button>
+      <button class="tb" id="btnOpen" title="Open a rig file (or the rig of a stage file)">Open</button>
+      <button class="tb" id="btnSave" title="Save this rig to a file (.rig.json) for the Stage Editor and the simulator">Save</button>
+      <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+      <a class="tb" id="lnkStage" href="stage.html#rig" target="wmh-stage" title="Open the Stage Editor with this rig: its fixtures are spread over these trusses">🎭 Use in the Stage Editor</a>
+      <a class="tb" id="lnkSim" href="index.html?rig=builder" target="wmh-sim" title="Open the single-fixture simulator in this rig">🔦 Use in the simulator</a>
+      <a class="tb" href="manual/stage-en.html#builder" target="wmh-manual" title="Manual (English)">? Manual</a>
+      <a class="tb" href="manual/stage-ko.html#builder" target="wmh-manual" title="사용 설명서 (한국어)">한글</a>
+      <span id="src" class="pill off">—</span>
+    </div>
+  </header>
+  <main id="stage">
+    <div id="viewport"></div>
+    <div id="hint">Drag: orbit · Wheel: zoom · Right-drag: pan · Click a piece to select it (Shift: several), drag to move it · Q / E turn · PgUp / PgDn raise and lower</div>
+    <div id="views" title="Camera"><button class="btn sm" data-view="persp">3D</button><button class="btn sm" data-view="front">Front</button><button class="btn sm" data-view="top">Top</button><button class="btn sm" data-view="side">Side</button></div>
+  </main>
+  <aside id="side">
+    <div class="tabpane active" id="rigPanel"></div>
+  </aside>
+</div>
+<script type="module" src="js/rig/main.js"></script>
+</body>
+</html>

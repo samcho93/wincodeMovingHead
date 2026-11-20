@@ -16,7 +16,7 @@
   <a href="#examples">3. Examples and playback</a>
   <a href="#library">4. The fixture library</a>
   <a href="#import">5. Importing GDTF and OFL files</a>
-  <a href="#truss">6. Trusses</a>
+  <a href="#truss">6. The rig: room and trusses</a>
   <a href="#move">7. Selecting and moving</a>
   <a href="#fixture">8. One fixture: patch and position</a>
   <a href="#many">9. Several fixtures at once</a>
@@ -26,6 +26,7 @@
   <a href="#sim">13. What a library fixture does</a>
   <a href="#walk">14. A stage in ten minutes</a>
   <a href="#faq">15. Limits and troubleshooting</a>
+  <a href="#builder">16. The Stage Builder</a>
   <a href="../stage.html">← Open the Stage Editor</a>
 </nav>
 <main>
@@ -102,17 +103,19 @@
 <p>What is read from a GDTF file: name and manufacturer, the wheels with their slot names and colours, every DMX mode with its channels, functions and value ranges, and the beam angle. What is <b>not</b> read: the 3D model inside the file, and channels repeated through geometry references (the cells of a pixel fixture appear once).</p>
 <p>Imported fixtures stay in this browser's library. <span class="b">Forget</span> removes one from the library; stages that use it keep their copy.</p>
 
-<h2 id="truss">6. Trusses</h2>
-<p><span class="b">＋ Truss</span> adds a truss; the <b>Trusses</b> table lists them.</p>
+<h2 id="truss">6. The rig: room and trusses</h2>
+<p>The <b>rig</b> is the room and the trusses in it. The <i>Stage</i> section sets the room, the <i>Rig</i> section lists the truss pieces.</p>
+<figure><img src="img/s09-rig.png" alt="A straight truss on two towers, an arc and a circle, with fixtures hanging on all three"><figcaption>A rig made in the Stage Builder: a truss on two towers, an arc and a circle. <i>Auto-place</i> hung the six fixtures along them.</figcaption></figure>
 <table>
-  <tr><th>Column</th><th>Meaning</th></tr>
-  <tr><td>Name</td><td>Shown in the <i>Hang from</i> lists.</td></tr>
-  <tr><td>Depth Z</td><td>How far back the truss is, in metres. 0 is the middle of the stage, negative is towards the back wall.</td></tr>
-  <tr><td>Height</td><td>Height of the lower chords, where the fixtures hang (1.5–6.5 m).</td></tr>
-  <tr><td>Length</td><td>Length in metres, centred on the stage.</td></tr>
-  <tr><td><span class="b">✕</span></td><td>Removes the truss. What hung from it goes to the floor.</td></tr>
+  <tr><th>Control</th><th>What it does</th></tr>
+  <tr><td><i>Room W × D × H (m)</i></td><td>Width, depth and height of the room: 6–60 m wide and deep, 3–20 m high. The camera buttons follow the size.</td></tr>
+  <tr><td><span class="b">＋ Truss</span></td><td>Adds a straight truss across the stage.</td></tr>
+  <tr><td><span class="b">📂 Load rig…</span></td><td>Replaces the room and the trusses with a ready-made rig, with the rig that is open in the <b>Stage Builder</b>, or with a rig file. The fixtures that hung are spread over the new trusses; the ones on the floor stay.</td></tr>
+  <tr><td><span class="b">🏗 Stage Builder</span></td><td>Opens this stage's rig in the Stage Builder (chapter 16), the program for building rigs. Bring the result back with <i>Load rig…</i>.</td></tr>
+  <tr><td>A row of the list</td><td>Click it to open the piece: name, shape (straight, upright, circle, arc), truss size, length or radius, position, height, rotation. <span class="b">⫿ Add legs</span> puts towers under it; <span class="b">✕ Remove piece</span> removes it — what hung from it goes to the floor.</td></tr>
+  <tr><td><span class="b">⚙ Auto-place</span></td><td>Hangs fixtures by themselves: the selected ones, or all when nothing is selected, evenly along every truss, each truss getting its share by length. With a piece open in the list, only that piece is used.</td></tr>
 </table>
-<p>Fixtures follow their truss: change its depth or height and they move with it. Trusses run from left to right.</p>
+<p>Fixtures follow their truss: move, turn, raise or reshape it and they go with it. Fixtures hang on straight trusses, circles and arcs; towers (uprights) only carry the rig.</p>
 
 <h2 id="move">7. Selecting and moving</h2>
 <table>
@@ -120,7 +123,7 @@
   <tr><td>Select one</td><td>Click it on the stage or in the list. An orange ring on the floor marks it.</td></tr>
   <tr><td>Select several</td><td>Shift-click (or Ctrl-click) more — on the stage or in the list.</td></tr>
   <tr><td>Select all · none</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd> · <kbd>Esc</kbd>, or click an empty part of the stage.</td></tr>
-  <tr><td>Move</td><td>Drag a selected fixture: everything selected moves with it, in steps of 10 cm. A fixture on a truss slides along the truss only.</td></tr>
+  <tr><td>Move</td><td>Drag a selected fixture: everything selected moves with it, in steps of 10 cm. A fixture on a truss slides along its truss, whatever its shape.</td></tr>
   <tr><td>Nudge</td><td>Arrow keys: 10 cm. With <kbd>Shift</kbd>: 50 cm. Up / down move away from and towards you.</td></tr>
   <tr><td>Turn</td><td><kbd>Q</kbd> / <kbd>E</kbd>: 15° left / right.</td></tr>
   <tr><td>Duplicate</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd>. The copy stands 60 cm to the right and gets the next free address.</td></tr>
@@ -136,7 +139,7 @@
   <tr><td>Channel mode</td><td>Which of the fixture's channel layouts it is set to. Must be the mode the console uses.</td></tr>
   <tr><td>Universe · DMX address</td><td>Where the fixture listens. The list shows the range it occupies: <i>U1.117–136</i>.</td></tr>
   <tr><td>Hang from</td><td><i>Floor</i>, or one of the trusses. A hung fixture is upside down, as in reality.</td></tr>
-  <tr><td>Position X · Z (m)</td><td>Left–right and front–back. On a truss only X can be set.</td></tr>
+  <tr><td>Position X · Z (m)<br>Along the truss (m)</td><td>On the floor: left–right and front–back. On a truss: the distance from its beginning, along its length.</td></tr>
   <tr><td>Rotation (°)</td><td>Turns the whole fixture around its vertical axis.</td></tr>
   <tr><td>Aim (°)</td><td>Only for a fixture <b>without tilt</b> (a PAR, a bar): the angle at which it is clamped. 0 = straight down from a truss, straight up from the floor.</td></tr>
   <tr><td>Output</td><td>Its intensity, pan and tilt at this moment.</td></tr>
@@ -213,9 +216,47 @@
   <tr><td>A fixture I patched in a console does not appear.</td><td>Generic profiles (plain dimmer, RGB …) have no 3D model. Use a library fixture instead.</td></tr>
   <tr><td>A GDTF file is refused.</td><td>The message says why. A file without DMX modes, or one that is not a GDTF archive, cannot be read. A pixel fixture whose cells are defined through geometry references imports with one cell only.</td></tr>
   <tr><td>Colours of a wheel look wrong.</td><td>They are the library's. A slot without a colour in the library is shown white.</td></tr>
-  <tr><td>Can a truss run front to back, or at an angle?</td><td>Not yet: trusses run left to right. The room is 16 × 14 m and 7 m high and cannot be changed.</td></tr>
+  <tr><td>Can a truss run front to back, or at an angle?</td><td>Yes: open the piece in the <i>Rig</i> list and set its <i>Rotation</i> (90 = front to back). Circles, arcs and towers are there too, and the room size is set in the <i>Stage</i> section (chapter 6).</td></tr>
   <tr><td>Where did my imported fixture go on another computer?</td><td>The library of imported files belongs to the browser. A <b>stage file</b> carries the fixtures it uses, so open the stage file there.</td></tr>
 </table>
+
+<h2 id="builder">16. The Stage Builder</h2>
+<p>The Stage Builder (<a href="../rig.html">rig.html</a>) is a program of its own for the stage itself: the size of the room and the truss structure. What it makes is a <b>rig file</b>, which the Stage Editor and the Fixture Simulator load.</p>
+<figure><img src="img/s08-builder.png" alt="The Stage Builder with a ground support"><figcaption>The Stage Builder: a ground support of five trusses on four towers. The orange rings mark the ends of the selected piece.</figcaption></figure>
+<h3>Pieces</h3>
+<table>
+  <tr><th>Shape</th><th>What it is</th><th>Its own sizes</th></tr>
+  <tr><td>Straight</td><td>A horizontal truss. Rotation 0 runs across the stage, 90 runs front to back, anything between is allowed.</td><td>Length</td></tr>
+  <tr><td>Upright (tower)</td><td>A vertical truss on a base plate: a leg of a ground support. Fixtures do not hang on it.</td><td>Height</td></tr>
+  <tr><td>Circle</td><td>A horizontal ring.</td><td>Radius</td></tr>
+  <tr><td>Arc</td><td>Part of a ring. With rotation 0 it bulges towards the back wall.</td><td>Radius, angle (10–350°)</td></tr>
+</table>
+<p>Every piece has a <b>truss size</b> — 220, 290, 400 or 520 mm between the chords — a position, a height and a rotation.</p>
+<h3>Building</h3>
+<ol class="steps">
+  <li><b>Set the room.</b> <i>Room W × D × H</i> in the <i>Stage</i> section.</li>
+  <li><b>Add pieces.</b> In <i>Add a piece</i> choose the shape, the truss size, the length (or radius and angle) and the height, then press <span class="b">＋ Add</span>. The piece appears in the middle of the view.</li>
+  <li><b>Put them in place.</b> Drag a piece on the stage, or type its position in <i>Selected piece</i>. Pieces move on the <i>Grid</i> chosen in the top bar; with <i>Snap ends</i> on, the end of a piece jumps to the end of another one when they come within 35 cm, so trusses and towers meet exactly.</li>
+  <li><b>Add the structure.</b> Select a truss and press <span class="b">⫿ Add legs</span>: towers from the floor up to the truss appear under its ends (four under a circle). Or add uprights yourself and drag them to the corners.</li>
+  <li><b>Save or hand over.</b> <span class="b">Save</span> downloads <code><i>name</i>.rig.json</code>. <span class="b">🎭 Use in the Stage Editor</span> opens the Stage Editor with this rig; <span class="b">🔦 Use in the simulator</span> opens the simulator with the fixture hanging in it.</li>
+</ol>
+<table>
+  <tr><th>Key</th><th>Action</th></tr>
+  <tr><td>Click · Shift-click</td><td>Select a piece · add to the selection</td></tr>
+  <tr><td>Arrow keys</td><td>Move by one grid step (Shift: 1 m)</td></tr>
+  <tr><td>Q · E</td><td>Turn by 15°</td></tr>
+  <tr><td>PgUp · PgDn</td><td>Raise or lower by 10 cm</td></tr>
+  <tr><td>Ctrl+D · Del</td><td>Duplicate · remove</td></tr>
+</table>
+<h3>Ready-made rigs</h3>
+<p>The list in the top bar holds six rigs to start from: front and back truss, goalpost, ground support 10 × 8 m, circle and front truss, arc and back truss, roof grid 12 × 9 m. The same list is in <i>Load rig…</i> of the Stage Editor and in <i>Stage</i> of the simulator.</p>
+<h3>Using a rig elsewhere</h3>
+<table>
+  <tr><th>Program</th><th>How</th></tr>
+  <tr><td>Stage Editor</td><td><span class="b">📂 Load rig…</span> → a ready-made rig, <i>From the Stage Builder</i> (what is open there now, in the same browser) or <i>Open a rig file…</i>. Then hang the fixtures by hand, or press <span class="b">⚙ Auto-place</span> and adjust each one: its truss, its place along it, its rotation and its aim.</td></tr>
+  <tr><td>Fixture Simulator</td><td><i>Stage</i> in the top bar: the built-in room, a ready-made rig, <i>From the Stage Builder</i> or <i>Open a rig file…</i>. With <i>Mount: Truss</i> the fixture hangs in the middle of the first truss of the rig.</td></tr>
+</table>
+<div class="note">The Stage Builder checks no loads: it draws a structure, it does not calculate one.</div>
 </main>
 </div>
 </body>

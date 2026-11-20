@@ -41,12 +41,19 @@ Structure mirrors `D:\ESP\AuraSim` (Node server + `web/` three.js, no bundler).
 - DMX Studio does not know these fixtures yet (it has its own profile list).
 
 ## Stage editor (`web/stage.html`, `web/js/stage/`)
-- Layout: `file.trusses [{ id, name, x, z, y, len }]` (along X) and `file.fixtures [{ id, x, z, rot, mount, truss, aim }]`; version 1 files (no `trusses`) get one truss per depth on load. `library-ui.js` is the fixture library window. Debug: `WST.addFixtures({ def, desc, mode, count, mount })`, `WST.highlight(item, on)`, `WST.sel`.
+- Layout: `file.room`, `file.trusses` (rig pieces, see "Stage Builder and rigs") and `file.fixtures [{ id, x, z, rot, mount, truss, t, aim }]`; version 1 files (no `trusses`) get one truss per depth on load. `library-ui.js` is the fixture library window. Debug: `WST.addFixtures({ def, desc, mode, count, mount })`, `WST.highlight(item, on)`, `WST.sel`.
 - Several fixtures on one stage: each is a `Fixture` created with `{ persist: false, settings }` (no localStorage), its own machine and one `Beam` per head. Stage file = `{ app: 'wmh-stage', fixtures: [layout], workspace }`; layout ids = workspace fixture ids.
 - Plays the workspace's first show with the editor's `Engine` inside the page (`store.persist = false` so the editor's autosave slot is never touched; hand-over is explicit via `store.handOver` / `store.peekSaved`). Engine clock = worker timer; fixtures and rendering = rAF. When nothing plays, fixtures follow the virtual cable.
 - Examples are code (`stage/examples.js`), keyed by channel names — never store channel indexes by hand. A model without a hand-written section (not in `WRITTEN`) gets one generated from its `program` steps, in the showcase and as its own example — so a model added by the agent shows up on the stage by itself. `arrange(file, count, style)` multiplies a single-model example (Units + style in the top bar): per-unit copies of every function and track; EFX `phase` (degrees) is the per-unit offset used by the Wave style. Music: `stage/beat.js`.
 - Budget: `MAX_PROJECTED` spot lights (texture units), `MAX_SHADOWS`. Debug: `WST.items`, `WST.engine`, `WST.simulate(dt, now, time)`.
 - Do not put per-frame scratch state on a `Beam` under `_v`, `_m`, `_w`, `_d` — those are its own vectors.
+
+## Stage Builder and rigs (`web/rig.html`, `web/js/rig/`)
+- A rig = `{ app: 'wmh-rig', room: { w, d, h }, trusses: [piece] }`; a stage file carries the same `room` and `trusses`. Piece types: `straight` (`len`), `upright` (`h`, structure only), `circle` (`r`), `arc` (`r`, `angle`); all have `x, z, y, rot, size`. A piece without `type` is a straight one (old stage files). The format is documented at the top of `rig/rig.js`.
+- `rig.js` is shared by the builder, the stage editor and the simulator: `buildPiece` (one merged geometry per piece), `pointAt(piece, t)` / `nearestT` (where fixtures hang), `distribute` (auto-placement), `legsFor`, `PRESETS`, `readRig`. `rig-ui.js`: the piece form and the "Load rig" dialog.
+- Fixtures on a truss are stored as `{ mount: 'truss', truss: id, t: 0..1, rot }` — `rot` is relative to the truss; `x` / `z` are derived in `place()`. Do not position hung fixtures by `x`.
+- Hand-over: the builder keeps its rig in `localStorage['wmh.rig.v1']`; `stage.html#rig` and `index.html?rig=builder` read it. The simulator remembers its rig in `localStorage['wmh.sim.rig']`.
+- The room is one mutable object (`ROOM` in `stage/scene3d.js`, changed by `S.setRoom`): read it when needed, never copy its size into constants. Debug: `WRB.rig`, `WRB.sel`, `WST.applyRig(rig)`, `WST.autoPlace(items)`.
 
 ## Add-model agent (development only)
 - Entry (`web/js/agent-entry.js`, installed by all three pages): Ctrl + double-click the logo area or Ctrl + Alt + M. It asks `/api/agent/info` once at start so `window.open` runs inside the click (opening after an `await` gets pop-up blocked), and shows a toast when the agent is unavailable.

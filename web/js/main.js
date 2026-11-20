@@ -7,6 +7,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildMachine } from './machine.js';
+import { buildPiece, disposePiece, pointAt, mountable, roomOf, readRig, savedRig, PRESETS } from './rig/rig.js';
 import { LIST, MODELS, currentModelId, rememberModel } from './models/index.js';
 import { Fixture } from './fixture.js';
 import { Menu } from './menu.js';
@@ -52,22 +53,28 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 0.12; controls.maxDistance = 16;
 
 /* Stage: floor + back/side walls (where the spot lands) + truss */
-const ROOM = { w: 14, d: 13, h: 6.5, back: -6 };
-{
-  const floorM = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.78, metalness: 0.05 });
-  const wallM = new THREE.MeshStandardMaterial({ color: 0x4a4a50, roughness: 0.95 });
-  const mk = (w, h, m, x, y, z, rx, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); p.receiveShadow = true; scene.add(p); return p; };
+const ROOM0 = { w: 14, d: 13, h: 6.5, back: -6 };              // the built-in room; a rig brings its own size
+const roomG = new THREE.Group(); scene.add(roomG);
+const floorM = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.78, metalness: 0.05 }), wallM = new THREE.MeshStandardMaterial({ color: 0x4a4a50, roughness: 0.95 });
+const gridM = new THREE.LineBasicMaterial({ color: 0x2a2a30, transparent: true, opacity: 0.5 }), propM = new THREE.MeshStandardMaterial({ color: 0x8a8a90, roughness: 0.7 });
+function buildRoom(ROOM) {
+  for (const o of [...roomG.children]) { roomG.remove(o); o.geometry.dispose(); }
+  const mk = (w, h, m, x, y, z, rx, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); p.receiveShadow = true; roomG.add(p); return p; };
   mk(ROOM.w, ROOM.d, floorM, 0, 0, ROOM.back + ROOM.d / 2, -Math.PI / 2, 0);
   mk(ROOM.w, ROOM.h, wallM, 0, ROOM.h / 2, ROOM.back, 0, 0);
   mk(ROOM.d, ROOM.h, wallM, -ROOM.w / 2, ROOM.h / 2, ROOM.back + ROOM.d / 2, 0, Math.PI / 2);
   mk(ROOM.d, ROOM.h, wallM, ROOM.w / 2, ROOM.h / 2, ROOM.back + ROOM.d / 2, 0, -Math.PI / 2);
   mk(ROOM.w, ROOM.d, wallM, 0, ROOM.h, ROOM.back + ROOM.d / 2, Math.PI / 2, 0);
   // floor grid (1 m)
-  const grid = new THREE.GridHelper(14, 14, 0x2a2a30, 0x202024); grid.position.set(0, 0.002, ROOM.back + 7); grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+  const pts = [], x0 = -Math.floor(ROOM.w / 2), z1 = ROOM.back + ROOM.d;
+  for (let x = x0; x <= -x0; x++) pts.push(x, 0, ROOM.back, x, 0, z1); for (let z = Math.ceil(ROOM.back); z <= z1; z++) pts.push(-ROOM.w / 2, 0, z, ROOM.w / 2, 0, z);
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const grid = new THREE.LineSegments(lg, gridM); grid.position.y = 0.002; roomG.add(grid);
   // a prop to show shadows (person-height pillar)
-  const prop = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.7, 24), new THREE.MeshStandardMaterial({ color: 0x8a8a90, roughness: 0.7 }));
-  prop.position.set(1.6, 0.85, -3.4); prop.castShadow = true; prop.receiveShadow = true; scene.add(prop);
+  const prop = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.7, 24), propM);
+  prop.position.set(1.6, 0.85, Math.max(-3.4, ROOM.back + 1)); prop.castShadow = true; prop.receiveShadow = true; roomG.add(prop);
+  controls.maxDistance = Math.max(16, Math.hypot(ROOM.w, ROOM.d)); camera.far = Math.max(80, controls.maxDistance * 2.5); camera.updateProjectionMatrix();
 }
+buildRoom(ROOM0);
 const truss = new THREE.Group(); truss.visible = false; scene.add(truss);
 {
   const m = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.35, metalness: 0.9 });
@@ -109,9 +116,19 @@ new ResizeObserver(resize).observe(host); resize();
 
 /* ───────── mounting (floor / truss) · views ───────── */
 let mount = 'floor';
+/* A rig (rig/rig.js: a room size and trusses, made in the Stage Builder) can replace the built-in room: the fixture then
+   hangs in the middle of its first truss. */
+const rigG = new THREE.Group(); scene.add(rigG);
+let rig = null, hang = null;                                  // hang: { x, y, z, yaw } where the fixture hangs in the rig
+function setRig(r, remember = true) {
+  rig = r; for (const g of [...rigG.children]) { rigG.remove(g); disposePiece(g); }
+  if (r) { buildRoom(roomOf(r.room)); for (const p of r.trusses) rigG.add(buildPiece(p)); const t = r.trusses.find(mountable); hang = t ? pointAt(t, 0.5) : null; } else { buildRoom(ROOM0); hang = null; }
+  if (remember) try { if (r) localStorage.setItem('wmh.sim.rig', JSON.stringify(r)); else localStorage.removeItem('wmh.sim.rig'); } catch (e) {}
+  setMount(mount);
+}
 function setMount(m) {
-  mount = m; truss.visible = m === 'truss'; fx.inverted = m === 'truss'; menu.dirty = true;
-  if (m === 'truss') { R.root.rotation.set(0, 0, Math.PI); R.root.position.set(0, truss.userData.hangY, 0); }
+  mount = m; truss.visible = m === 'truss' && !hang; fx.inverted = m === 'truss'; menu.dirty = true;
+  if (m === 'truss') { R.root.rotation.set(0, hang ? THREE.MathUtils.degToRad(hang.yaw) : 0, Math.PI); R.root.position.set(hang ? hang.x : 0, hang ? hang.y - 0.13 : truss.userData.hangY, hang ? hang.z : 0); }
   else { R.root.rotation.set(0, 0, 0); R.root.position.set(0, 0, 0); }
   key.target.position.copy(R.root.position).y += (m === 'truss' ? -0.5 : 0.5) * MODEL.body.H; key.position.set(1.2, key.target.position.y + 1.4, 2.6);
   try { localStorage.setItem('wmh.mount', m); } catch (e) {}
@@ -130,7 +147,7 @@ function setView(name, instant) {
   const v = VIEWS[name]; if (!v) return; curView = name;
   const pos = new THREE.Vector3(...v.pos), tgt = new THREE.Vector3(...v.tgt);
   if (!v.world) { R.root.updateMatrixWorld(true); R.root.localToWorld(pos); R.root.localToWorld(tgt); }
-  else if (mount === 'truss') tgt.y = name === 'beam' ? 3.2 : 2.4;
+  else if (mount === 'truss') { tgt.y = R.root.position.y - (name === 'beam' ? 1.27 : 2.07); pos.x += R.root.position.x; pos.z += R.root.position.z; tgt.x += R.root.position.x; tgt.z += R.root.position.z; }   // look at where it hangs
   if (instant) { camera.position.copy(pos); controls.target.copy(tgt); fly = null; } else fly = { pos, tgt, t: 0, p0: camera.position.clone(), t0: controls.target.clone() };
   document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === name));
 }
@@ -231,6 +248,21 @@ const workLight = on => { work.intensity = on ? 1.6 : 0; hemi.intensity = on ? 0
 $('#chkWork').addEventListener('change', e => workLight(e.target.checked)); workLight($('#chkWork').checked);   // on by default (the box is ticked in the page)
 $('#chkDock').addEventListener('change', e => $('#lcdDock').classList.toggle('hidden', !e.target.checked));
 $('#selMount').addEventListener('change', e => setMount(e.target.value));
+// the stage around the fixture: built-in room, ready-made rigs, the Stage Builder's rig, a rig file
+{
+  const sel = $('#selRig'), opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; return o; };
+  sel.append(opt('', 'Built-in room'), ...PRESETS.map(x => opt(x.id, x.name)), opt('builder', 'From the Stage Builder'), opt('file', 'Open a rig file…'), opt('custom', 'Custom rig'));
+  const custom = sel.querySelector('[value=custom]'); custom.hidden = true;
+  const show = (r, label) => { setRig(r); if (r && label) { custom.hidden = false; custom.textContent = label; sel.value = 'custom'; } };
+  sel.addEventListener('change', () => {
+    const v = sel.value, pre = PRESETS.find(x => x.id === v);
+    if (v === 'file') { sel.value = rig ? 'custom' : ''; return $('#fileRig').click(); }
+    if (v === 'builder') { const r = savedRig(); if (!r || !r.trusses.length) { alert('The Stage Builder has no rig in this browser yet. Build one there first (rig.html).'); sel.value = rig ? 'custom' : ''; return; } return show(r, r.name); }
+    if (v !== 'custom') setRig(pre ? pre.build() : null);
+  });
+  $('#fileRig').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { const r = readRig(JSON.parse(await f.text())); show(r, r.name); } catch (err) { alert('Could not open the file: ' + err.message); } });
+  window.WMH_showRig = show;
+}
 // DMX test transmitter: "added" as a device separate from the fixture (the same page also opens in a new window)
 function toggleTx(show) {
   const d = $('#txDock'), on = show ?? d.classList.contains('hidden');
@@ -318,6 +350,10 @@ function frame() {
 
 /* ───────── start ───────── */
 let saved = {}; try { saved = { mount: localStorage.getItem('wmh.mount'), power: localStorage.getItem('wmh.power'), tx: localStorage.getItem('wmh.tx') }; } catch (e) {}
+// the rig used last; "?rig=builder" (the Stage Builder's "Use in the simulator") takes the builder's rig and hangs the fixture in it
+{ let r = null; const fromBuilder = new URLSearchParams(location.search).get('rig') === 'builder';
+  try { r = fromBuilder ? savedRig() : readRig(JSON.parse(localStorage.getItem('wmh.sim.rig') || 'null')); } catch (e) {}
+  if (r && r.trusses.length) { if (fromBuilder && r.trusses.some(mountable)) saved.mount = 'truss'; window.WMH_showRig(r, r.name); } }
 if (saved.mount === 'truss') { $('#selMount').value = 'truss'; setMount('truss'); } else setView('stage', true);
 log('Simulator started');
 dmx.connect().then(ok => { log(ok ? 'Local server connected — Art-Net, sACN and USB-DMX input available' : 'Web version — virtual cable and Web Serial only'); panel.refreshDmx(); });

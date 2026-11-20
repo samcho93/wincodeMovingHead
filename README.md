@@ -188,6 +188,14 @@ from one DMX patch.
 - A stage file carries the descriptions of the library fixtures it uses (`workspace.library`), so it opens on another
   computer and in the DMX editor without the library being there.
 
+## Stage Builder
+
+`rig.html` — a program of its own for the stage itself: the size of the room and its truss structure. Straight trusses
+in any direction, uprights (towers), circles and arcs in four truss sizes; grid and end snapping; "Add legs" puts towers
+under a truss; six ready-made rigs. It saves a rig file (`.rig.json`) that the Stage Editor (`Load rig…`, then hang the
+fixtures by hand or with `Auto-place`) and the Fixture Simulator (`Stage` in the top bar) load. The Stage Editor's room
+size is no longer fixed: set it in its *Stage* section.
+
 ## DMX Editor
 
 `editor.html` (button **🎛 DMX Editor** in the simulator) is a lighting-control program in its own window. Its working
