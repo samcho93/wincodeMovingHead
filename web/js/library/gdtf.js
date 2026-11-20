@@ -1,7 +1,7 @@
 // library/gdtf.js — GDTF fixture file (.gdtf: a zip with description.xml) → neutral description (desc.js). Browser only.
 //  GDTF (General Device Type Format, DIN SPEC 15800) is the open fixture format read by grandMA3, Vectorworks, Capture,
 //  Depence and others. What is read here: name and manufacturer, wheels, and every DMX mode with its channels,
-//  channel functions and channel sets. Not read: 3D models, geometry trees (a channel repeated through geometry
+//  channel functions and channel sets. Not read: 3D model files (only their outer size), geometry trees (a channel repeated through geometry
 //  references — pixel cells — appears once), emitters' spectra, macros.
 
 /* ── zip (stored or deflated entries) ── */
@@ -106,5 +106,7 @@ export function fromGDTFxml(xml, fileName = '') {
   for (const w of wheels) for (const s of w.slots) { if (s.type === 'Color') s.rgb = xyY(s.color); delete s.color; }
   const slug = `${manufacturer}/${name}`.toLowerCase().replace(/[^a-z0-9/]+/g, '-').replace(/^-|-$/g, '');
   const beam = doc.querySelector('Beam[BeamAngle]'), ba = beam ? parseFloat(beam.getAttribute('BeamAngle')) : NaN;   // the lamp geometry gives the beam angle of a fixture without zoom
-  return { id: `gdtf/${slug}`, source: 'gdtf', manufacturer, name, categories: [], lens: ba > 0 ? [ba, ba] : null, wheels, channels, modes };
+  // outer size: the largest extent of the fixture's 3D models (metres; Length = X, Width = Y, Height = Z)
+  const ext = a => Math.max(0, ...[...doc.querySelectorAll('Models > Model')].map(m => f(m, a))), mm = [ext('Length'), ext('Height'), ext('Width')].map(x => Math.round(x * 1000));
+  return { id: `gdtf/${slug}`, source: 'gdtf', manufacturer, name, categories: [], lens: ba > 0 ? [ba, ba] : null, size: mm.every(x => x > 0) ? mm : null, pixels: null, wheels, channels, modes };
 }

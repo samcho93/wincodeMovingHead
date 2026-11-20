@@ -39,7 +39,7 @@ let file = null;                                             // the stage file b
 let items = [];                                              // runtime: { lay, patch, model, fx, menu, R, beams: [{ img, beam, head, r }], hl }
 const sel = new Set();                                       // selected fixture ids (the last one clicked is `cur`)
 let cur = null, haze = 0.55;
-window.WST = { engine, store, get items() { return items; }, get file() { return file; }, get sel() { return [...sel]; } };   // for debugging from the console
+window.WST = { engine, store, get items() { return items; }, get file() { return file; }, get sel() { return [...sel]; }, scene: S };   // for debugging from the console
 
 /* ── DMX from other windows (the DMX editor, DMX Studio, the slider transmitter) ── */
 const cable = new Map();                                     // universe → { data, at }

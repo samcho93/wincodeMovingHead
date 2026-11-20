@@ -49,7 +49,7 @@ export async function openLibrary(onAdd) {
         h('span', null, 'Mounting'), select([['truss', 'Hung from the truss'], ['floor', 'On the floor']], mount, v => { mount = v; })),
       h('div', { class: 'row', style: 'margin:10px 0' }, h('button', { class: 'btn acc', onclick: () => { onAdd({ def, desc, mode, count, mount }); close(); } }, '＋ Add to the stage'),
         r.src === 'user' && h('button', { class: 'btn sm danger', title: 'Remove this imported fixture from the library in this browser (stages that use it keep their copy)', onclick: () => { userLibrary.remove(r.id); picked = null; fill(detail); build(); } }, 'Forget')),
-      r.src !== 'wincode' && h('p', { class: 'note' }, 'Library fixture: its channels and ranges drive a stand-in 3D model — beam, colour, gobo wheels, prism, zoom and movement are simulated; macro and effect channels are not.'),
+      r.src !== 'wincode' && h('p', { class: 'note' }, 'Library fixture: its body is generated from its kind and size, and its channels and ranges drive it — beam, colour, gobo wheels, prism, zoom and movement are simulated; macro and effect channels are not.'),
       h('div', { class: 'note', style: 'margin-top:6px' }, 'Channels'), chans);
   }
   async function importFiles(files) {

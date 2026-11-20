@@ -4,6 +4,7 @@
 //
 //  Description:
 //   { id, source: 'ofl' | 'gdtf', manufacturer, name, categories: [..], lens: [minDeg, maxDeg] | null,
+//     size: [width, height, depth] in mm | null, pixels: [columns, rows] | null,      what the body is shaped from (body.js)
 //     wheels:   [{ name, slots: [{ type: 'Open' | 'Color' | 'Gobo' | 'Other', name, rgb? }] }],
 //     channels: { key: { name, def (0..255), fine?: key of the fine channel, caps: [cap] } },   a fine channel has no caps
 //     modes:    [{ id, label, channels: [key | null] }] }
@@ -13,9 +14,10 @@
 //     WheelSlot wheel (index), s,e slot index from 0 · WheelRotation wheel, s,e slots/s · WheelShake wheel, s,e Hz
 //     SlotRotation wheel, s,e rev/s  or  angle: true, s,e degrees · Zoom s,e degrees · Focus / Frost s,e 0..1
 //     Prism (on) s,e rev/s · PrismRotation s,e rev/s or angle: true · Preset rgb [r,g,b] · Other
-import { registerModel, MODELS } from '../models/index.js';
+import { registerModel } from '../models/index.js';
 import { addModel, getDef } from '../editor/library.js';
 import { rng, TAU } from '../models/util.js';
+import { bodyFromDesc, KIND_LABEL } from './body.js';
 
 /** light of one emitter colour, as RGB */
 export const EMITTERS = { Red: [1, 0, 0], Green: [0, 1, 0], Blue: [0, 0, 1], White: [1, 1, 1], 'Warm White': [1, 0.78, 0.5], 'Cold White': [0.8, 0.9, 1], Amber: [1, 0.6, 0],
@@ -122,10 +124,10 @@ export function modelFromDesc(D) {
     return c.b > c.a && c.s !== c.e ? `${c.label} ${Math.round((val - c.a) / (c.b - c.a) * 100)}%` : c.label;
   }
 
-  const base = MODELS.lm1012b.body;                              // imported fixtures share one stand-in body
+  const body = bodyFromDesc(D, { moving, gobos: features.gobos, additive });   // shaped from kind, size and cell layout
   const model = {
     id: D.id, imported: D.source, code: '', name: D.name, title: `${D.manufacturer} ${D.name}`, lcdTitle: D.name, manufacturer: D.manufacturer, categories: D.categories || [],
-    heads: 1, moving,
+    heads: 1, moving, kind: body.kind,
     spec: { panRange, tiltRange, zoomMin, zoomMax, ledWhite: [1, 1, 1], cd: moving ? 900 : 500, focus: has('Focus') ? [0.33, 0.22] : null, tempRise: 30, soft: moving ? 0 : 10 },
     colors, gobos: { fix: names(fixW), rot: names(rotW), draw: drawGobo },
     ch, chGroup, modes, defaultMode: (D.modes.reduce((a, m) => (m.channels.length > a.channels.length ? m : a), D.modes[0])).id,
@@ -133,10 +135,10 @@ export function modelFromDesc(D) {
     settings: { dimCurve: 'Linear', dataHold: true },
     program: { base: highlight, steps: [{}] },
     panel: { type: 'none' }, rdm: { modelId: 0, description: D.name, software: '' },
-    body: Object.assign({}, base, { color: 0x30343a }),
+    body,
     assumptions: [
       `Imported from ${D.source === 'gdtf' ? 'a GDTF file' : 'the Open Fixture Library'}: channels and ranges are the library's; nothing was checked against a manual.`,
-      'The body is a stand-in (the library has no shape the simulator can build). Fixtures without pan and tilt stay where their "Aim" is set.',
+      `The body is generated, not the real one: a ${KIND_LABEL[body.kind]} shaped from the library's category${D.size ? ', its outer dimensions' : ' (it gives no dimensions: a typical size is used)'}${D.pixels ? ' and its cell layout' : ''}. Fixtures without pan and tilt stay where their "Aim" is set.`,
       'Gobo artwork is a stand-in; colour wheel colours come from the library.',
       'One light source is simulated: pixels of a bar or matrix are averaged into one beam. Effect, macro and maintenance channels do nothing.',
     ],

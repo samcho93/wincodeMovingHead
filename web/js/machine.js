@@ -1,7 +1,8 @@
 // machine.js — procedural 3D model of a moving head, built from a model definition's `body` dimensions.
 //  Coordinates: origin = floor centre, +Z = control panel (LCD) side, units = m. Head local +Y = beam direction.
 //  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins,
-//             'bar' = a long base carrying body.headCount small heads, each with a pixel ring.
+//             'bar' = a long base carrying body.headCount small heads, each with a pixel ring,
+//             'fixed' = a fixture without a base: a housing in a hanging bracket (see "Fixed bodies" below).
 //  body.controls 'cross5' = five buttons in a cross, 'col4' = MENU / UP / DOWN / ENTER in a column, 'split4' = MENU / ENTER
 //             left of the display and UP / DOWN right of it, 'encoder' = one rotary
 //             encoder with push button.
@@ -29,6 +30,14 @@
 //  Bar bodies: base.endRise (end plates rising above the bar), base.loops (carrying loops between the heads),
 //    base.bosses [{ x, w, h, y }] (raised blocks on the front and rear faces),
 //    yoke.round (arm plates with a round top and an inlay)
+//  Fixed bodies (PAR cans, bars, panels, blinders, scanners): no base, no panel, no connectors.
+//    bracket { W, t, d, top }          U bracket standing on the mounting face: inner width W, plate thickness t, d deep,
+//                                      arms up to `top`; the head turns in it at tiltY (the "Aim" of a fixture without tilt)
+//    head                              the housing, lofted along the beam (w across, d = its height when it looks ahead)
+//    cells { nx, ny, px, pz, r | w, d }  light-emitting cells on the front face at lensY: nx × ny at pitch px / pz,
+//                                      round (r) or rectangular (w × d). They all show the one simulated light source.
+//    block { w, h, d, y }              a housing that does not move (scanner); mirror { w, h } = the mirror that does,
+//                                      at panY / panZ, on an axis leaning `lean` rad forward
 import * as THREE from 'three';
 
 /** Body lofted from sections along Y: { y, w, d, r } rounded rectangle, { y, w, d, c } rectangle with chamfered (flat-cut)
@@ -112,6 +121,68 @@ export function buildMachine(lcdCanvas, B) {
     add(tilt, new THREE.BoxGeometry(K.w * 0.92, h * 0.7, K.d * 0.7), M.body, 0, K.y1 - h * 0.35, 0);
     for (let i = 0; i < K.n; i++) add(tilt, new THREE.BoxGeometry(K.w / K.n * 0.45, h, K.d), M.trim, (i - (K.n - 1) / 2) * (K.w / K.n), yc, 0); };
   const cylZ = (parent, r, h, mat, x, y, z, seg = 28) => { const m = add(parent, new THREE.CylinderGeometry(r, r, h, seg), mat, x, y, z); m.rotation.x = Math.PI / 2; return m; };
+
+  /** detail round a head: cooling slots, fins, trim rings, ribs, vent panels, lens hood */
+  const dress = tilt => {
+    if (B.slots) for (const sz of [-1, 1]) for (let i = -B.slots.n; i <= B.slots.n; i++) add(tilt, new THREE.BoxGeometry(0.003, 0.024, 0.004), M.trim, i * B.slots.pitch, B.slots.y, sz * B.slots.z);   // cooling slots
+    if (B.fins) for (let i = 0; i < B.fins.n; i++) {              // cooling fins around a round head
+      const y = B.fins.y0 + (B.fins.y1 - B.fins.y0) * i / (B.fins.n - 1);
+      add(tilt, new THREE.TorusGeometry(B.fins.r, 0.0035, 8, 64), M.trim, 0, y, 0).rotation.x = Math.PI / 2;
+    }
+    for (const g of B.rings || []) add(tilt, new THREE.TorusGeometry(g.r, g.tube ?? 0.004, 10, 64), M.trim, 0, g.y, 0).rotation.x = Math.PI / 2;
+    if (B.ribs) for (let i = 0; i < B.ribs.n; i++) {              // vertical cooling ribs
+      const a = (i / B.ribs.n) * Math.PI * 2;
+      add(tilt, new THREE.BoxGeometry(0.0035, B.ribs.y1 - B.ribs.y0, 0.007), M.trim, Math.cos(a) * B.ribs.r, (B.ribs.y0 + B.ribs.y1) / 2, Math.sin(a) * B.ribs.r).rotation.y = -a + Math.PI / 2;
+    }
+    for (const v of B.vents || []) for (const s of [-1, 1]) for (let i = 0; i < v.n; i++) {   // slotted vent panels
+      const u = (i - (v.n - 1) / 2) * v.pitch;
+      if (v.side === 'x') add(tilt, new THREE.BoxGeometry(0.004, v.h, v.pitch * 0.5), M.trim, s * v.off, v.y, u);
+      else add(tilt, new THREE.BoxGeometry(v.pitch * 0.5, v.h, 0.004), M.trim, u, v.y, s * v.off);
+    }
+    if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
+  };
+
+  if (B.style === 'fixed') {                                    // a housing in a bracket: no base, no panel
+    const base = new THREE.Group(); root.add(base);
+    const K = B.bracket, mount = new THREE.Group(); mount.position.set(0, B.panY || 0, B.panZ || 0); mount.rotation.x = B.lean || 0; root.add(mount);
+    const pan = new THREE.Group(); mount.add(pan);
+    const frame = B.block ? base : pan;                         // the bracket holds whatever does not tilt
+    if (K) {
+      const xo = K.W / 2 + K.t / 2;
+      add(frame, new THREE.BoxGeometry(K.W + K.t * 2, K.t, K.d), M.trim, 0, K.t / 2, 0);
+      for (const sx of [-1, 1]) {
+        add(frame, extrude([[-K.d / 2, 0], [K.d / 2, 0], [K.d / 2, K.top - K.d * 0.3], [K.d * 0.2, K.top], [-K.d * 0.2, K.top], [-K.d / 2, K.top - K.d * 0.3]], K.t, 0.0015), M.trim, sx * xo, 0, 0).rotation.y = Math.PI / 2;
+        cylX(frame, K.d * 0.3, K.t * 1.2, M.rubber, sx * (xo + K.t * 1.1), K.axis ?? B.tiltY, 0);   // locking knob
+      }
+    }
+    if (B.block) { const k = B.block; add(base, loft([{ y: -k.d / 2, w: k.w * 0.94, d: k.h * 0.94, r: k.r }, { y: -k.d / 2 + 0.008, w: k.w, d: k.h, r: k.r }, { y: k.d / 2 - 0.008, w: k.w, d: k.h, r: k.r }, { y: k.d / 2, w: k.w * 0.94, d: k.h * 0.94, r: k.r }]), M.body, 0, k.y, 0).rotation.x = Math.PI / 2;
+      cylZ(base, Math.min(k.w, k.h) * 0.3, 0.004, M.trim, 0, k.y, k.d / 2 + 0.001, 32); }   // exit lens of the housing
+    const tilt = new THREE.Group(); tilt.position.y = B.tiltY || 0; pan.add(tilt);
+    if (B.head) { add(tilt, loft(B.head), M.body); sink(tilt); dress(tilt); }
+    const lensMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: true, side: THREE.DoubleSide });
+    let lens = null;
+    if (B.mirror) {                                             // scanner: the light leaves from a mirror
+      const m = B.mirror, plate = add(tilt, new THREE.BoxGeometry(m.w, 0.004, m.h), M.metal, 0, -0.004, 0); plate.rotation.x = -(Math.PI / 2 - (B.lean || 0)) / 2;
+      lens = add(plate, new THREE.CircleGeometry(B.lensR, 32), lensMat, 0, 0.0026, 0); lens.rotation.x = -Math.PI / 2; lens.castShadow = false;
+      for (const sx of [-1, 1]) add(pan, new THREE.BoxGeometry(0.006, 0.006, m.h * 0.7), M.trim, sx * (m.w / 2 + 0.006), -0.004, -m.h * 0.3);   // fork holding the mirror
+    } else {
+      const C = B.cells, pos = [], uv = [], cell = (cx, cz) => {
+        const pts = C.r ? Array.from({ length: 24 }, (_, i) => [Math.cos(i * Math.PI / 12), Math.sin(i * Math.PI / 12)]) : [[1, 1], [-1, 1], [-1, -1], [1, -1]], rx = C.r || C.w / 2, rz = C.r || C.d / 2;
+        for (let i = 0; i < pts.length; i++) for (const q of [null, pts[(i + 1) % pts.length], pts[i]]) { pos.push(cx + (q ? q[0] * rx : 0), 0, cz + (q ? q[1] * rz : 0)); uv.push(q ? 0.5 + q[0] * 0.5 : 0.5, q ? 0.5 + q[1] * 0.5 : 0.5); }
+      };
+      for (let j = 0; j < C.ny; j++) for (let i = 0; i < C.nx; i++) cell((i - (C.nx - 1) / 2) * C.px, (j - (C.ny - 1) / 2) * C.pz);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+      const fw = (C.nx - 1) * C.px + (C.r || C.w / 2) * 2, fd = (C.ny - 1) * C.pz + (C.r || C.d / 2) * 2, rim = Math.min(fw, fd) * 0.06 + 0.003;
+      if (C.r && C.nx * C.ny === 1) { add(tilt, new THREE.CylinderGeometry(C.r + rim, C.r + rim, 0.004, 48), M.trim, 0, B.lensY - 0.002, 0);   // one round lens: a trim ring and a glass
+        add(tilt, new THREE.CylinderGeometry(C.r, C.r, 0.003, 40), M.glass, 0, B.lensY + 0.002, 0).castShadow = false; }
+      else add(tilt, new THREE.BoxGeometry(fw + rim * 2, 0.004, fd + rim * 2), M.trim, 0, B.lensY - 0.002, 0);                                  // several cells: one dark face plate
+      lens = add(tilt, g, lensMat, 0, B.lensY + 0.0006, 0); lens.castShadow = false;
+    }
+    root.traverse(o => { if (o.isMesh) o.userData.fixture = true; });
+    const none = mat => new THREE.Mesh(new THREE.BufferGeometry(), mat), lcdTex = new THREE.CanvasTexture(lcdCanvas), lcdMat = new THREE.MeshBasicMaterial({ map: lcdTex });
+    return { root, base, heads: [{ pan, tilt, lensMat, ring: [] }], buttons: {}, knob: null, rocker: none(new THREE.MeshStandardMaterial()), led: none(new THREE.MeshBasicMaterial()), lcd: none(lcdMat), lcdTex, lcdMat, lensMat, lens,
+      clickables: [], M, dim: { lensY: B.lensY, lensR: B.lensR, H: B.H } };
+  }
 
   /* ── base ── */
   const base = new THREE.Group(); root.add(base);
@@ -299,22 +370,7 @@ export function buildMachine(lcdCanvas, B) {
   /* ── head (tilt) ── */
   const tilt = new THREE.Group(); tilt.position.y = B.tiltY; pan.add(tilt);
   add(tilt, loft(B.head), M.body); sink(tilt);
-  if (B.slots) for (const sz of [-1, 1]) for (let i = -B.slots.n; i <= B.slots.n; i++) add(tilt, new THREE.BoxGeometry(0.003, 0.024, 0.004), M.trim, i * B.slots.pitch, B.slots.y, sz * B.slots.z);   // cooling slots
-  if (B.fins) for (let i = 0; i < B.fins.n; i++) {              // cooling fins around a round head
-    const y = B.fins.y0 + (B.fins.y1 - B.fins.y0) * i / (B.fins.n - 1);
-    add(tilt, new THREE.TorusGeometry(B.fins.r, 0.0035, 8, 64), M.trim, 0, y, 0).rotation.x = Math.PI / 2;
-  }
-  for (const g of B.rings || []) add(tilt, new THREE.TorusGeometry(g.r, g.tube ?? 0.004, 10, 64), M.trim, 0, g.y, 0).rotation.x = Math.PI / 2;
-  if (B.ribs) for (let i = 0; i < B.ribs.n; i++) {              // vertical cooling ribs
-    const a = (i / B.ribs.n) * Math.PI * 2;
-    add(tilt, new THREE.BoxGeometry(0.0035, B.ribs.y1 - B.ribs.y0, 0.007), M.trim, Math.cos(a) * B.ribs.r, (B.ribs.y0 + B.ribs.y1) / 2, Math.sin(a) * B.ribs.r).rotation.y = -a + Math.PI / 2;
-  }
-  for (const v of B.vents || []) for (const s of [-1, 1]) for (let i = 0; i < v.n; i++) {   // slotted vent panels
-    const u = (i - (v.n - 1) / 2) * v.pitch;
-    if (v.side === 'x') add(tilt, new THREE.BoxGeometry(0.004, v.h, v.pitch * 0.5), M.trim, s * v.off, v.y, u);
-    else add(tilt, new THREE.BoxGeometry(v.pitch * 0.5, v.h, 0.004), M.trim, u, v.y, s * v.off);
-  }
-  if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
+  dress(tilt);
   if (B.shield) { const pm = M.body.clone(); pm.color.multiplyScalar(0.72); pm.roughness = 0.4;   // raised cover panel: body paint, a shade darker and smoother
     for (const sz of [-1, 1]) add(tilt, extrude(B.shield.pts, 0.008, 0.003), pm, 0, 0, sz * B.shield.z); }
   if (B.plate) for (const sz of [-1, 1]) {                       // name plate, lettered when the model gives a logo

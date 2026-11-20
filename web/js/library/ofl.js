@@ -101,6 +101,8 @@ export function fromOFL(J, manKey, fixKey, manName) {
     return { id: m.shortName || m.name || `mode${i + 1}`, label: `${m.name} (${out.length})`, channels: out };
   });
   const ids = new Set(); for (const m of modes) { let id = m.id, i = 2; while (ids.has(id)) id = m.id + ' ' + i++; ids.add(id); m.id = id; }
-  const lens = J.physical && J.physical.lens && J.physical.lens.degreesMinMax;
-  return { id: `ofl/${manKey}/${fixKey}`, source: 'ofl', manufacturer: manName || manKey, name: J.name, categories: J.categories || [], lens: lens || null, wheels, channels, modes };
+  const lens = J.physical && J.physical.lens && J.physical.lens.degreesMinMax, dim = J.physical && J.physical.dimensions, mx = J.matrix;
+  const size = Array.isArray(dim) && dim.length === 3 && dim.every(x => x > 0) ? dim.map(Math.round) : null;
+  const grid = mx ? mx.pixelCount || (mx.pixelKeys && [Math.max(...mx.pixelKeys.flat().map(r => r.length)), Math.max(...mx.pixelKeys.map(z => z.length))]) : null;
+  return { id: `ofl/${manKey}/${fixKey}`, source: 'ofl', manufacturer: manName || manKey, name: J.name, categories: J.categories || [], lens: lens || null, size, pixels: grid && grid[0] * grid[1] > 1 ? [grid[0], grid[1]] : null, wheels, channels, modes };
 }

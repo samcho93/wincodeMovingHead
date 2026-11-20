@@ -39,8 +39,8 @@
 <table>
   <tr><th>조명기의 출처</th><th>수량</th><th>모습</th></tr>
   <tr><td><b>Wincode</b> 모델</td><td>5종</td><td>설명서와 제품 사진으로 만든 전용 3D 외형. 전면 패널과 메뉴가 동작합니다.</td></tr>
-  <tr><td><b>Open Fixture Library</b> (내장)</td><td>127개 제조사 610종</td><td>대체 외형. 채널, 색, 빔은 그 조명기 것 그대로입니다.</td></tr>
-  <tr><td><b>가져온 파일</b> — GDTF 또는 Open Fixture Library JSON</td><td>가져온 만큼</td><td>같은 대체 외형.</td></tr>
+  <tr><td><b>Open Fixture Library</b> (내장)</td><td>127개 제조사 610종</td><td>조명기의 종류·치수·셀 배치로 만들어 낸 외형(무빙헤드, PAR, 바, 패널, 이펙트, 스캐너). 채널, 색, 빔은 그 조명기 것 그대로입니다.</td></tr>
+  <tr><td><b>가져온 파일</b> — GDTF 또는 Open Fixture Library JSON</td><td>가져온 만큼</td><td>역시 만들어 낸 외형. GDTF 파일에서는 치수만 읽으므로 그 크기의 무빙헤드나 PAR가 됩니다.</td></tr>
 </table>
 <p><a href="https://samcho93.github.io/wincodeMovingHead/stage.html">samcho93.github.io/wincodeMovingHead/stage.html</a> 에서 열거나, 로컬에서 <code>npm start</code> 후 <a href="http://127.0.0.1:7740/stage.html">http://127.0.0.1:7740/stage.html</a> 을 엽니다. Chrome이나 Edge를 쓰십시오.</p>
 
@@ -186,7 +186,7 @@
 <table>
   <tr><th>시뮬레이션되는 것</th><th>되지 않는 것</th></tr>
   <tr><td>디머, 셔터, 스트로브(펄스·랜덤 포함)<br>실제 범위의 팬·틸트, 팬/틸트 속도, 연속 팬 회전<br>라이브러리의 색으로 된 컬러휠, 반색 위치, 휠 회전<br>RGB / RGBW / 앰버 / UV 등 믹싱, CMY 믹싱<br>고보휠 2개, 고보 회전과 인덱싱, 셰이크<br>프리즘과 프리즘 회전 · 줌 · 포커스 · 프로스트</td>
-    <td>조명기의 실제 모양 — 모두 하나의 대체 외형을 씁니다<br>실제 고보 그림 — 대체 무늬가 그려집니다<br>바나 매트릭스의 개별 픽셀 — 한 빔으로 평균됩니다<br>매크로, 이펙트, 프로그램, 유지보수 채널<br>아이리스, 프레이밍 셔터, 색온도 채널<br>전면 패널과 메뉴</td></tr>
+    <td>조명기의 실제 모양 — 종류와 외곽 치수로 만들어 낸 외형이며 제조사 고유의 세부 형상은 없습니다<br>실제 고보 그림 — 대체 무늬가 그려집니다<br>바나 매트릭스의 개별 픽셀 — 한 빔으로 평균됩니다<br>매크로, 이펙트, 프로그램, 유지보수 채널<br>아이리스, 프레이밍 셔터, 색온도 채널<br>전면 패널과 메뉴</td></tr>
 </table>
 <p class="note">라이브러리 데이터는 자원봉사자와 제조사가 작성한 것이며 조명기 설명서와 대조해 확인하지 않았습니다. 실제 공연 전에는 라이브러리 창의 채널 목록을 조명기 설명서와 맞춰 보십시오.</p>
 
