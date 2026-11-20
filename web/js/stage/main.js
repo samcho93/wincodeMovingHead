@@ -6,7 +6,7 @@
 //  program the same stage live.
 import * as THREE from 'three';
 import { createStage, TRUSS_Y, ROOM } from './scene3d.js';
-import { norm, buildPiece, disposePiece, pointAt, nearestT, clampT, mountable, lengthOf, distribute, addPiece, nextId, legsFor, savedRig, keepRig, roomOf } from '../rig/rig.js';
+import { norm, buildPiece, disposePiece, pointAt, nearestT, clampT, mountable, lengthOf, distribute, addPiece, buildClamp, hangDrop, nextId, legsFor, savedRig, keepRig, roomOf } from '../rig/rig.js';
 import { pieceEditor, pieceLine, openRigDialog } from '../rig/rig-ui.js';
 import { EXAMPLES, STYLES, arrange, maxUnits, BEAT_FILE, BPM, LENGTH } from './examples.js';
 import { makeBeat } from './beat.js';
@@ -91,8 +91,12 @@ function place(it) {
     l.truss = tr.id; l.t = clampT(tr, l.t);
     const P = pointAt(tr, l.t); l.x = Math.round(P.x * 1000) / 1000; l.z = Math.round(P.z * 1000) / 1000; yaw += P.yaw;
   } else { l.x = clamp(l.x, -xMax(), xMax()); l.z = clamp(l.z, zMin(), zMax()); }
-  it.R.root.position.set(l.x, tr ? tr.y - 0.13 : 0, l.z);
+  it.R.root.position.set(l.x, tr ? tr.y - hangDrop(tr) : 0, l.z);
   it.R.root.rotation.set(0, rad(yaw), tr ? Math.PI : 0);
+  // the clamp that holds it on the truss: across the chords, whatever way the fixture is turned
+  const key = tr ? `${tr.id}/${tr.size}` : '';
+  if (it.clampKey !== key) { if (it.clamp) { S.scene.remove(it.clamp); disposePiece(it.clamp); it.clamp = null; } if (tr) { it.clamp = buildClamp(tr); S.scene.add(it.clamp); } it.clampKey = key; }
+  if (it.clamp) { it.clamp.position.set(l.x, tr.y, l.z); it.clamp.rotation.y = rad(yaw - (l.rot || 0)); }
   it.fx.inverted = !!tr;
 }
 function addItem(lay) {
@@ -114,7 +118,7 @@ function addItem(lay) {
   const it = { lay, patch, model, fx, menu, R, beams, hl: false }; items.push(it); place(it); return it;
 }
 function removeItem(it) {
-  S.scene.remove(it.R.root);
+  S.scene.remove(it.R.root); if (it.clamp) { S.scene.remove(it.clamp); disposePiece(it.clamp); }
   it.R.root.traverse(o => { if (o.geometry) o.geometry.dispose(); const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach(x => { if (x.map && x.map.isCanvasTexture) x.map.dispose(); x.dispose(); }); });
   it.beams.forEach(b => b.beam.tex.dispose());
   items = items.filter(x => x !== it);

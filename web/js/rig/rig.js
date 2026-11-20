@@ -90,7 +90,7 @@ function bars() {
 }
 /** A piece as a THREE.Group at its place. Horizontal pieces: origin of the section = middle of the lower chords. */
 export function buildPiece(p) {
-  const g = new THREE.Group(), B = bars(), s = p.size, rc = Math.max(0.016, s * 0.086), rb = rc * 0.5;
+  const g = new THREE.Group(), B = bars(), s = p.size, rc = chordR(s), rb = rc * 0.5;
   // stations along the piece: [four corner points], in the piece's own frame
   const st = [];
   if (p.type === 'upright') {
@@ -111,6 +111,20 @@ export function buildPiece(p) {
   if (p.type === 'upright') { const plate = new THREE.Mesh(new THREE.BoxGeometry(s + 0.4, 0.03, s + 0.4), plateMat); plate.position.y = 0.015; plate.castShadow = true; plate.receiveShadow = true; g.add(plate); }
   g.position.set(p.x, p.y, p.z); g.rotation.y = rad(p.rot);
   g.traverse(o => { o.userData.piece = p.id; });
+  return g;
+}
+const chordR = s => Math.max(0.016, s * 0.086);
+/** how far below the lower chords (their centre line) the mounting face of a hung fixture is */
+export const hangDrop = p => chordR(p.size) + 0.075;
+const clampMat = new THREE.MeshStandardMaterial({ color: 0x18191c, roughness: 0.45, metalness: 0.6 });
+/** What holds a fixture on a horizontal piece: a bar across the two lower chords with a hook round each, and a spigot down
+ *  to the fixture. Origin = the point on the centre line (pointAt), X along the truss; reaches down to −hangDrop. */
+export function buildClamp(p) {
+  const g = new THREE.Group(), s = p.size, rc = chordR(s), drop = hangDrop(p), add = (geo, x, y, z) => { const m = new THREE.Mesh(geo, clampMat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+  add(new THREE.BoxGeometry(0.05, 0.014, s + rc * 2 + 0.03), 0, -rc - 0.007, 0);                                   // bar under both chords
+  for (const sz of [-1, 1]) add(new THREE.TorusGeometry(rc + 0.006, 0.008, 8, 20), 0, 0, sz * s / 2).rotation.y = Math.PI / 2;   // a coupler round each chord
+  add(new THREE.CylinderGeometry(0.014, 0.014, drop - rc - 0.014, 12), 0, -(drop + rc + 0.014) / 2, 0);            // spigot
+  add(new THREE.CylinderGeometry(0.045, 0.045, 0.012, 20), 0, -drop + 0.006, 0);                                    // plate on the fixture
   return g;
 }
 export function disposePiece(g) { g.traverse(o => o.geometry && o.geometry.dispose()); }

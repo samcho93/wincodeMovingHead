@@ -7,7 +7,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildMachine } from './machine.js';
-import { buildPiece, disposePiece, pointAt, mountable, roomOf, readRig, savedRig, PRESETS } from './rig/rig.js';
+import { buildPiece, disposePiece, buildClamp, hangDrop, pointAt, mountable, roomOf, readRig, savedRig, PRESETS } from './rig/rig.js';
 import { LIST, MODELS, currentModelId, rememberModel } from './models/index.js';
 import { Fixture } from './fixture.js';
 import { Menu } from './menu.js';
@@ -119,15 +119,16 @@ let mount = 'floor';
 /* A rig (rig/rig.js: a room size and trusses, made in the Stage Builder) can replace the built-in room: the fixture then
    hangs in the middle of its first truss. */
 const rigG = new THREE.Group(); scene.add(rigG);
-let rig = null, hang = null;                                  // hang: { x, y, z, yaw } where the fixture hangs in the rig
+let rig = null, hang = null, clampG = null;                                  // hang: { x, y, z, yaw } where the fixture hangs in the rig
 function setRig(r, remember = true) {
-  rig = r; for (const g of [...rigG.children]) { rigG.remove(g); disposePiece(g); }
-  if (r) { buildRoom(roomOf(r.room)); for (const p of r.trusses) rigG.add(buildPiece(p)); const t = r.trusses.find(mountable); hang = t ? pointAt(t, 0.5) : null; } else { buildRoom(ROOM0); hang = null; }
+  rig = r; for (const g of [...rigG.children]) { rigG.remove(g); disposePiece(g); } clampG = null;
+  if (r) { buildRoom(roomOf(r.room)); for (const p of r.trusses) rigG.add(buildPiece(p)); const t = r.trusses.find(mountable); hang = t ? pointAt(t, 0.5) : null;
+    if (t) { hang.y -= hangDrop(t) - 0.13; clampG = buildClamp(t); clampG.position.set(hang.x, t.y, hang.z); clampG.rotation.y = THREE.MathUtils.degToRad(hang.yaw); rigG.add(clampG); } } else { buildRoom(ROOM0); hang = null; }
   if (remember) try { if (r) localStorage.setItem('wmh.sim.rig', JSON.stringify(r)); else localStorage.removeItem('wmh.sim.rig'); } catch (e) {}
   setMount(mount);
 }
 function setMount(m) {
-  mount = m; truss.visible = m === 'truss' && !hang; fx.inverted = m === 'truss'; menu.dirty = true;
+  mount = m; truss.visible = m === 'truss' && !hang; if (clampG) clampG.visible = m === 'truss'; fx.inverted = m === 'truss'; menu.dirty = true;
   if (m === 'truss') { R.root.rotation.set(0, hang ? THREE.MathUtils.degToRad(hang.yaw) : 0, Math.PI); R.root.position.set(hang ? hang.x : 0, hang ? hang.y - 0.13 : truss.userData.hangY, hang ? hang.z : 0); }
   else { R.root.rotation.set(0, 0, 0); R.root.position.set(0, 0, 0); }
   key.target.position.copy(R.root.position).y += (m === 'truss' ? -0.5 : 0.5) * MODEL.body.H; key.position.set(1.2, key.target.position.y + 1.4, 2.6);
