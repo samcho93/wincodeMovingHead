@@ -227,7 +227,8 @@ $('#btnPower').addEventListener('click', () => setPower(!fx.power));
 installAgentEntry();                                         // development only: Ctrl + double-click the logo / Ctrl + Alt + M
 let haze = 0.55;
 $('#rngHaze').addEventListener('input', e => { haze = e.target.value / 100; });
-$('#chkWork').addEventListener('change', e => { work.intensity = e.target.checked ? 1.6 : 0; hemi.intensity = e.target.checked ? 0.9 : 0.18; scene.environmentIntensity = e.target.checked ? 0.5 : 0.1; });
+const workLight = on => { work.intensity = on ? 1.6 : 0; hemi.intensity = on ? 0.9 : 0.18; scene.environmentIntensity = on ? 0.5 : 0.1; };
+$('#chkWork').addEventListener('change', e => workLight(e.target.checked)); workLight($('#chkWork').checked);   // on by default (the box is ticked in the page)
 $('#chkDock').addEventListener('change', e => $('#lcdDock').classList.toggle('hidden', !e.target.checked));
 $('#selMount').addEventListener('change', e => setMount(e.target.value));
 // DMX test transmitter: "added" as a device separate from the fixture (the same page also opens in a new window)

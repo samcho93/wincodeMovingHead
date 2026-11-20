@@ -333,7 +333,7 @@ $('#btnPull').addEventListener('click', () => {
   pausedAt = 0; load({ app: 'wmh-stage', version: 2, name: w.name || file.name, trusses: file.trusses, fixtures: lays, workspace: w }); changed();
 });
 $('#rngHaze').addEventListener('input', e => { haze = e.target.value / 100; });
-$('#chkWork').addEventListener('change', e => S.setWorkLight(e.target.checked));
+$('#chkWork').addEventListener('change', e => S.setWorkLight(e.target.checked)); S.setWorkLight($('#chkWork').checked);   // on by default (the box is ticked in the page)
 // camera presets
 const VIEWS = { persp: [[5.5, 3.4, 8.5], [0, 1.6, -1]], front: [[0, 2.4, 13], [0, 2.2, 0]], top: [[0, 19, 1.01], [0, 0, 1]], side: [[14, 2.6, 1], [0, 2.2, 1]] };
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { const [p, t] = VIEWS[b.dataset.view]; S.camera.position.set(...p); S.controls.target.set(...t); S.controls.update(); }));
