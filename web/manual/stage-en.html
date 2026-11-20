@@ -39,7 +39,7 @@
   <tr><th>Where fixtures come from</th><th>How many</th><th>How they look</th></tr>
   <tr><td><b>Wincode</b> models</td><td>5</td><td>Their own 3D body, built from the manual and product photos; working front panel and menu.</td></tr>
   <tr><td><b>Open Fixture Library</b> (bundled)</td><td>610, from 127 manufacturers</td><td>A body generated from the fixture's kind, size and cell layout (moving head, PAR, bar, panel, effect, scanner); their own channels, colours and beam.</td></tr>
-  <tr><td><b>Imported files</b> — GDTF or Open Fixture Library JSON</td><td>as many as you import</td><td>A generated body too. A GDTF file gives the size only, so it becomes a moving head or a PAR of that size.</td></tr>
+  <tr><td><b>Imported files</b> — GDTF or Open Fixture Library JSON</td><td>as many as you import</td><td>A GDTF file that carries 3D models (3DS or glTF) is shown with them: the maker's own shape, simplified, turning on its real pan and tilt axes. A GDTF file without models and an OFL file get a generated body.</td></tr>
 </table>
 <p>Open it at <a href="https://samcho93.github.io/wincodeMovingHead/stage.html">samcho93.github.io/wincodeMovingHead/stage.html</a>, or locally with <code>npm start</code> at <a href="http://127.0.0.1:7740/stage.html">http://127.0.0.1:7740/stage.html</a>. Use Chrome or Edge.</p>
 
@@ -185,7 +185,7 @@
 <table>
   <tr><th>Simulated</th><th>Not simulated</th></tr>
   <tr><td>Dimmer, shutter, strobe (also pulse and random)<br>Pan and tilt with their real ranges, pan/tilt speed, continuous pan<br>Colour wheel with the library's colours, half-colour positions, wheel rotation<br>RGB / RGBW / amber / UV … mixing, CMY mixing<br>Two gobo wheels, gobo rotation and indexing, shake<br>Prism and prism rotation · zoom · focus · frost</td>
-    <td>The fixture's real shape — the body is generated from its kind and outer dimensions, without the maker's details<br>The real gobo pictures — stand-in patterns are drawn<br>Single pixels of a bar or matrix — they are averaged into one beam<br>Macro, effect, programme and maintenance channels<br>Iris, framing shutters, colour temperature channels<br>The front panel and menu</td></tr>
+    <td>The fixture's real shape, except for GDTF files with 3D models — otherwise the body is generated from kind and outer dimensions<br>Materials and colours of a GDTF model — it is painted in one colour<br>The real gobo pictures — stand-in patterns are drawn<br>Single pixels of a bar or matrix — they are averaged into one beam<br>Macro, effect, programme and maintenance channels<br>Iris, framing shutters, colour temperature channels<br>The front panel and menu</td></tr>
 </table>
 <p class="note">Library data is written by volunteers and manufacturers and was not checked against the fixtures' manuals. Before a real show, compare the channel list in the library window with the fixture's manual.</p>
 

@@ -2,7 +2,10 @@
 //  Coordinates: origin = floor centre, +Z = control panel (LCD) side, units = m. Head local +Y = beam direction.
 //  body.style 'box' = moulded rounded-box head, 'round' = cylindrical head with cooling fins,
 //             'bar' = a long base carrying body.headCount small heads, each with a pixel ring,
-//             'fixed' = a fixture without a base: a housing in a hanging bracket (see "Fixed bodies" below).
+//             'fixed' = a fixture without a base: a housing in a bracket (see "Fixed bodies" below),
+//             'mesh'  = ready-made triangle meshes (a GDTF file's own model): body.parts { base, pan, tilt, lens }, each
+//                       { n, p, i, min, size } (base64 Int16 positions over min..min+size, base64 Uint16 indices), the pan
+//                       axis at body.panPos, the tilt axis at body.tiltPos from there; `lens` shows the light.
 //  body.controls 'cross5' = five buttons in a cross, 'col4' = MENU / UP / DOWN / ENTER in a column, 'split4' = MENU / ENTER
 //             left of the display and UP / DOWN right of it, 'encoder' = one rotary
 //             encoder with push button.
@@ -142,6 +145,29 @@ export function buildMachine(lcdCanvas, B) {
     if (B.hood) { const hd = add(tilt, new THREE.CylinderGeometry(B.hood.r1, B.hood.r0, B.hood.y1 - B.hood.y0, 56, 1, true), M.body.clone(), 0, (B.hood.y0 + B.hood.y1) / 2, 0); hd.material.side = THREE.DoubleSide; }
   };
 
+  /** what a body without base and panel returns: the same fields, with nothing to press */
+  const bare = (base, pan, tilt, lensMat, lens) => {
+    root.traverse(o => { if (o.isMesh) o.userData.fixture = true; });
+    const none = mat => new THREE.Mesh(new THREE.BufferGeometry(), mat), lcdTex = new THREE.CanvasTexture(lcdCanvas), lcdMat = new THREE.MeshBasicMaterial({ map: lcdTex });
+    return { root, base, heads: [{ pan, tilt, lensMat, ring: [] }], buttons: {}, knob: null, rocker: none(new THREE.MeshStandardMaterial()), led: none(new THREE.MeshBasicMaterial()), lcd: none(lcdMat), lcdTex, lcdMat, lensMat, lens,
+      clickables: [], M, dim: { lensY: B.lensY, lensR: B.lensR, H: B.H } };
+  };
+  if (B.style === 'mesh') {                                     // ready-made meshes on a pan and a tilt axis
+    const base = new THREE.Group(), pan = new THREE.Group(), tilt = new THREE.Group(); root.add(base, pan); pan.add(tilt); pan.position.fromArray(B.panPos); tilt.position.fromArray(B.tiltPos);
+    const bytes = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const geo = (P, uv) => {
+      const q = new Int16Array(bytes(P.p).buffer), ix = new Uint16Array(bytes(P.i).buffer), pos = new Float32Array(ix.length * 3), uvs = uv ? new Float32Array(ix.length * 2) : null;
+      for (let k = 0; k < ix.length; k++) { for (let c = 0; c < 3; c++) pos[k * 3 + c] = P.min[c] + (q[ix[k] * 3 + c] + 32768) / 65535 * P.size[c];
+        if (uvs) { uvs[k * 2] = (pos[k * 3] - P.min[0]) / P.size[0]; uvs[k * 2 + 1] = (pos[k * 3 + 2] - P.min[2]) / P.size[2]; } }   // the light's image laid over the lens from above
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); if (uvs) g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); g.computeVertexNormals();
+      return uv ? g : smooth(g, 38);
+    };
+    const paint = M.body.clone(); paint.side = THREE.DoubleSide;
+    for (const [k, to] of [['base', base], ['pan', pan], ['tilt', tilt]]) if (B.parts[k]) add(to, geo(B.parts[k]), paint);
+    const lensMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: true, side: THREE.DoubleSide });
+    const lens = B.parts.lens ? add(tilt, geo(B.parts.lens, true), lensMat) : null; if (lens) lens.castShadow = false;
+    return bare(base, pan, tilt, lensMat, lens);
+  }
   if (B.style === 'fixed') {                                    // a housing in a bracket: no base, no panel
     const base = new THREE.Group(); root.add(base);
     const K = B.bracket, mount = new THREE.Group(); mount.position.set(0, B.panY || 0, B.panZ || 0); mount.rotation.x = B.lean || 0; root.add(mount);
@@ -178,10 +204,7 @@ export function buildMachine(lcdCanvas, B) {
       else add(tilt, new THREE.BoxGeometry(fw + rim * 2, 0.004, fd + rim * 2), M.trim, 0, B.lensY - 0.002, 0);                                  // several cells: one dark face plate
       lens = add(tilt, g, lensMat, 0, B.lensY + 0.0006, 0); lens.castShadow = false;
     }
-    root.traverse(o => { if (o.isMesh) o.userData.fixture = true; });
-    const none = mat => new THREE.Mesh(new THREE.BufferGeometry(), mat), lcdTex = new THREE.CanvasTexture(lcdCanvas), lcdMat = new THREE.MeshBasicMaterial({ map: lcdTex });
-    return { root, base, heads: [{ pan, tilt, lensMat, ring: [] }], buttons: {}, knob: null, rocker: none(new THREE.MeshStandardMaterial()), led: none(new THREE.MeshBasicMaterial()), lcd: none(lcdMat), lcdTex, lcdMat, lensMat, lens,
-      clickables: [], M, dim: { lensY: B.lensY, lensR: B.lensR, H: B.H } };
+    return bare(base, pan, tilt, lensMat, lens);
   }
 
   /* ── base ── */

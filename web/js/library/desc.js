@@ -5,6 +5,7 @@
 //  Description:
 //   { id, source: 'ofl' | 'gdtf', manufacturer, name, categories: [..], lens: [minDeg, maxDeg] | null,
 //     size: [width, height, depth] in mm | null, pixels: [columns, rows] | null,      what the body is shaped from (body.js)
+//     shape: the file's own 3D model, simplified (GDTF only, see gdtf.js) | absent,
 //     wheels:   [{ name, slots: [{ type: 'Open' | 'Color' | 'Gobo' | 'Other', name, rgb? }] }],
 //     channels: { key: { name, def (0..255), fine?: key of the fine channel, caps: [cap] } },   a fine channel has no caps
 //     modes:    [{ id, label, channels: [key | null] }] }
@@ -138,7 +139,7 @@ export function modelFromDesc(D) {
     body,
     assumptions: [
       `Imported from ${D.source === 'gdtf' ? 'a GDTF file' : 'the Open Fixture Library'}: channels and ranges are the library's; nothing was checked against a manual.`,
-      `The body is generated, not the real one: a ${KIND_LABEL[body.kind]} shaped from the library's category${D.size ? ', its outer dimensions' : ' (it gives no dimensions: a typical size is used)'}${D.pixels ? ' and its cell layout' : ''}. Fixtures without pan and tilt stay where their "Aim" is set.`,
+      body.kind === 'model' ? `The body is the 3D model of the GDTF file, simplified to ${body.tris} triangles and painted in one colour (materials are not read).${moving ? '' : ' Fixtures without pan and tilt stay where their "Aim" is set.'}` : `The body is generated, not the real one: a ${KIND_LABEL[body.kind]} shaped from the library's category${D.size ? ', its outer dimensions' : ' (it gives no dimensions: a typical size is used)'}${D.pixels ? ' and its cell layout' : ''}. Fixtures without pan and tilt stay where their "Aim" is set.`,
       'Gobo artwork is a stand-in; colour wheel colours come from the library.',
       'One light source is simulated: pixels of a bar or matrix are averaged into one beam. Effect, macro and maintenance channels do nothing.',
     ],

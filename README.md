@@ -167,7 +167,8 @@ from one DMX patch.
   Library fixtures get a 3D body generated from their kind, outer dimensions and cell layout (moving head, PAR, bar,
   panel, effect, scanner) and drive it from their own channel chart: dimmer, shutter and strobe, pan and tilt,
   colour wheel, RGB / CMY mixing, gobo wheels with rotation, prism, zoom, focus and frost. Macro and effect channels do
-  nothing; pixels of a bar are averaged into one beam; a GDTF file's own 3D model is not read (only its size).
+  nothing; pixels of a bar are averaged into one beam; a GDTF file's own 3D models (3DS / glTF) are read, simplified to about 7000 triangles and used as the body, without
+  their materials.
 - **Editing the stage**: click a fixture to select it (Shift-click for several), drag it across the floor or along its
   truss, or type position, rotation, universe, DMX address and channel mode. *＋ Truss* adds a truss with its own depth,
   height and length; *Hang from* moves a fixture between the floor and a truss. A fixture without tilt has an *Aim* angle.

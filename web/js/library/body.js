@@ -7,6 +7,7 @@
 //    panel    a flat housing with a grid of cells (matrix, blinder) or one wide window (strobe)
 //    effect   a box with small apertures (flower, laser, effect)
 //    scanner  a fixed housing with a moving mirror
+//  A GDTF file brings its own 3D model (`shape`, see gdtf.js): that is used as it is (kind 'model').
 //  Sizes are metres. A description gives `size` [width, height, depth] in mm (0 = unknown) and `pixels` [columns, rows].
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const has = (D, ...names) => names.some(n => (D.categories || []).includes(n));
@@ -21,7 +22,7 @@ export function kindOf(D, f) {
   if (has(D, 'Flower', 'Laser', 'Effect')) return 'effect';
   return 'par';
 }
-export const KIND_LABEL = { mover: 'moving head', par: 'PAR / wash', bar: 'bar', panel: 'panel', effect: 'effect', scanner: 'scanner' };
+export const KIND_LABEL = { model: '3D model', mover: 'moving head', par: 'PAR / wash', bar: 'bar', panel: 'panel', effect: 'effect', scanner: 'scanner' };
 
 const PAINT = 0x24272c;
 /** [w, h, d] in metres, each inside sane limits; `fallback` where the library gives nothing */
@@ -102,6 +103,9 @@ function scanner(D) {
 
 /** body data for machine.js, and the kind it was made as */
 export function bodyFromDesc(D, f) {
+  const S = D.shape;
+  if (S && S.parts) return { H: S.size[1], style: 'mesh', color: PAINT, kind: 'model', viewScale: S.size[1] / 0.492, base: { depth: S.size[2], panelY: S.size[1] / 2, top: 0, bot: 0, hw: S.size[0] / 2 },
+    parts: S.parts, panPos: S.panPos, tiltPos: S.tiltPos, lensY: S.lensY, lensR: S.lensR, tris: S.tris };
   const kind = kindOf(D, f);
   return ({ mover, par, bar, panel, effect, scanner })[kind](D, f);
 }
