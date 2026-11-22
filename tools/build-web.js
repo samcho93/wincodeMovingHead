@@ -41,7 +41,10 @@ for (const page of ['index.html', 'console.html', 'editor.html', 'stage.html', '
     .replace(/<link rel="stylesheet" href="css\//g, `<link rel="stylesheet" href="${A}/css/`)
     .replace(/<script type="module" src="js\//, `<script type="module" src="${A}/js/`);
   if (!html.includes(`${A}/js/`) || !html.includes(`${A}/css/`)) { console.error(`✖ ${page}: could not rewrite asset paths`); process.exit(1); }
-  fs.writeFileSync(f, html);
+  // The site's address (…/wincodeMovingHead/) opens the Wincode Lighting Suite hub, the front page of all the programs.
+  // The simulator itself is …/index.html; every link to it names that file, and ?model= / ?rig= / #… keep it here.
+  const front = page === 'index.html' ? "<script>if (location.pathname.slice(-1) === '/' && !location.search && !location.hash) location.replace('../wincodeSuite/');</script>\n" : '';
+  fs.writeFileSync(f, html.replace('<head>', '<head>\n' + front));
 }
 const THREE = path.join(ROOT, 'node_modules', 'three');
 cp(path.join(THREE, 'build', 'three.module.js'), path.join(OUT, 'vendor/three/build/three.module.js'));
