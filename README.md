@@ -1,5 +1,7 @@
 # Wincode MovingHead Sim — 3D digital twin of Wincode moving heads
 
+> Part of the **Wincode Lighting Suite** — all programs on one page: https://samcho93.github.io/wincodeSuite/
+
 A web-based 3D simulator of Wincode moving head fixtures. Each model is built from its user manual: the body,
 the panel (LCD menu, buttons / touch / encoder) and the DMX channel chart — colour wheel, CMY, gobos, framing
 blades, prism, zoom, focus, frost, strobe, pan/tilt — with a volumetric beam, a projected spot and shadows.
